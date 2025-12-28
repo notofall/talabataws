@@ -2543,6 +2543,91 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# ==================== DATABASE CLEANUP ====================
+@api_router.post("/admin/reset-database")
+async def reset_database(current_user: dict = Depends(get_current_user)):
+    """
+    تنظيف قاعدة البيانات بالكامل - للمدير فقط
+    ⚠️ تحذير: سيحذف جميع البيانات!
+    """
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه تنظيف قاعدة البيانات")
+    
+    # Delete all collections data
+    collections_to_clear = [
+        "users",
+        "material_requests", 
+        "purchase_orders",
+        "suppliers",
+        "delivery_records",
+        "budget_categories",
+        "projects",
+        "audit_logs",
+        "attachments"
+    ]
+    
+    deleted_counts = {}
+    for collection_name in collections_to_clear:
+        collection = db[collection_name]
+        result = await collection.delete_many({})
+        deleted_counts[collection_name] = result.deleted_count
+    
+    return {
+        "message": "تم تنظيف قاعدة البيانات بنجاح",
+        "deleted": deleted_counts
+    }
+
+@api_router.delete("/admin/clear-test-data")
+async def clear_test_data(current_user: dict = Depends(get_current_user)):
+    """
+    حذف البيانات التجريبية فقط (المستخدمين بإيميل @test.com)
+    """
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه حذف البيانات التجريبية")
+    
+    # Delete test users
+    test_users = await db.users.find({"email": {"$regex": "@test.com$"}}).to_list(100)
+    test_user_ids = [u["id"] for u in test_users]
+    
+    deleted = {
+        "users": 0,
+        "requests": 0,
+        "orders": 0,
+        "projects": 0,
+        "categories": 0,
+        "suppliers": 0
+    }
+    
+    if test_user_ids:
+        # Delete users
+        result = await db.users.delete_many({"email": {"$regex": "@test.com$"}})
+        deleted["users"] = result.deleted_count
+        
+        # Delete their requests
+        result = await db.material_requests.delete_many({"supervisor_id": {"$in": test_user_ids}})
+        deleted["requests"] = result.deleted_count
+        
+        # Delete their orders
+        result = await db.purchase_orders.delete_many({"manager_id": {"$in": test_user_ids}})
+        deleted["orders"] = result.deleted_count
+        
+        # Delete their projects
+        result = await db.projects.delete_many({"created_by": {"$in": test_user_ids}})
+        deleted["projects"] = result.deleted_count
+        
+        # Delete their categories
+        result = await db.budget_categories.delete_many({"created_by": {"$in": test_user_ids}})
+        deleted["categories"] = result.deleted_count
+    
+    # Delete test suppliers
+    result = await db.suppliers.delete_many({"name": {"$regex": "اختبار|تجريب|test", "$options": "i"}})
+    deleted["suppliers"] = result.deleted_count
+    
+    return {
+        "message": "تم حذف البيانات التجريبية بنجاح",
+        "deleted": deleted
+    }
+
 @app.on_event("startup")
 async def startup_db_client():
     """Initialize database indexes on startup"""
