@@ -39,7 +39,11 @@ import {
   CheckCircle,
   XCircle,
   RefreshCw,
+  Download,
+  Eye,
+  Edit,
 } from "lucide-react";
+import { exportRequestToPDF, exportRequestsTableToPDF } from "../utils/pdfExport";
 
 const SupervisorDashboard = () => {
   const { user, logout, getAuthHeaders, API_URL } = useAuth();
@@ -48,10 +52,22 @@ const SupervisorDashboard = () => {
   const [stats, setStats] = useState({});
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
+    material_name: "",
+    quantity: "",
+    project_name: "",
+    reason: "",
+    engineer_id: "",
+  });
+
+  // Edit form state
+  const [editFormData, setEditFormData] = useState({
     material_name: "",
     quantity: "",
     project_name: "",
@@ -112,6 +128,51 @@ const SupervisorDashboard = () => {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleEdit = async (e) => {
+    e.preventDefault();
+    if (!editFormData.material_name || !editFormData.quantity || !editFormData.project_name || !editFormData.reason || !editFormData.engineer_id) {
+      toast.error("الرجاء إكمال جميع الحقول");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await axios.put(
+        `${API_URL}/requests/${selectedRequest.id}/edit`,
+        {
+          ...editFormData,
+          quantity: parseInt(editFormData.quantity),
+        },
+        getAuthHeaders()
+      );
+      toast.success("تم تعديل الطلب بنجاح");
+      setEditDialogOpen(false);
+      setSelectedRequest(null);
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "فشل في تعديل الطلب");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const openEditDialog = (request) => {
+    setSelectedRequest(request);
+    setEditFormData({
+      material_name: request.material_name,
+      quantity: String(request.quantity),
+      project_name: request.project_name,
+      reason: request.reason,
+      engineer_id: request.engineer_id,
+    });
+    setEditDialogOpen(true);
+  };
+
+  const openViewDialog = (request) => {
+    setSelectedRequest(request);
+    setViewDialogOpen(true);
   };
 
   const getStatusBadge = (status) => {
@@ -235,6 +296,16 @@ const SupervisorDashboard = () => {
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-slate-900">طلباتي</h2>
           <div className="flex gap-3">
+            <Button
+              variant="outline"
+              onClick={() => exportRequestsTableToPDF(requests, 'طلباتي')}
+              className="border-slate-300"
+              disabled={requests.length === 0}
+              data-testid="export-all-pdf-btn"
+            >
+              <Download className="w-4 h-4 ml-2" />
+              تصدير PDF
+            </Button>
             <Button
               variant="outline"
               onClick={fetchData}
@@ -375,6 +446,7 @@ const SupervisorDashboard = () => {
                     <TableHead className="text-right font-bold">المهندس</TableHead>
                     <TableHead className="text-right font-bold">الحالة</TableHead>
                     <TableHead className="text-right font-bold">التاريخ</TableHead>
+                    <TableHead className="text-right font-bold">الإجراءات</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -388,6 +460,39 @@ const SupervisorDashboard = () => {
                       <TableCell className="text-slate-500 text-sm">
                         {formatDate(request.created_at)}
                       </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => openViewDialog(request)}
+                            className="h-8 w-8 p-0"
+                            data-testid={`view-btn-${request.id}`}
+                          >
+                            <Eye className="w-4 h-4 text-slate-600" />
+                          </Button>
+                          {request.status === "pending_engineer" && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => openEditDialog(request)}
+                              className="h-8 w-8 p-0"
+                              data-testid={`edit-btn-${request.id}`}
+                            >
+                              <Edit className="w-4 h-4 text-blue-600" />
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => exportRequestToPDF(request)}
+                            className="h-8 w-8 p-0"
+                            data-testid={`export-btn-${request.id}`}
+                          >
+                            <Download className="w-4 h-4 text-green-600" />
+                          </Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -396,6 +501,146 @@ const SupervisorDashboard = () => {
           </CardContent>
         </Card>
       </main>
+
+      {/* View Request Dialog */}
+      <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-center">تفاصيل الطلب</DialogTitle>
+          </DialogHeader>
+          {selectedRequest && (
+            <div className="space-y-4 mt-4">
+              <div className="bg-slate-50 p-4 rounded-lg space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">اسم المادة:</span>
+                  <span className="font-semibold">{selectedRequest.material_name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">الكمية:</span>
+                  <span className="font-semibold">{selectedRequest.quantity}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">المشروع:</span>
+                  <span className="font-semibold">{selectedRequest.project_name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">المهندس:</span>
+                  <span className="font-semibold">{selectedRequest.engineer_name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">الحالة:</span>
+                  {getStatusBadge(selectedRequest.status)}
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">التاريخ:</span>
+                  <span className="font-semibold">{formatDate(selectedRequest.created_at)}</span>
+                </div>
+                <div className="pt-2 border-t">
+                  <span className="text-slate-500 block mb-1">سبب الطلب:</span>
+                  <p className="font-medium">{selectedRequest.reason}</p>
+                </div>
+                {selectedRequest.rejection_reason && (
+                  <div className="pt-2 border-t bg-red-50 p-3 rounded">
+                    <span className="text-red-600 block mb-1">سبب الرفض:</span>
+                    <p className="font-medium text-red-800">{selectedRequest.rejection_reason}</p>
+                  </div>
+                )}
+              </div>
+              <Button
+                className="w-full bg-green-600 hover:bg-green-700 text-white"
+                onClick={() => exportRequestToPDF(selectedRequest)}
+              >
+                <Download className="w-4 h-4 ml-2" />
+                تصدير PDF
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Request Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-center">تعديل الطلب</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEdit} className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit_material_name">اسم المادة</Label>
+              <Input
+                id="edit_material_name"
+                value={editFormData.material_name}
+                onChange={(e) => setEditFormData({ ...editFormData, material_name: e.target.value })}
+                className="h-11"
+                data-testid="edit-material-name-input"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit_quantity">الكمية</Label>
+              <Input
+                id="edit_quantity"
+                type="number"
+                min="1"
+                value={editFormData.quantity}
+                onChange={(e) => setEditFormData({ ...editFormData, quantity: e.target.value })}
+                className="h-11"
+                data-testid="edit-quantity-input"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit_project_name">اسم المشروع</Label>
+              <Input
+                id="edit_project_name"
+                value={editFormData.project_name}
+                onChange={(e) => setEditFormData({ ...editFormData, project_name: e.target.value })}
+                className="h-11"
+                data-testid="edit-project-name-input"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit_reason">سبب الطلب</Label>
+              <Textarea
+                id="edit_reason"
+                value={editFormData.reason}
+                onChange={(e) => setEditFormData({ ...editFormData, reason: e.target.value })}
+                rows={3}
+                data-testid="edit-reason-input"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit_engineer">المهندس</Label>
+              <Select
+                value={editFormData.engineer_id}
+                onValueChange={(value) => setEditFormData({ ...editFormData, engineer_id: value })}
+              >
+                <SelectTrigger className="h-11" data-testid="edit-engineer-select">
+                  <SelectValue placeholder="اختر المهندس" />
+                </SelectTrigger>
+                <SelectContent>
+                  {engineers.map((eng) => (
+                    <SelectItem key={eng.id} value={eng.id}>
+                      {eng.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-bold"
+              disabled={submitting}
+              data-testid="save-edit-btn"
+            >
+              {submitting ? "جاري الحفظ..." : "حفظ التعديلات"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
