@@ -351,6 +351,30 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     except JWTError:
         raise HTTPException(status_code=401, detail="رمز الدخول غير صالح")
 
+# Audit Trail Helper Function
+async def log_audit(
+    entity_type: str,
+    entity_id: str,
+    action: str,
+    user: dict,
+    description: str,
+    changes: dict = None
+):
+    """تسجيل حدث في سجل المراجعة"""
+    audit_doc = {
+        "id": str(uuid.uuid4()),
+        "entity_type": entity_type,
+        "entity_id": entity_id,
+        "action": action,
+        "changes": changes,
+        "user_id": user["id"],
+        "user_name": user["name"],
+        "user_role": user["role"],
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "description": description
+    }
+    await db.audit_logs.insert_one(audit_doc)
+
 # ==================== EMAIL SERVICE ====================
 
 async def get_supervisor_prefix(supervisor_id: str) -> str:
