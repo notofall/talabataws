@@ -984,6 +984,37 @@ const ProcurementDashboard = () => {
                         </TableBody>
                       </Table>
                     </div>
+                    {/* Pagination for Orders */}
+                    {totalOrderPages > 1 && (
+                      <div className="flex items-center justify-between p-3 border-t bg-slate-50">
+                        <span className="text-xs text-slate-500">
+                          عرض {orderStartIndex + 1}-{Math.min(orderStartIndex + ORDERS_PER_PAGE, allDisplayOrders.length)} من {allDisplayOrders.length}
+                        </span>
+                        <div className="flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setOrdersPage(p => Math.max(1, p - 1))}
+                            disabled={ordersPage === 1}
+                            className="h-7 px-2 text-xs"
+                          >
+                            السابق
+                          </Button>
+                          <span className="flex items-center px-2 text-xs text-slate-600">
+                            {ordersPage} / {totalOrderPages}
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setOrdersPage(p => Math.min(totalOrderPages, p + 1))}
+                            disabled={ordersPage === totalOrderPages}
+                            className="h-7 px-2 text-xs"
+                          >
+                            التالي
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </>
                 );
               })()}
