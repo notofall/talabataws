@@ -99,6 +99,7 @@ class MaterialRequestUpdate(BaseModel):
 
 class MaterialRequestResponse(BaseModel):
     id: str
+    request_number: Optional[int] = None  # رقم الطلب المتسلسل للمشرف
     items: List[MaterialItem]
     project_name: str
     reason: str
