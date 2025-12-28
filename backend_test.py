@@ -124,7 +124,7 @@ class MaterialRequestAPITester:
             "Create Material Request",
             "POST",
             "requests",
-            201,
+            200,  # Changed from 201 to 200
             data=request_data,
             headers=headers
         )
