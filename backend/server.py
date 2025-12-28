@@ -122,6 +122,7 @@ class PurchaseOrderCreate(BaseModel):
 class PurchaseOrderResponse(BaseModel):
     id: str
     request_id: str
+    request_number: Optional[int] = None  # رقم الطلب المتسلسل
     items: List[MaterialItem]
     project_name: str
     supplier_name: str
