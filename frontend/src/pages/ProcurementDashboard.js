@@ -470,25 +470,67 @@ const ProcurementDashboard = () => {
             </div>
           </div>
 
-          {/* Date Filter */}
+          {/* Advanced Filters */}
           <Card className="mb-3 bg-slate-50">
             <CardContent className="p-3">
-              <div className="flex flex-col sm:flex-row gap-2 items-end">
-                <div className="flex-1 grid grid-cols-2 gap-2">
+              <div className="space-y-3">
+                {/* Row 1: Order ID, Request ID, Project, Supplier */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   <div>
-                    <Label className="text-xs">من تاريخ</Label>
-                    <Input type="date" value={filterStartDate} onChange={(e) => setFilterStartDate(e.target.value)} className="h-9 text-sm" />
+                    <Label className="text-xs">رقم أمر الشراء</Label>
+                    <Input 
+                      placeholder="ابحث..." 
+                      value={filterOrderId} 
+                      onChange={(e) => setFilterOrderId(e.target.value)} 
+                      className="h-9 text-sm" 
+                    />
                   </div>
                   <div>
-                    <Label className="text-xs">إلى تاريخ</Label>
-                    <Input type="date" value={filterEndDate} onChange={(e) => setFilterEndDate(e.target.value)} className="h-9 text-sm" />
+                    <Label className="text-xs">رقم الطلب</Label>
+                    <Input 
+                      placeholder="ابحث..." 
+                      value={filterRequestId} 
+                      onChange={(e) => setFilterRequestId(e.target.value)} 
+                      className="h-9 text-sm" 
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">المشروع</Label>
+                    <Input 
+                      placeholder="ابحث..." 
+                      value={filterProject} 
+                      onChange={(e) => setFilterProject(e.target.value)} 
+                      className="h-9 text-sm" 
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">المورد</Label>
+                    <Input 
+                      placeholder="ابحث..." 
+                      value={filterSupplier} 
+                      onChange={(e) => setFilterSupplier(e.target.value)} 
+                      className="h-9 text-sm" 
+                    />
                   </div>
                 </div>
-                <div className="flex gap-2 w-full sm:w-auto">
-                  <Button size="sm" onClick={applyFilter} className="flex-1 sm:flex-none h-9 bg-orange-600 hover:bg-orange-700">
-                    <Filter className="w-3 h-3 ml-1" />فلترة
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={clearFilter} className="h-9">مسح</Button>
+                {/* Row 2: Dates and Buttons */}
+                <div className="flex flex-col sm:flex-row gap-2 items-end">
+                  <div className="flex-1 grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-xs">من تاريخ</Label>
+                      <Input type="date" value={filterStartDate} onChange={(e) => setFilterStartDate(e.target.value)} className="h-9 text-sm" />
+                    </div>
+                    <div>
+                      <Label className="text-xs">إلى تاريخ</Label>
+                      <Input type="date" value={filterEndDate} onChange={(e) => setFilterEndDate(e.target.value)} className="h-9 text-sm" />
+                    </div>
+                  </div>
+                  <div className="flex gap-2 w-full sm:w-auto">
+                    <Button size="sm" onClick={applyFilter} className="flex-1 sm:flex-none h-9 bg-orange-600 hover:bg-orange-700">
+                      <Filter className="w-3 h-3 ml-1" />فلترة
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={clearFilter} className="h-9">مسح</Button>
+                  </div>
                 </div>
               </div>
             </CardContent>
