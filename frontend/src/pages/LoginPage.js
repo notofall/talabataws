@@ -198,6 +198,57 @@ const LoginPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Forgot Password Dialog */}
+      <Dialog open={forgotDialogOpen} onOpenChange={setForgotDialogOpen}>
+        <DialogContent className="w-[95vw] max-w-md p-6" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <KeyRound className="w-5 h-5 text-orange-600" />
+              استعادة كلمة المرور
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleForgotPassword} className="space-y-4 mt-4">
+            <p className="text-sm text-slate-600">
+              أدخل بريدك الإلكتروني وسنرسل لك كلمة مرور جديدة
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="forgot-email" className="text-slate-700 font-medium">
+                البريد الإلكتروني
+              </Label>
+              <div className="relative">
+                <Mail className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <Input
+                  id="forgot-email"
+                  type="email"
+                  placeholder="example@company.com"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  className="pr-10 h-12"
+                  dir="ltr"
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <Button
+                type="submit"
+                className="flex-1 h-11 bg-orange-600 hover:bg-orange-700"
+                disabled={forgotLoading}
+              >
+                {forgotLoading ? "جاري الإرسال..." : "إرسال كلمة المرور"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11"
+                onClick={() => setForgotDialogOpen(false)}
+              >
+                إلغاء
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
