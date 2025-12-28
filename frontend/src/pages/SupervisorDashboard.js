@@ -172,16 +172,61 @@ const SupervisorDashboard = () => {
     setNewItemQty("");
     setNewItemUnit("قطعة");
     setNewItemEstPrice("");
-    setProjectName("");
+    setProjectId("");
     setReason("");
     setEngineerId("");
     setExpectedDeliveryDate("");
   };
 
+  // Project management functions
+  const handleCreateProject = async () => {
+    if (!newProject.name || !newProject.owner_name) {
+      toast.error("الرجاء إدخال اسم المشروع واسم المالك");
+      return;
+    }
+    try {
+      await axios.post(`${API_URL}/projects`, newProject, getAuthHeaders());
+      toast.success("تم إنشاء المشروع بنجاح");
+      setNewProject({ name: "", owner_name: "", description: "", location: "" });
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "فشل في إنشاء المشروع");
+    }
+  };
+
+  const handleUpdateProject = async () => {
+    if (!editingProject) return;
+    try {
+      await axios.put(`${API_URL}/projects/${editingProject.id}`, {
+        name: editingProject.name,
+        owner_name: editingProject.owner_name,
+        description: editingProject.description,
+        location: editingProject.location,
+        status: editingProject.status
+      }, getAuthHeaders());
+      toast.success("تم تحديث المشروع بنجاح");
+      setEditingProject(null);
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "فشل في تحديث المشروع");
+    }
+  };
+
+  const handleDeleteProject = async (projectId) => {
+    if (!window.confirm("هل أنت متأكد من حذف هذا المشروع؟")) return;
+    try {
+      await axios.delete(`${API_URL}/projects/${projectId}`, getAuthHeaders());
+      toast.success("تم حذف المشروع بنجاح");
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "فشل في حذف المشروع");
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (items.length === 0) { toast.error("الرجاء إضافة صنف واحد على الأقل"); return; }
-    if (!projectName || !reason || !engineerId) { toast.error("الرجاء إكمال جميع الحقول"); return; }
+    if (!projectId || !reason || !engineerId) { toast.error("الرجاء إكمال جميع الحقول"); return; }
 
     setSubmitting(true);
     try {
@@ -192,7 +237,7 @@ const SupervisorDashboard = () => {
           unit: item.unit,
           estimated_price: item.estimated_price
         })),
-        project_name: projectName, 
+        project_id: projectId, 
         reason, 
         engineer_id: engineerId,
         expected_delivery_date: expectedDeliveryDate || null
@@ -211,13 +256,13 @@ const SupervisorDashboard = () => {
   const handleEdit = async (e) => {
     e.preventDefault();
     if (editItems.length === 0) { toast.error("الرجاء إضافة صنف واحد على الأقل"); return; }
-    if (!editProjectName || !editReason || !editEngineerId) { toast.error("الرجاء إكمال جميع الحقول"); return; }
+    if (!editProjectId || !editReason || !editEngineerId) { toast.error("الرجاء إكمال جميع الحقول"); return; }
 
     setSubmitting(true);
     try {
       await axios.put(`${API_URL}/requests/${selectedRequest.id}/edit`, {
         items: editItems.map(item => ({ name: item.name, quantity: parseInt(item.quantity), unit: item.unit || "قطعة" })),
-        project_name: editProjectName, reason: editReason, engineer_id: editEngineerId,
+        project_id: editProjectId, reason: editReason, engineer_id: editEngineerId,
       }, getAuthHeaders());
       toast.success("تم تعديل الطلب بنجاح");
       setEditDialogOpen(false);
