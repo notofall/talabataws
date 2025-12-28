@@ -233,6 +233,7 @@ class PurchaseOrderResponse(BaseModel):
     request_number: Optional[str] = None  # رقم الطلب المتسلسل (A1, A2, B1...)
     items: List[dict]  # Changed to dict to include prices
     project_name: str
+    project_id: Optional[str] = None
     supplier_id: Optional[str] = None
     supplier_name: str
     category_id: Optional[str] = None  # تصنيف الميزانية
@@ -253,7 +254,7 @@ class PurchaseOrderResponse(BaseModel):
     delivered_at: Optional[str] = None
     delivery_notes: Optional[str] = None
     supplier_receipt_number: Optional[str] = None  # رقم استلام المورد
-    received_by_id: Optional[str] = None  # معرف المستلم (متابع التوريد)
+    received_by_id: Optional[str] = None  # معرف المستلم
     received_by_name: Optional[str] = None  # اسم المستلم
 
 # Delivery Record Model
