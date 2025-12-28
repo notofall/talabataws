@@ -338,6 +338,9 @@ const ProcurementDashboard = () => {
       pending_approval: { label: "بانتظار الاعتماد", color: "bg-yellow-100 text-yellow-800 border-yellow-300" },
       approved: { label: "معتمد", color: "bg-green-100 text-green-800 border-green-300" },
       printed: { label: "تمت الطباعة", color: "bg-blue-100 text-blue-800 border-blue-300" },
+      shipped: { label: "تم الشحن", color: "bg-purple-100 text-purple-800 border-purple-300" },
+      partially_delivered: { label: "تسليم جزئي", color: "bg-orange-100 text-orange-800 border-orange-300" },
+      delivered: { label: "تم التسليم", color: "bg-emerald-100 text-emerald-800 border-emerald-300" },
     };
     const info = map[status] || { label: status, color: "bg-slate-100 text-slate-800" };
     return <Badge className={`${info.color} border text-xs`}>{info.label}</Badge>;
@@ -367,6 +370,9 @@ const ProcurementDashboard = () => {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setSuppliersListDialogOpen(true)} className="text-slate-300 hover:text-white h-8 px-2">
+                <Users className="w-4 h-4 ml-1" /><span className="hidden sm:inline">الموردين</span>
+              </Button>
               <span className="text-xs sm:text-sm text-slate-300 hidden sm:inline">{user?.name}</span>
               <Button variant="ghost" size="sm" onClick={logout} className="text-slate-300 hover:text-white h-8 px-2">
                 <LogOut className="w-4 h-4" />
