@@ -322,6 +322,15 @@ const SupervisorDashboard = () => {
                           {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                         </select>
                       </div>
+                      <Input 
+                        type="number" 
+                        min="0" 
+                        step="0.01"
+                        placeholder="السعر التقديري (اختياري)" 
+                        value={newItemEstPrice} 
+                        onChange={(e) => setNewItemEstPrice(e.target.value)} 
+                        className="h-11 text-center bg-white"
+                      />
                       <Button 
                         type="button" 
                         onClick={addItem} 
@@ -338,6 +347,11 @@ const SupervisorDashboard = () => {
                   <div>
                     <Label className="text-sm font-medium">اسم المشروع</Label>
                     <Input placeholder="مثال: مشروع برج الرياض" value={projectName} onChange={(e) => setProjectName(e.target.value)} className="h-11 mt-1" />
+                  </div>
+
+                  <div>
+                    <Label className="text-sm font-medium">تاريخ الحاجة المتوقع</Label>
+                    <Input type="date" value={expectedDeliveryDate} onChange={(e) => setExpectedDeliveryDate(e.target.value)} className="h-11 mt-1" />
                   </div>
 
                   <div>
