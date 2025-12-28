@@ -60,10 +60,16 @@ const SupervisorDashboard = () => {
         axios.get(`${API_URL}/requests`, getAuthHeaders()),
         axios.get(`${API_URL}/users/engineers`, getAuthHeaders()),
         axios.get(`${API_URL}/dashboard/stats`, getAuthHeaders()),
+        axios.get(`${API_URL}/purchase-orders`, getAuthHeaders()),
       ]);
       setRequests(requestsRes.data);
       setEngineers(engineersRes.data);
       setStats(statsRes.data);
+      // Filter orders that need delivery (shipped or partially_delivered)
+      const deliveries = ordersRes.data.filter(o => 
+        o.status === 'shipped' || o.status === 'partially_delivered'
+      );
+      setPendingDeliveries(deliveries);
     } catch (error) {
       toast.error("فشل في تحميل البيانات");
     } finally {
@@ -72,6 +78,50 @@ const SupervisorDashboard = () => {
   };
 
   useEffect(() => { fetchData(); }, []);
+
+  // Delivery functions
+  const openDeliveryDialog = (order) => {
+    setSelectedDelivery(order);
+    // Initialize delivery items with remaining quantities
+    const items = order.items.map(item => ({
+      name: item.name,
+      quantity: item.quantity,
+      delivered_quantity: item.delivered_quantity || 0,
+      remaining: item.quantity - (item.delivered_quantity || 0),
+      quantity_to_deliver: 0
+    }));
+    setDeliveryItems(items);
+    setDeliveryNotes("");
+    setDeliveryDialogOpen(true);
+  };
+
+  const handleRecordDelivery = async () => {
+    const itemsToDeliver = deliveryItems.filter(item => item.quantity_to_deliver > 0);
+    if (itemsToDeliver.length === 0) {
+      toast.error("الرجاء تحديد كمية واحدة على الأقل");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await axios.put(`${API_URL}/purchase-orders/${selectedDelivery.id}/deliver`, {
+        items_delivered: itemsToDeliver.map(item => ({
+          name: item.name,
+          quantity_delivered: item.quantity_to_deliver
+        })),
+        notes: deliveryNotes,
+        received_by: user.name
+      }, getAuthHeaders());
+      
+      toast.success("تم تسجيل الاستلام بنجاح");
+      setDeliveryDialogOpen(false);
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "فشل في تسجيل الاستلام");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   // Add item to list
   const addItem = () => {
