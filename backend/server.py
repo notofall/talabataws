@@ -343,8 +343,7 @@ async def get_all_requests(current_user: dict = Depends(get_current_user)):
 
 # Model for updating request
 class MaterialRequestEdit(BaseModel):
-    material_name: str
-    quantity: int
+    items: List[MaterialItem]
     project_name: str
     reason: str
     engineer_id: str
