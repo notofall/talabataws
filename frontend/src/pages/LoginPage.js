@@ -121,6 +121,16 @@ const LoginPage = () => {
                   </div>
                 </div>
 
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setForgotDialogOpen(true)}
+                    className="text-sm text-orange-600 hover:text-orange-700 hover:underline"
+                  >
+                    نسيت كلمة المرور؟
+                  </button>
+                </div>
+
                 <Button
                   type="submit"
                   className="w-full h-12 bg-orange-600 hover:bg-orange-700 text-white font-bold text-lg transition-all active:scale-[0.98]"
