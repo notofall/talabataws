@@ -5,25 +5,32 @@ import App from "@/App";
 
 // Suppress ResizeObserver loop error (common with Radix UI components)
 if (typeof window !== 'undefined') {
-  const originalError = window.onerror;
-  window.onerror = (message, ...args) => {
-    if (typeof message === 'string' && message.includes('ResizeObserver')) {
-      return true;
+  // Suppress ResizeObserver errors completely
+  const resizeObserverErr = window.ResizeObserver;
+  window.ResizeObserver = class ResizeObserver extends resizeObserverErr {
+    constructor(callback) {
+      super((entries, observer) => {
+        window.requestAnimationFrame(() => {
+          callback(entries, observer);
+        });
+      });
     }
-    return originalError ? originalError(message, ...args) : false;
   };
 
+  // Also suppress console errors for ResizeObserver
+  const originalConsoleError = console.error;
+  console.error = (...args) => {
+    if (args[0]?.includes?.('ResizeObserver') || 
+        (typeof args[0] === 'string' && args[0].includes('ResizeObserver'))) {
+      return;
+    }
+    originalConsoleError.apply(console, args);
+  };
+
+  // Handle window errors
   window.addEventListener('error', (e) => {
     if (e.message?.includes('ResizeObserver')) {
       e.stopImmediatePropagation();
-      e.preventDefault();
-      return true;
-    }
-  });
-
-  // Also handle unhandled rejections
-  window.addEventListener('unhandledrejection', (e) => {
-    if (e.reason?.message?.includes('ResizeObserver')) {
       e.preventDefault();
       return true;
     }
