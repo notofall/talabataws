@@ -170,20 +170,77 @@ class MaterialRequestAPITester:
         )
         return success
 
-    def test_create_purchase_order(self, token, request_id):
-        """Test creating purchase order"""
+    def test_create_purchase_order_with_selected_items(self, token, request_id, selected_items):
+        """Test creating purchase order with selected items only"""
         headers = {'Authorization': f'Bearer {token}'}
         order_data = {
             "request_id": request_id,
             "supplier_name": "شركة الحديد الوطنية",
+            "selected_items": selected_items,
             "notes": "تسليم خلال أسبوع"
         }
         
         success, response = self.run_test(
-            "Create Purchase Order",
+            f"Create Purchase Order with Selected Items {selected_items}",
             "POST",
             "purchase-orders",
-            200,  # Changed from 201 to 200
+            200,
+            data=order_data,
+            headers=headers
+        )
+        return success, response.get('id') if success else None
+
+    def test_approve_purchase_order(self, token, order_id):
+        """Test approving purchase order"""
+        headers = {'Authorization': f'Bearer {token}'}
+        success, response = self.run_test(
+            "Approve Purchase Order",
+            "PUT",
+            f"purchase-orders/{order_id}/approve",
+            200,
+            headers=headers
+        )
+        return success
+
+    def test_print_purchase_order(self, token, order_id):
+        """Test marking purchase order as printed"""
+        headers = {'Authorization': f'Bearer {token}'}
+        success, response = self.run_test(
+            "Mark Purchase Order as Printed",
+            "PUT",
+            f"purchase-orders/{order_id}/print",
+            200,
+            headers=headers
+        )
+        return success
+
+    def test_get_remaining_items(self, token, request_id):
+        """Test getting remaining items for a request"""
+        headers = {'Authorization': f'Bearer {token}'}
+        success, response = self.run_test(
+            "Get Remaining Items",
+            "GET",
+            f"requests/{request_id}/remaining-items",
+            200,
+            headers=headers
+        )
+        return success, response if success else {}
+
+    def test_create_purchase_order(self, token, request_id):
+        """Test creating purchase order (legacy method - now creates with all items)"""
+        headers = {'Authorization': f'Bearer {token}'}
+        order_data = {
+            "request_id": request_id,
+            "supplier_name": "شركة الحديد الوطنية",
+            "selected_items": [0, 1, 2],  # Select all items by default
+            "notes": "تسليم خلال أسبوع"
+        }
+        
+        success, response = self.run_test(
+            "Create Purchase Order (All Items)",
+            "POST",
+            "purchase-orders",
+            200,
             data=order_data,
             headers=headers
         )
