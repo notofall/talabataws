@@ -743,10 +743,24 @@ const ProcurementDashboard = () => {
                 <p className="text-sm font-medium border-b pb-2">الأصناف:</p>
                 {selectedOrder.items?.map((item, idx) => (
                   <div key={idx} className="flex justify-between text-sm bg-white p-2 rounded">
-                    <span>{item.name}</span>
-                    <span className="text-slate-600">{item.quantity} {item.unit}</span>
+                    <div>
+                      <span className="font-medium">{item.name}</span>
+                      <span className="text-slate-500 mr-2">({item.quantity} {item.unit})</span>
+                    </div>
+                    {item.unit_price > 0 && (
+                      <div className="text-left">
+                        <span className="text-slate-600 text-xs">{item.unit_price} × {item.quantity} = </span>
+                        <span className="font-bold text-emerald-600">{(item.total_price || item.unit_price * item.quantity).toLocaleString('ar-SA')} ر.س</span>
+                      </div>
+                    )}
                   </div>
                 ))}
+                {selectedOrder.total_amount > 0 && (
+                  <div className="flex justify-between items-center pt-2 border-t mt-2">
+                    <span className="font-bold">الإجمالي:</span>
+                    <span className="text-lg font-bold text-orange-600">{selectedOrder.total_amount.toLocaleString('ar-SA')} ر.س</span>
+                  </div>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div><span className="text-slate-500">المشروع:</span><p className="font-medium">{selectedOrder.project_name}</p></div>
