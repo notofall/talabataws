@@ -148,9 +148,7 @@ const ProcurementDashboard = () => {
   };
 
   const selectAllItems = () => {
-    if (selectedRequest) {
-      setSelectedItemIndices(selectedRequest.items.map((_, idx) => idx));
-    }
+    setSelectedItemIndices(remainingItems.map(item => item.index));
   };
 
   const deselectAllItems = () => {
