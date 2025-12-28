@@ -1213,18 +1213,16 @@ const ProcurementDashboard = () => {
               </div>
               <div>
                 <Label className="text-xs">المشروع</Label>
-                <Input 
-                  placeholder="اسم المشروع" 
-                  value={newCategory.project_name}
-                  onChange={(e) => setNewCategory({...newCategory, project_name: e.target.value})}
-                  className="h-9 mt-1"
-                  list="projects-list"
-                />
-                <datalist id="projects-list">
-                  {[...new Set(requests.map(r => r.project_name))].map((p, i) => (
-                    <option key={i} value={p} />
+                <select 
+                  value={newCategory.project_id}
+                  onChange={(e) => setNewCategory({...newCategory, project_id: e.target.value})}
+                  className="w-full h-9 mt-1 border rounded-lg bg-white px-2 text-sm"
+                >
+                  <option value="">اختر المشروع</option>
+                  {projects.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
-                </datalist>
+                </select>
               </div>
               <div>
                 <Label className="text-xs">الميزانية التقديرية (ر.س)</Label>
