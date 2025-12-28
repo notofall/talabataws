@@ -27,6 +27,7 @@ const RegisterPage = () => {
     { value: "supervisor", label: "مشرف موقع", icon: "👷" },
     { value: "engineer", label: "مهندس", icon: "👨‍💼" },
     { value: "procurement_manager", label: "مدير مشتريات", icon: "📋" },
+    { value: "printer", label: "موظف طباعة", icon: "🖨️" },
   ];
 
   const handleSubmit = async (e) => {
