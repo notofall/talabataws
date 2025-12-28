@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 const formatDate = (dateString) => {
   return new Date(dateString).toLocaleDateString('ar-SA', {
