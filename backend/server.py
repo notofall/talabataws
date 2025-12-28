@@ -802,29 +802,36 @@ async def get_purchase_orders(current_user: dict = Depends(get_current_user)):
         # موظف الطباعة يرى فقط الأوامر المعتمدة
         query["status"] = {"$in": [PurchaseOrderStatus.APPROVED, PurchaseOrderStatus.PRINTED]}
     
-    orders = await db.purchase_orders.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    orders = await db.purchase_orders.find(query, {"_id": 0}).sort("created_at", -1).to_list(500)
     
-    # Handle legacy orders without status field and fetch supervisor/engineer names
+    # Batch fetch all related requests to avoid N+1 query problem
+    orders_needing_request_data = [o for o in orders if "supervisor_name" not in o or "engineer_name" not in o or "request_number" not in o]
+    request_ids = list(set([o.get("request_id") for o in orders_needing_request_data if o.get("request_id")]))
+    
+    requests_map = {}
+    if request_ids:
+        requests_list = await db.material_requests.find(
+            {"id": {"$in": request_ids}}, 
+            {"_id": 0, "id": 1, "supervisor_name": 1, "engineer_name": 1, "request_number": 1}
+        ).to_list(None)
+        requests_map = {r["id"]: r for r in requests_list}
+    
+    # Process orders with batch-fetched data
     result = []
     for o in orders:
         if "status" not in o:
-            o["status"] = PurchaseOrderStatus.APPROVED  # Default to approved for old orders
+            o["status"] = PurchaseOrderStatus.APPROVED
         if "approved_at" not in o:
             o["approved_at"] = None
         if "printed_at" not in o:
             o["printed_at"] = None
         
-        # Fetch supervisor and engineer names and request_number from original request if not present
+        # Use batch-fetched request data
         if "supervisor_name" not in o or "engineer_name" not in o or "request_number" not in o:
-            request = await db.material_requests.find_one({"id": o.get("request_id")}, {"_id": 0})
-            if request:
-                o["supervisor_name"] = request.get("supervisor_name", "")
-                o["engineer_name"] = request.get("engineer_name", "")
-                o["request_number"] = request.get("request_number")
-            else:
-                o["supervisor_name"] = o.get("supervisor_name", "")
-                o["engineer_name"] = o.get("engineer_name", "")
-                o["request_number"] = o.get("request_number")
+            request = requests_map.get(o.get("request_id"), {})
+            o["supervisor_name"] = request.get("supervisor_name", o.get("supervisor_name", ""))
+            o["engineer_name"] = request.get("engineer_name", o.get("engineer_name", ""))
+            o["request_number"] = request.get("request_number", o.get("request_number"))
         
         result.append(PurchaseOrderResponse(**o))
     
