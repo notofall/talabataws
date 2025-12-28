@@ -1,4 +1,4 @@
-import { useState, useEffect, memo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
@@ -14,79 +14,6 @@ import { Package, Plus, LogOut, FileText, Clock, CheckCircle, XCircle, RefreshCw
 import { exportRequestToPDF, exportRequestsTableToPDF } from "../utils/pdfExport";
 
 const UNITS = ["قطعة", "طن", "كيلو", "متر", "متر مربع", "متر مكعب", "كيس", "لتر", "علبة", "رول"];
-
-// Item Input Component - moved outside to prevent re-renders
-const ItemInput = memo(({ name, setName, qty, setQty, unit, setUnit, onAdd }) => (
-  <div className="bg-orange-50 border-2 border-dashed border-orange-300 rounded-xl p-4">
-    <p className="text-sm font-medium text-orange-800 mb-3 text-center">إضافة صنف جديد</p>
-    <div className="space-y-3">
-      <Input 
-        placeholder="اسم المادة (مثال: حديد تسليح)" 
-        value={name} 
-        onChange={(e) => setName(e.target.value)} 
-        className="h-11 text-center bg-white"
-      />
-      <div className="flex gap-2">
-        <Input 
-          type="number" 
-          min="1" 
-          placeholder="الكمية" 
-          value={qty} 
-          onChange={(e) => setQty(e.target.value)} 
-          className="h-11 flex-1 text-center bg-white"
-        />
-        <select 
-          value={unit} 
-          onChange={(e) => setUnit(e.target.value)} 
-          className="h-11 flex-1 border rounded-lg bg-white px-3 text-sm"
-        >
-          {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-        </select>
-      </div>
-      <Button 
-        type="button" 
-        onClick={onAdd} 
-        className="w-full h-11 bg-orange-600 hover:bg-orange-700 text-white font-medium"
-      >
-        <Plus className="w-5 h-5 ml-2" />
-        إضافة للقائمة
-      </Button>
-    </div>
-  </div>
-));
-
-// Items List Component - moved outside to prevent re-renders
-const ItemsList = memo(({ itemsList, onRemove, title = "الأصناف المضافة" }) => (
-  itemsList.length > 0 && (
-    <div className="space-y-2">
-      <p className="text-sm font-medium text-slate-700">{title} ({itemsList.length})</p>
-      <div className="space-y-2 max-h-40 overflow-y-auto">
-        {itemsList.map((item, index) => (
-          <div key={`item-${index}-${item.name}`} className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-3">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
-                {index + 1}
-              </div>
-              <div>
-                <p className="font-medium text-slate-800">{item.name}</p>
-                <p className="text-sm text-slate-500">{item.quantity} {item.unit}</p>
-              </div>
-            </div>
-            <Button 
-              type="button" 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => onRemove(index)} 
-              className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-            >
-              <X className="w-5 h-5" />
-            </Button>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-));
 
 const SupervisorDashboard = () => {
   const { user, logout, getAuthHeaders, API_URL } = useAuth();
