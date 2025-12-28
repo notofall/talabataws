@@ -115,6 +115,7 @@ class MaterialRequestResponse(BaseModel):
 class PurchaseOrderCreate(BaseModel):
     request_id: str
     supplier_name: str
+    selected_items: List[int]  # قائمة فهارس الأصناف المختارة من الطلب الأصلي
     notes: Optional[str] = None
 
 class PurchaseOrderResponse(BaseModel):
@@ -126,7 +127,10 @@ class PurchaseOrderResponse(BaseModel):
     notes: Optional[str] = None
     manager_id: str
     manager_name: str
+    status: str  # pending_approval, approved, printed
     created_at: str
+    approved_at: Optional[str] = None
+    printed_at: Optional[str] = None
 
 # ==================== HELPER FUNCTIONS ====================
 
