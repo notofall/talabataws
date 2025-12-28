@@ -22,6 +22,7 @@ const DeliveryTrackerDashboard = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   
   // Receipt form
   const [supplierReceiptNumber, setSupplierReceiptNumber] = useState("");
