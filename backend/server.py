@@ -750,7 +750,7 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
         })
         approved = await db.material_requests.count_documents({
             "supervisor_id": current_user["id"],
-            "status": {"$in": [RequestStatus.APPROVED_BY_ENGINEER, RequestStatus.PURCHASE_ORDER_ISSUED]}
+            "status": {"$in": [RequestStatus.APPROVED_BY_ENGINEER, RequestStatus.PURCHASE_ORDER_ISSUED, RequestStatus.PARTIALLY_ORDERED]}
         })
         rejected = await db.material_requests.count_documents({
             "supervisor_id": current_user["id"],
@@ -766,16 +766,38 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
         })
         approved = await db.material_requests.count_documents({
             "engineer_id": current_user["id"],
-            "status": {"$in": [RequestStatus.APPROVED_BY_ENGINEER, RequestStatus.PURCHASE_ORDER_ISSUED]}
+            "status": {"$in": [RequestStatus.APPROVED_BY_ENGINEER, RequestStatus.PURCHASE_ORDER_ISSUED, RequestStatus.PARTIALLY_ORDERED]}
         })
         stats = {"total": total, "pending": pending, "approved": approved}
     
     elif current_user["role"] == UserRole.PROCUREMENT_MANAGER:
         pending_orders = await db.material_requests.count_documents({
-            "status": RequestStatus.APPROVED_BY_ENGINEER
+            "status": {"$in": [RequestStatus.APPROVED_BY_ENGINEER, RequestStatus.PARTIALLY_ORDERED]}
         })
-        total_orders = await db.purchase_orders.count_documents({})
-        stats = {"pending_orders": pending_orders, "total_orders": total_orders}
+        total_orders = await db.purchase_orders.count_documents({"manager_id": current_user["id"]})
+        pending_approval = await db.purchase_orders.count_documents({
+            "manager_id": current_user["id"],
+            "status": PurchaseOrderStatus.PENDING_APPROVAL
+        })
+        approved_orders = await db.purchase_orders.count_documents({
+            "manager_id": current_user["id"],
+            "status": {"$in": [PurchaseOrderStatus.APPROVED, PurchaseOrderStatus.PRINTED]}
+        })
+        stats = {
+            "pending_orders": pending_orders,
+            "total_orders": total_orders,
+            "pending_approval": pending_approval,
+            "approved_orders": approved_orders
+        }
+    
+    elif current_user["role"] == UserRole.PRINTER:
+        pending_print = await db.purchase_orders.count_documents({
+            "status": PurchaseOrderStatus.APPROVED
+        })
+        printed = await db.purchase_orders.count_documents({
+            "status": PurchaseOrderStatus.PRINTED
+        })
+        stats = {"pending_print": pending_print, "printed": printed}
     
     return stats
 
