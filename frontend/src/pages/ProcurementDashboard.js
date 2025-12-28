@@ -409,7 +409,7 @@ const ProcurementDashboard = () => {
               <Button variant="outline" size="sm" onClick={() => setReportDialogOpen(true)} className="h-8 text-xs">
                 <FileText className="w-3 h-3 ml-1" />تقرير بتاريخ
               </Button>
-              <Button variant="outline" size="sm" onClick={() => exportPurchaseOrdersTableToPDF(approvedOrders)} disabled={!approvedOrders.length} className="h-8 text-xs">
+              <Button variant="outline" size="sm" onClick={() => exportPurchaseOrdersTableToPDF(approvedOrders).catch(() => toast.error("فشل التصدير"))} disabled={!approvedOrders.length} className="h-8 text-xs">
                 <Download className="w-3 h-3 ml-1" />تصدير
               </Button>
             </div>
