@@ -1505,116 +1505,254 @@ const ProcurementDashboard = () => {
             </DialogTitle>
           </DialogHeader>
           
-          {/* Add New Category Form */}
-          <div className="bg-slate-50 p-4 rounded-lg space-y-3">
-            <h3 className="font-medium text-sm mb-2">إضافة تصنيف جديد</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <Label className="text-xs">اسم التصنيف</Label>
-                <Input 
-                  placeholder="مثال: السباكة" 
-                  value={newCategory.name}
-                  onChange={(e) => setNewCategory({...newCategory, name: e.target.value})}
-                  className="h-9 mt-1"
-                />
-              </div>
-              <div>
-                <Label className="text-xs">المشروع</Label>
-                <select 
-                  value={newCategory.project_id}
-                  onChange={(e) => setNewCategory({...newCategory, project_id: e.target.value})}
-                  className="w-full h-9 mt-1 border rounded-lg bg-white px-2 text-sm"
-                >
-                  <option value="">اختر المشروع</option>
-                  {projects.map(p => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <Label className="text-xs">الميزانية التقديرية (ر.س)</Label>
-                <Input 
-                  type="number"
-                  placeholder="50000"
-                  value={newCategory.estimated_budget}
-                  onChange={(e) => setNewCategory({...newCategory, estimated_budget: e.target.value})}
-                  className="h-9 mt-1"
-                />
-              </div>
-            </div>
-            <Button onClick={handleCreateCategory} className="w-full sm:w-auto bg-orange-600 hover:bg-orange-700">
-              <Plus className="w-4 h-4 ml-1" /> إضافة التصنيف
+          {/* View Mode Tabs */}
+          <div className="flex gap-2 mb-4 border-b pb-3">
+            <Button 
+              size="sm" 
+              variant={budgetViewMode === "default" ? "default" : "outline"}
+              onClick={() => setBudgetViewMode("default")}
+              className={budgetViewMode === "default" ? "bg-orange-600" : ""}
+            >
+              التصنيفات الافتراضية ({defaultCategories.length})
+            </Button>
+            <Button 
+              size="sm" 
+              variant={budgetViewMode === "projects" ? "default" : "outline"}
+              onClick={() => setBudgetViewMode("projects")}
+              className={budgetViewMode === "projects" ? "bg-blue-600" : ""}
+            >
+              تصنيفات المشاريع ({budgetCategories.length})
             </Button>
           </div>
 
-          {/* Categories List */}
-          <div className="space-y-2 mt-4">
-            <h3 className="font-medium text-sm">التصنيفات الحالية ({budgetCategories.length})</h3>
-            {budgetCategories.length === 0 ? (
-              <p className="text-center text-slate-500 py-4">لا توجد تصنيفات بعد</p>
-            ) : (
-              <div className="space-y-2 max-h-80 overflow-y-auto">
-                {budgetCategories.map(cat => (
-                  <div key={cat.id} className="bg-white border rounded-lg p-3">
-                    {editingCategory?.id === cat.id ? (
-                      <div className="space-y-2">
-                        <div className="grid grid-cols-2 gap-2">
-                          <Input 
-                            value={editingCategory.name}
-                            onChange={(e) => setEditingCategory({...editingCategory, name: e.target.value})}
-                            className="h-8"
-                          />
-                          <Input 
-                            type="number"
-                            value={editingCategory.estimated_budget}
-                            onChange={(e) => setEditingCategory({...editingCategory, estimated_budget: e.target.value})}
-                            className="h-8"
-                          />
-                        </div>
-                        <div className="flex gap-2">
-                          <Button size="sm" onClick={handleUpdateCategory} className="bg-green-600 hover:bg-green-700">حفظ</Button>
-                          <Button size="sm" variant="outline" onClick={() => setEditingCategory(null)}>إلغاء</Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium">{cat.name}</p>
-                          <p className="text-xs text-slate-500">{cat.project_name}</p>
-                        </div>
-                        <div className="text-left">
-                          <p className="text-sm">
-                            <span className="text-slate-500">التقديري: </span>
-                            <span className="font-medium">{cat.estimated_budget?.toLocaleString('ar-SA')} ر.س</span>
-                          </p>
-                          <p className="text-sm">
-                            <span className="text-slate-500">المصروف: </span>
-                            <span className={`font-medium ${cat.actual_spent > cat.estimated_budget ? 'text-red-600' : 'text-green-600'}`}>
-                              {cat.actual_spent?.toLocaleString('ar-SA')} ر.س
-                            </span>
-                          </p>
-                          <p className="text-xs">
-                            <span className="text-slate-500">المتبقي: </span>
-                            <span className={cat.remaining < 0 ? 'text-red-600 font-bold' : 'text-blue-600'}>
-                              {cat.remaining?.toLocaleString('ar-SA')} ر.س
-                            </span>
-                          </p>
-                        </div>
-                        <div className="flex gap-1">
-                          <Button size="sm" variant="ghost" onClick={() => setEditingCategory({...cat})} className="h-8 w-8 p-0">
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button size="sm" variant="ghost" onClick={() => handleDeleteCategory(cat.id)} className="h-8 w-8 p-0 text-red-500 hover:text-red-700">
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
+          {/* Default Categories Section */}
+          {budgetViewMode === "default" && (
+            <>
+              <div className="bg-orange-50 border border-orange-200 p-3 rounded-lg mb-4">
+                <p className="text-sm text-orange-800">
+                  <strong>💡 التصنيفات الافتراضية:</strong> أدخل التصنيفات هنا مرة واحدة، وستُنسخ تلقائياً لكل مشروع جديد يتم إنشاؤه.
+                </p>
               </div>
-            )}
-          </div>
+
+              {/* Add Default Category Form */}
+              <div className="bg-slate-50 p-4 rounded-lg space-y-3">
+                <h3 className="font-medium text-sm mb-2">إضافة تصنيف افتراضي جديد</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">اسم التصنيف</Label>
+                    <Input 
+                      placeholder="مثال: السباكة، الكهرباء، الرخام..." 
+                      value={newDefaultCategory.name}
+                      onChange={(e) => setNewDefaultCategory({...newDefaultCategory, name: e.target.value})}
+                      className="h-9 mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">الميزانية الافتراضية (ر.س) - اختياري</Label>
+                    <Input 
+                      type="number"
+                      placeholder="0"
+                      value={newDefaultCategory.default_budget}
+                      onChange={(e) => setNewDefaultCategory({...newDefaultCategory, default_budget: e.target.value})}
+                      className="h-9 mt-1"
+                    />
+                  </div>
+                </div>
+                <Button onClick={handleCreateDefaultCategory} className="w-full sm:w-auto bg-orange-600 hover:bg-orange-700">
+                  <Plus className="w-4 h-4 ml-1" /> إضافة التصنيف الافتراضي
+                </Button>
+              </div>
+
+              {/* Default Categories List */}
+              <div className="space-y-2 mt-4">
+                <h3 className="font-medium text-sm">التصنيفات الافتراضية ({defaultCategories.length})</h3>
+                {defaultCategories.length === 0 ? (
+                  <p className="text-center text-slate-500 py-4">لا توجد تصنيفات افتراضية. أضف التصنيفات هنا وستُطبق على المشاريع الجديدة تلقائياً.</p>
+                ) : (
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {defaultCategories.map(cat => (
+                      <div key={cat.id} className="bg-white border rounded-lg p-3">
+                        {editingDefaultCategory?.id === cat.id ? (
+                          <div className="space-y-2">
+                            <div className="grid grid-cols-2 gap-2">
+                              <Input 
+                                value={editingDefaultCategory.name}
+                                onChange={(e) => setEditingDefaultCategory({...editingDefaultCategory, name: e.target.value})}
+                                className="h-8"
+                              />
+                              <Input 
+                                type="number"
+                                value={editingDefaultCategory.default_budget}
+                                onChange={(e) => setEditingDefaultCategory({...editingDefaultCategory, default_budget: e.target.value})}
+                                className="h-8"
+                              />
+                            </div>
+                            <div className="flex gap-2">
+                              <Button size="sm" onClick={handleUpdateDefaultCategory} className="bg-green-600 hover:bg-green-700">حفظ</Button>
+                              <Button size="sm" variant="outline" onClick={() => setEditingDefaultCategory(null)}>إلغاء</Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-medium">{cat.name}</p>
+                              <p className="text-xs text-slate-500">
+                                الميزانية الافتراضية: {(cat.default_budget || 0).toLocaleString('ar-SA')} ر.س
+                              </p>
+                            </div>
+                            <div className="flex gap-1">
+                              <Button size="sm" variant="ghost" onClick={() => setEditingDefaultCategory({...cat})} className="h-8 w-8 p-0">
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => handleDeleteDefaultCategory(cat.id)} className="h-8 w-8 p-0 text-red-500 hover:text-red-700">
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Apply to Existing Projects */}
+              {defaultCategories.length > 0 && projects.length > 0 && (
+                <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg mt-4">
+                  <h4 className="font-medium text-sm text-blue-800 mb-2">تطبيق التصنيفات على مشروع موجود:</h4>
+                  <div className="flex gap-2 flex-wrap">
+                    {projects.map(p => (
+                      <Button
+                        key={p.id}
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleApplyDefaultCategoriesToProject(p.id)}
+                        className="text-xs"
+                      >
+                        {p.name}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Project Categories Section */}
+          {budgetViewMode === "projects" && (
+            <>
+              {/* Add Category to Project Form */}
+              <div className="bg-slate-50 p-4 rounded-lg space-y-3">
+                <h3 className="font-medium text-sm mb-2">إضافة تصنيف لمشروع معين</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <Label className="text-xs">اسم التصنيف</Label>
+                    <Input 
+                      placeholder="مثال: السباكة" 
+                      value={newCategory.name}
+                      onChange={(e) => setNewCategory({...newCategory, name: e.target.value})}
+                      className="h-9 mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">المشروع</Label>
+                    <select 
+                      value={newCategory.project_id}
+                      onChange={(e) => setNewCategory({...newCategory, project_id: e.target.value})}
+                      className="w-full h-9 mt-1 border rounded-lg bg-white px-2 text-sm"
+                    >
+                      <option value="">اختر المشروع</option>
+                      {projects.map(p => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">الميزانية التقديرية (ر.س)</Label>
+                    <Input 
+                      type="number"
+                      placeholder="50000"
+                      value={newCategory.estimated_budget}
+                      onChange={(e) => setNewCategory({...newCategory, estimated_budget: e.target.value})}
+                      className="h-9 mt-1"
+                    />
+                  </div>
+                </div>
+                <Button onClick={handleCreateCategory} className="w-full sm:w-auto bg-orange-600 hover:bg-orange-700">
+                  <Plus className="w-4 h-4 ml-1" /> إضافة التصنيف
+                </Button>
+              </div>
+
+              {/* Categories List */}
+              <div className="space-y-2 mt-4">
+                <h3 className="font-medium text-sm">التصنيفات الحالية ({budgetCategories.length})</h3>
+                {budgetCategories.length === 0 ? (
+                  <p className="text-center text-slate-500 py-4">لا توجد تصنيفات بعد</p>
+                ) : (
+                  <div className="space-y-2 max-h-80 overflow-y-auto">
+                    {budgetCategories.map(cat => (
+                      <div key={cat.id} className="bg-white border rounded-lg p-3">
+                        {editingCategory?.id === cat.id ? (
+                          <div className="space-y-2">
+                            <div className="grid grid-cols-2 gap-2">
+                              <Input 
+                                value={editingCategory.name}
+                                onChange={(e) => setEditingCategory({...editingCategory, name: e.target.value})}
+                                className="h-8"
+                              />
+                              <Input 
+                                type="number"
+                                value={editingCategory.estimated_budget}
+                                onChange={(e) => setEditingCategory({...editingCategory, estimated_budget: e.target.value})}
+                                className="h-8"
+                              />
+                            </div>
+                            <div className="flex gap-2">
+                              <Button size="sm" onClick={handleUpdateCategory} className="bg-green-600 hover:bg-green-700">حفظ</Button>
+                              <Button size="sm" variant="outline" onClick={() => setEditingCategory(null)}>إلغاء</Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-medium">{cat.name}</p>
+                              <p className="text-xs text-slate-500">{cat.project_name}</p>
+                            </div>
+                            <div className="text-left">
+                              <p className="text-sm">
+                                <span className="text-slate-500">التقديري: </span>
+                                <span className="font-medium">{cat.estimated_budget?.toLocaleString('ar-SA')} ر.س</span>
+                              </p>
+                              <p className="text-sm">
+                                <span className="text-slate-500">المصروف: </span>
+                                <span className={`font-medium ${cat.actual_spent > cat.estimated_budget ? 'text-red-600' : 'text-green-600'}`}>
+                                  {cat.actual_spent?.toLocaleString('ar-SA')} ر.س
+                                </span>
+                              </p>
+                              <p className="text-xs">
+                                <span className="text-slate-500">المتبقي: </span>
+                                <span className={cat.remaining < 0 ? 'text-red-600 font-bold' : 'text-blue-600'}>
+                                  {cat.remaining?.toLocaleString('ar-SA')} ر.س
+                                </span>
+                              </p>
+                            </div>
+                            <div className="flex gap-1">
+                              <Button size="sm" variant="ghost" onClick={() => setEditingCategory({...cat})} className="h-8 w-8 p-0">
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => handleDeleteCategory(cat.id)} className="h-8 w-8 p-0 text-red-500 hover:text-red-700">
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 
