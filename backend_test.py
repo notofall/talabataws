@@ -633,8 +633,8 @@ def main():
     
     tester = MaterialRequestAPITester()
     
-    # Run new features test
-    workflow_success = tester.run_new_features_test()
+    # Run delivery tracking test (as requested in review)
+    delivery_success = tester.run_delivery_tracking_test()
     
     # Print summary
     print("\n" + "=" * 70)
@@ -653,7 +653,7 @@ def main():
             print(f"  - {test['test']}: {test['details']}")
     
     # Return appropriate exit code
-    return 0 if workflow_success and tester.tests_passed == tester.tests_run else 1
+    return 0 if delivery_success and tester.tests_passed == tester.tests_run else 1
 
 if __name__ == "__main__":
     sys.exit(main())
