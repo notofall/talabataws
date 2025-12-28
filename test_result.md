@@ -249,9 +249,9 @@ frontend:
 
   - task: "Purchase Order PDF Export"
     implemented: true
-    working: true
+    working: false
     file: "/app/frontend/src/utils/pdfExport.js"
-    stuck_count: 0
+    stuck_count: 1
     priority: "high"
     needs_retesting: false
     status_history:
@@ -267,6 +267,9 @@ frontend:
       - working: true
         agent: "testing"
         comment: "COMPREHENSIVE PDF EXPORT TESTING COMPLETED: ✅ Individual PO PDF Export (eye icon → dialog → تصدير PDF): Downloaded PO_34c949d8.pdf (7,423 bytes) with valid PDF header and proper content. ✅ Bulk PO PDF Export (main تصدير button): Downloaded purchase_orders.pdf (13,746 bytes) containing all purchase orders table. ✅ Date Range Report Export (تقرير بتاريخ): Successfully generated report for 30-day period. All three PDF export methods working perfectly with actual content, not empty files. PDF structure verified with proper headers, content keywords, and file sizes > 1KB."
+      - working: false
+        agent: "testing"
+        comment: "CRITICAL ARABIC TEXT RENDERING ISSUE: Successfully tested PDF export workflow - logged in as manager1@test.com, navigated to أوامر الشراء section, clicked eye icon, opened purchase order dialog (تفاصيل أمر الشراء), clicked تصدير PDF button, downloaded امر_شراء_34c949d8.pdf (3058 bytes). PDF file is valid with proper structure but ARABIC TEXT IS NOT RENDERED - PDF contains only font definitions and basic structure, no actual Arabic content. This means Arabic text appears as boxes/garbled characters in PDF viewer. html2pdf.js library not properly handling Arabic text rendering."
 
   - task: "Procurement Manager Dashboard"
     implemented: true
