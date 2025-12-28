@@ -7,8 +7,9 @@ import { Card, CardContent } from "../components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Badge } from "../components/ui/badge";
-import { Package, LogOut, RefreshCw, Printer, Eye, Download, CheckCircle, Clock } from "lucide-react";
+import { Package, LogOut, RefreshCw, Printer, Eye, Download, CheckCircle, Clock, KeyRound } from "lucide-react";
 import { exportPurchaseOrderToPDF } from "../utils/pdfExport";
+import ChangePasswordDialog from "../components/ChangePasswordDialog";
 
 const PrinterDashboard = () => {
   const { user, logout, getAuthHeaders, API_URL } = useAuth();
