@@ -1074,6 +1074,30 @@ async def get_order_deliveries(order_id: str, current_user: dict = Depends(get_c
     
     return deliveries
 
+@api_router.get("/purchase-orders/pending-delivery")
+async def get_pending_delivery_orders(current_user: dict = Depends(get_current_user)):
+    """الأوامر التي تحتاج استلام - للمشرف والمهندس"""
+    if current_user["role"] not in [UserRole.SUPERVISOR, UserRole.ENGINEER]:
+        return []
+    
+    query = {"status": {"$in": [PurchaseOrderStatus.SHIPPED, PurchaseOrderStatus.PARTIALLY_DELIVERED]}}
+    orders = await db.purchase_orders.find(query, {"_id": 0}).sort("created_at", -1).to_list(100)
+    
+    result = []
+    for o in orders:
+        o.setdefault("total_amount", 0)
+        o.setdefault("supplier_id", None)
+        o.setdefault("terms_conditions", None)
+        o.setdefault("expected_delivery_date", None)
+        o.setdefault("approved_at", None)
+        o.setdefault("printed_at", None)
+        o.setdefault("shipped_at", None)
+        o.setdefault("delivered_at", None)
+        o.setdefault("delivery_notes", None)
+        result.append(PurchaseOrderResponse(**o))
+    
+    return result
+
 @api_router.get("/purchase-orders", response_model=List[PurchaseOrderResponse])
 async def get_purchase_orders(current_user: dict = Depends(get_current_user)):
     query = {}
@@ -1082,9 +1106,7 @@ async def get_purchase_orders(current_user: dict = Depends(get_current_user)):
     elif current_user["role"] == UserRole.PRINTER:
         # موظف الطباعة يرى فقط الأوامر المعتمدة والمطبوعة والمشحونة
         query["status"] = {"$in": [PurchaseOrderStatus.APPROVED, PurchaseOrderStatus.PRINTED, PurchaseOrderStatus.SHIPPED]}
-    elif current_user["role"] in [UserRole.SUPERVISOR, UserRole.ENGINEER]:
-        # المشرف والمهندس يرون الأوامر المشحونة للتسليم
-        query["status"] = {"$in": [PurchaseOrderStatus.SHIPPED, PurchaseOrderStatus.PARTIALLY_DELIVERED, PurchaseOrderStatus.DELIVERED]}
+    # المشرف والمهندس يستخدمون endpoint منفصل للاستلام
     
     orders = await db.purchase_orders.find(query, {"_id": 0}).sort("created_at", -1).to_list(500)
     
