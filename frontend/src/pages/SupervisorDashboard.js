@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Badge } from "../components/ui/badge";
-import { Package, Plus, LogOut, FileText, Clock, CheckCircle, XCircle, RefreshCw, Download, Eye, Edit, Trash2, X } from "lucide-react";
+import { Package, Plus, LogOut, FileText, Clock, CheckCircle, XCircle, RefreshCw, Download, Eye, Edit, Trash2, X, Truck, PackageCheck } from "lucide-react";
 import { exportRequestToPDF, exportRequestsTableToPDF } from "../utils/pdfExport";
 
 const UNITS = ["قطعة", "طن", "كيلو", "متر", "متر مربع", "متر مكعب", "كيس", "لتر", "علبة", "رول"];
@@ -19,13 +19,18 @@ const SupervisorDashboard = () => {
   const { user, logout, getAuthHeaders, API_URL } = useAuth();
   const [requests, setRequests] = useState([]);
   const [engineers, setEngineers] = useState([]);
+  const [pendingDeliveries, setPendingDeliveries] = useState([]);
   const [stats, setStats] = useState({});
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deliveryDialogOpen, setDeliveryDialogOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
+  const [selectedDelivery, setSelectedDelivery] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [deliveryItems, setDeliveryItems] = useState([]);
+  const [deliveryNotes, setDeliveryNotes] = useState("");
 
   // Form state
   const [items, setItems] = useState([]);
