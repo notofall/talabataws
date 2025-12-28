@@ -100,7 +100,8 @@ class MaterialRequestUpdate(BaseModel):
 
 class MaterialRequestResponse(BaseModel):
     id: str
-    request_number: Optional[int] = None  # رقم الطلب المتسلسل للمشرف
+    request_number: Optional[str] = None  # رقم الطلب المتسلسل للمشرف (A1, A2, B1...)
+    request_seq: Optional[int] = None  # الرقم التسلسلي فقط
     items: List[MaterialItem]
     project_name: str
     reason: str
