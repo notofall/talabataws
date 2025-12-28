@@ -73,10 +73,15 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
     user: UserResponse
 
+# Material Item Model (single item in a request)
+class MaterialItem(BaseModel):
+    name: str
+    quantity: int
+    unit: str = "قطعة"  # الوحدة: قطعة، طن، متر، كيس، الخ
+
 # Material Request Models
 class MaterialRequestCreate(BaseModel):
-    material_name: str
-    quantity: int
+    items: List[MaterialItem]
     project_name: str
     reason: str
     engineer_id: str
@@ -87,8 +92,7 @@ class MaterialRequestUpdate(BaseModel):
 
 class MaterialRequestResponse(BaseModel):
     id: str
-    material_name: str
-    quantity: int
+    items: List[MaterialItem]
     project_name: str
     reason: str
     supervisor_id: str
@@ -109,8 +113,7 @@ class PurchaseOrderCreate(BaseModel):
 class PurchaseOrderResponse(BaseModel):
     id: str
     request_id: str
-    material_name: str
-    quantity: int
+    items: List[MaterialItem]
     project_name: str
     supplier_name: str
     notes: Optional[str] = None
