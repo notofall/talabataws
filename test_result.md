@@ -284,11 +284,7 @@ metadata:
   run_ui: true
 
 test_plan:
-  current_focus:
-    - "Multiple Purchase Orders per Request with Selected Items"
-    - "Purchase Order Approval Workflow"
-    - "Printer Role and Print Workflow"
-    - "Remaining Items API Endpoint"
+  current_focus: []
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
