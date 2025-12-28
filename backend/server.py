@@ -233,11 +233,22 @@ class PurchaseOrderCreate(BaseModel):
     supplier_id: Optional[str] = None  # معرف المورد من القائمة
     supplier_name: str  # اسم المورد (يدوي أو من القائمة)
     selected_items: List[int]  # قائمة فهارس الأصناف المختارة من الطلب الأصلي
-    item_prices: Optional[List[dict]] = None  # أسعار الأصناف [{"index": 0, "unit_price": 100}]
+    item_prices: Optional[List[dict]] = None  # أسعار الأصناف [{"index": 0, "unit_price": 100}] - اختياري
     category_id: Optional[str] = None  # تصنيف الميزانية
     notes: Optional[str] = None
     terms_conditions: Optional[str] = None  # الشروط والأحكام
     expected_delivery_date: Optional[str] = None  # تاريخ التسليم المتوقع
+
+class PurchaseOrderUpdate(BaseModel):
+    """تحديث أمر الشراء - جميع الحقول اختيارية"""
+    supplier_id: Optional[str] = None
+    supplier_name: Optional[str] = None
+    item_prices: Optional[List[dict]] = None  # أسعار الأصناف [{"name": "...", "unit_price": 100}]
+    category_id: Optional[str] = None
+    notes: Optional[str] = None
+    terms_conditions: Optional[str] = None
+    expected_delivery_date: Optional[str] = None
+    supplier_invoice_number: Optional[str] = None  # رقم فاتورة المورد
 
 class PurchaseOrderResponse(BaseModel):
     id: str
