@@ -1395,6 +1395,13 @@ async def create_purchase_order(
     order_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
     
+    # Get category name if category_id is provided
+    category_name = None
+    if order_data.category_id:
+        category = await db.budget_categories.find_one({"id": order_data.category_id}, {"_id": 0})
+        if category:
+            category_name = category.get("name")
+    
     order_doc = {
         "id": order_id,
         "request_id": order_data.request_id,
@@ -1404,6 +1411,7 @@ async def create_purchase_order(
         "supplier_id": order_data.supplier_id,
         "supplier_name": order_data.supplier_name,
         "category_id": order_data.category_id,  # تصنيف الميزانية
+        "category_name": category_name,  # اسم التصنيف
         "notes": order_data.notes,
         "terms_conditions": order_data.terms_conditions,
         "manager_id": current_user["id"],
