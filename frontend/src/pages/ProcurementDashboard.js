@@ -230,6 +230,62 @@ const ProcurementDashboard = () => {
     setReportDialogOpen(false);
   };
 
+  // Budget Categories Functions
+  const handleCreateCategory = async () => {
+    if (!newCategory.name || !newCategory.project_name || !newCategory.estimated_budget) {
+      toast.error("الرجاء ملء جميع الحقول");
+      return;
+    }
+    try {
+      await axios.post(`${API_URL}/budget-categories`, {
+        name: newCategory.name,
+        project_name: newCategory.project_name,
+        estimated_budget: parseFloat(newCategory.estimated_budget)
+      }, getAuthHeaders());
+      toast.success("تم إضافة التصنيف بنجاح");
+      setNewCategory({ name: "", project_name: "", estimated_budget: "" });
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "فشل في إضافة التصنيف");
+    }
+  };
+
+  const handleUpdateCategory = async () => {
+    if (!editingCategory) return;
+    try {
+      await axios.put(`${API_URL}/budget-categories/${editingCategory.id}`, {
+        name: editingCategory.name,
+        estimated_budget: parseFloat(editingCategory.estimated_budget)
+      }, getAuthHeaders());
+      toast.success("تم تحديث التصنيف بنجاح");
+      setEditingCategory(null);
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "فشل في تحديث التصنيف");
+    }
+  };
+
+  const handleDeleteCategory = async (categoryId) => {
+    if (!window.confirm("هل أنت متأكد من حذف هذا التصنيف؟")) return;
+    try {
+      await axios.delete(`${API_URL}/budget-categories/${categoryId}`, getAuthHeaders());
+      toast.success("تم حذف التصنيف بنجاح");
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "فشل في حذف التصنيف");
+    }
+  };
+
+  const fetchBudgetReport = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/budget-reports`, getAuthHeaders());
+      setBudgetReport(res.data);
+      setBudgetReportDialogOpen(true);
+    } catch (error) {
+      toast.error("فشل في تحميل تقرير الميزانية");
+    }
+  };
+
   // State for remaining items
   const [remainingItems, setRemainingItems] = useState([]);
   const [loadingItems, setLoadingItems] = useState(false);
