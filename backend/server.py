@@ -47,10 +47,20 @@ async def create_indexes():
         await db.purchase_orders.create_index("manager_id")
         await db.purchase_orders.create_index("status")
         await db.purchase_orders.create_index("created_at")
+        await db.purchase_orders.create_index("supplier_id")
         await db.purchase_orders.create_index("supplier_name")
         await db.purchase_orders.create_index("project_name")
         await db.purchase_orders.create_index([("status", 1), ("created_at", -1)])
         await db.purchase_orders.create_index([("manager_id", 1), ("status", 1)])
+        
+        # Suppliers indexes
+        await db.suppliers.create_index("id", unique=True)
+        await db.suppliers.create_index("name")
+        
+        # Delivery records indexes
+        await db.delivery_records.create_index("id", unique=True)
+        await db.delivery_records.create_index("order_id")
+        await db.delivery_records.create_index("delivery_date")
         
         print("✅ Database indexes created successfully")
     except Exception as e:
