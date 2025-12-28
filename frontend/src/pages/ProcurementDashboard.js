@@ -11,8 +11,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Badge } from "../components/ui/badge";
 import { Checkbox } from "../components/ui/checkbox";
-import { Package, LogOut, Clock, CheckCircle, RefreshCw, FileText, ShoppingCart, Truck, Eye, Download, Calendar, Filter, Check, AlertCircle, Plus, Users, X, Edit, DollarSign, BarChart3, Trash2 } from "lucide-react";
+import { Package, LogOut, Clock, CheckCircle, RefreshCw, FileText, ShoppingCart, Truck, Eye, Download, Calendar, Filter, Check, AlertCircle, Plus, Users, X, Edit, DollarSign, BarChart3, Trash2, KeyRound } from "lucide-react";
 import { exportRequestToPDF, exportPurchaseOrderToPDF, exportRequestsTableToPDF, exportPurchaseOrdersTableToPDF, exportBudgetReportToPDF } from "../utils/pdfExport";
+import ChangePasswordDialog from "../components/ChangePasswordDialog";
 
 const ProcurementDashboard = () => {
   const { user, logout, getAuthHeaders, API_URL } = useAuth();
