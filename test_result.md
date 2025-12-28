@@ -170,51 +170,63 @@ backend:
 
   - task: "Multiple Purchase Orders per Request with Selected Items"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Added feature to create POs with selected_items array. Manager can create multiple POs for same request by selecting specific items. Request status changes to partially_ordered when not all items are ordered."
+      - working: true
+        agent: "testing"
+        comment: "VERIFIED: Multiple PO creation working perfectly. Created first PO with items [0,1] and second PO with item [2]. Request status correctly changed from approved_by_engineer → partially_ordered → purchase_order_issued. Remaining items endpoint working correctly showing 1 remaining item after first PO."
 
   - task: "Purchase Order Approval Workflow"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Added PO approval workflow. New POs created with pending_approval status. Manager can approve using PUT /api/purchase-orders/{order_id}/approve. Status changes to approved after approval."
+      - working: true
+        agent: "testing"
+        comment: "VERIFIED: PO approval workflow working correctly. New POs created with pending_approval status. Manager successfully approved both POs using PUT /api/purchase-orders/{order_id}/approve. Status changed from pending_approval → approved as expected."
 
   - task: "Printer Role and Print Workflow"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Added printer role. Printer can see approved POs and mark them as printed using PUT /api/purchase-orders/{order_id}/print. Status changes to printed after printing."
+      - working: true
+        agent: "testing"
+        comment: "VERIFIED: Printer role working perfectly. Printer login successful with printer1@test.com. Printer can see approved POs and successfully marked both POs as printed using PUT /api/purchase-orders/{order_id}/print. Status changed from approved → printed. Dashboard stats working for printer role."
 
   - task: "Remaining Items API Endpoint"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Added GET /api/requests/{request_id}/remaining-items endpoint to get items not yet ordered for a request."
+      - working: true
+        agent: "testing"
+        comment: "VERIFIED: Remaining items endpoint working correctly. GET /api/requests/{request_id}/remaining-items returns proper data structure with all_items and remaining_items arrays. Correctly shows 1 remaining item after first PO creation and 0 after second PO creation."
 
 frontend:
   - task: "Supervisor Dashboard - Create Material Request Form"
