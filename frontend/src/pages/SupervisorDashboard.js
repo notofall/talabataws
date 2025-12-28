@@ -7,43 +7,10 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Textarea } from "../components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "../components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "../components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Badge } from "../components/ui/badge";
-import {
-  Package,
-  Plus,
-  LogOut,
-  FileText,
-  Clock,
-  CheckCircle,
-  XCircle,
-  RefreshCw,
-  Download,
-  Eye,
-  Edit,
-  Trash2,
-} from "lucide-react";
+import { Package, Plus, LogOut, FileText, Clock, CheckCircle, XCircle, RefreshCw, Download, Eye, Edit, Trash2, Menu, X } from "lucide-react";
 import { exportRequestToPDF, exportRequestsTableToPDF } from "../utils/pdfExport";
 
 const UNITS = ["قطعة", "طن", "كيلو", "متر", "متر مربع", "متر مكعب", "كيس", "لتر", "علبة", "رول"];
@@ -59,8 +26,9 @@ const SupervisorDashboard = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Form state - multiple items
+  // Form state
   const [items, setItems] = useState([{ name: "", quantity: "", unit: "قطعة" }]);
   const [projectName, setProjectName] = useState("");
   const [reason, setReason] = useState("");
@@ -89,36 +57,18 @@ const SupervisorDashboard = () => {
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
-  const addItem = () => {
-    setItems([...items, { name: "", quantity: "", unit: "قطعة" }]);
-  };
-
-  const removeItem = (index) => {
-    if (items.length > 1) {
-      setItems(items.filter((_, i) => i !== index));
-    }
-  };
-
+  const addItem = () => setItems([...items, { name: "", quantity: "", unit: "قطعة" }]);
+  const removeItem = (index) => items.length > 1 && setItems(items.filter((_, i) => i !== index));
   const updateItem = (index, field, value) => {
     const newItems = [...items];
     newItems[index][field] = value;
     setItems(newItems);
   };
 
-  const addEditItem = () => {
-    setEditItems([...editItems, { name: "", quantity: "", unit: "قطعة" }]);
-  };
-
-  const removeEditItem = (index) => {
-    if (editItems.length > 1) {
-      setEditItems(editItems.filter((_, i) => i !== index));
-    }
-  };
-
+  const addEditItem = () => setEditItems([...editItems, { name: "", quantity: "", unit: "قطعة" }]);
+  const removeEditItem = (index) => editItems.length > 1 && setEditItems(editItems.filter((_, i) => i !== index));
   const updateEditItem = (index, field, value) => {
     const newItems = [...editItems];
     newItems[index][field] = value;
@@ -134,34 +84,16 @@ const SupervisorDashboard = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validate items
     const validItems = items.filter(item => item.name && item.quantity);
-    if (validItems.length === 0) {
-      toast.error("الرجاء إضافة صنف واحد على الأقل");
-      return;
-    }
-    if (!projectName || !reason || !engineerId) {
-      toast.error("الرجاء إكمال جميع الحقول");
-      return;
-    }
+    if (validItems.length === 0) { toast.error("الرجاء إضافة صنف واحد على الأقل"); return; }
+    if (!projectName || !reason || !engineerId) { toast.error("الرجاء إكمال جميع الحقول"); return; }
 
     setSubmitting(true);
     try {
-      await axios.post(
-        `${API_URL}/requests`,
-        {
-          items: validItems.map(item => ({
-            name: item.name,
-            quantity: parseInt(item.quantity),
-            unit: item.unit
-          })),
-          project_name: projectName,
-          reason: reason,
-          engineer_id: engineerId,
-        },
-        getAuthHeaders()
-      );
+      await axios.post(`${API_URL}/requests`, {
+        items: validItems.map(item => ({ name: item.name, quantity: parseInt(item.quantity), unit: item.unit })),
+        project_name: projectName, reason, engineer_id: engineerId,
+      }, getAuthHeaders());
       toast.success("تم إنشاء الطلب بنجاح");
       setDialogOpen(false);
       resetForm();
@@ -175,36 +107,18 @@ const SupervisorDashboard = () => {
 
   const handleEdit = async (e) => {
     e.preventDefault();
-    
     const validItems = editItems.filter(item => item.name && item.quantity);
-    if (validItems.length === 0) {
-      toast.error("الرجاء إضافة صنف واحد على الأقل");
-      return;
-    }
-    if (!editProjectName || !editReason || !editEngineerId) {
-      toast.error("الرجاء إكمال جميع الحقول");
-      return;
-    }
+    if (validItems.length === 0) { toast.error("الرجاء إضافة صنف واحد على الأقل"); return; }
+    if (!editProjectName || !editReason || !editEngineerId) { toast.error("الرجاء إكمال جميع الحقول"); return; }
 
     setSubmitting(true);
     try {
-      await axios.put(
-        `${API_URL}/requests/${selectedRequest.id}/edit`,
-        {
-          items: validItems.map(item => ({
-            name: item.name,
-            quantity: parseInt(item.quantity),
-            unit: item.unit || "قطعة"
-          })),
-          project_name: editProjectName,
-          reason: editReason,
-          engineer_id: editEngineerId,
-        },
-        getAuthHeaders()
-      );
+      await axios.put(`${API_URL}/requests/${selectedRequest.id}/edit`, {
+        items: validItems.map(item => ({ name: item.name, quantity: parseInt(item.quantity), unit: item.unit || "قطعة" })),
+        project_name: editProjectName, reason: editReason, engineer_id: editEngineerId,
+      }, getAuthHeaders());
       toast.success("تم تعديل الطلب بنجاح");
       setEditDialogOpen(false);
-      setSelectedRequest(null);
       fetchData();
     } catch (error) {
       toast.error(error.response?.data?.detail || "فشل في تعديل الطلب");
@@ -215,286 +129,139 @@ const SupervisorDashboard = () => {
 
   const openEditDialog = (request) => {
     setSelectedRequest(request);
-    setEditItems(request.items.map(item => ({
-      name: item.name,
-      quantity: String(item.quantity),
-      unit: item.unit || "قطعة"
-    })));
+    setEditItems(request.items.map(item => ({ name: item.name, quantity: String(item.quantity), unit: item.unit || "قطعة" })));
     setEditProjectName(request.project_name);
     setEditReason(request.reason);
     setEditEngineerId(request.engineer_id);
     setEditDialogOpen(true);
   };
 
-  const openViewDialog = (request) => {
-    setSelectedRequest(request);
-    setViewDialogOpen(true);
-  };
-
   const getStatusBadge = (status) => {
     const statusMap = {
-      pending_engineer: { label: "بانتظار المهندس", variant: "warning", icon: Clock },
-      approved_by_engineer: { label: "معتمد", variant: "success", icon: CheckCircle },
-      rejected_by_engineer: { label: "مرفوض", variant: "destructive", icon: XCircle },
-      purchase_order_issued: { label: "تم إصدار أمر الشراء", variant: "default", icon: FileText },
+      pending_engineer: { label: "بانتظار المهندس", color: "bg-yellow-100 text-yellow-800 border-yellow-300" },
+      approved_by_engineer: { label: "معتمد", color: "bg-green-100 text-green-800 border-green-300" },
+      rejected_by_engineer: { label: "مرفوض", color: "bg-red-100 text-red-800 border-red-300" },
+      purchase_order_issued: { label: "تم إصدار أمر الشراء", color: "bg-blue-100 text-blue-800 border-blue-300" },
     };
-
-    const statusInfo = statusMap[status] || { label: status, variant: "secondary", icon: Clock };
-    const Icon = statusInfo.icon;
-
-    const variantClasses = {
-      warning: "bg-yellow-50 text-yellow-800 border-yellow-200",
-      success: "bg-green-50 text-green-800 border-green-200",
-      destructive: "bg-red-50 text-red-800 border-red-200",
-      default: "bg-blue-50 text-blue-800 border-blue-200",
-      secondary: "bg-slate-50 text-slate-800 border-slate-200",
-    };
-
-    return (
-      <Badge className={`${variantClasses[statusInfo.variant]} border flex items-center gap-1 font-medium`}>
-        <Icon className="w-3 h-3" />
-        {statusInfo.label}
-      </Badge>
-    );
+    const statusInfo = statusMap[status] || { label: status, color: "bg-slate-100 text-slate-800" };
+    return <Badge className={`${statusInfo.color} border text-xs`}>{statusInfo.label}</Badge>;
   };
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString("ar-SA", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const getItemsSummary = (items) => {
-    if (!items || items.length === 0) return "-";
-    if (items.length === 1) return `${items[0].name} (${items[0].quantity})`;
-    return `${items[0].name} + ${items.length - 1} أصناف أخرى`;
-  };
+  const formatDate = (dateString) => new Date(dateString).toLocaleDateString("ar-SA", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  const getItemsSummary = (items) => !items?.length ? "-" : items.length === 1 ? items[0].name : `${items[0].name} +${items.length - 1}`;
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-orange-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-600 font-medium">جاري التحميل...</p>
-        </div>
-      </div>
-    );
+    return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="w-10 h-10 border-4 border-orange-600 border-t-transparent rounded-full animate-spin"></div></div>;
   }
+
+  // Item Form Component
+  const ItemForm = ({ itemsList, updateFn, removeFn, addFn }) => (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <Label className="font-bold">الأصناف المطلوبة</Label>
+        <Button type="button" variant="outline" size="sm" onClick={addFn} className="h-8 text-xs">
+          <Plus className="w-3 h-3 ml-1" />إضافة
+        </Button>
+      </div>
+      <div className="space-y-2 max-h-48 overflow-y-auto">
+        {itemsList.map((item, index) => (
+          <div key={index} className="grid grid-cols-12 gap-2 items-center bg-slate-50 p-2 rounded-lg">
+            <Input placeholder="اسم المادة" value={item.name} onChange={(e) => updateFn(index, "name", e.target.value)} className="col-span-5 h-9 text-sm" />
+            <Input type="number" min="1" placeholder="الكمية" value={item.quantity} onChange={(e) => updateFn(index, "quantity", e.target.value)} className="col-span-3 h-9 text-sm" />
+            <select value={item.unit} onChange={(e) => updateFn(index, "unit", e.target.value)} className="col-span-3 h-9 text-sm border rounded-md bg-white px-2">
+              {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+            </select>
+            {itemsList.length > 1 && (
+              <Button type="button" variant="ghost" size="sm" onClick={() => removeFn(index)} className="col-span-1 h-9 w-9 p-0 text-red-500 hover:text-red-700">
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <header className="bg-slate-900 text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-orange-600 rounded-sm flex items-center justify-center">
-                <Package className="w-6 h-6" />
+      <header className="bg-slate-900 text-white shadow-lg sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6">
+          <div className="flex items-center justify-between h-14">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-orange-600 rounded flex items-center justify-center">
+                <Package className="w-5 h-5" />
               </div>
-              <div>
-                <h1 className="text-lg font-bold">نظام طلبات المواد</h1>
-                <p className="text-sm text-slate-400">لوحة تحكم المشرف</p>
+              <div className="hidden sm:block">
+                <h1 className="text-sm font-bold">نظام طلبات المواد</h1>
+                <p className="text-xs text-slate-400">لوحة تحكم المشرف</p>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <span className="text-slate-300">مرحباً، {user?.name}</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={logout}
-                className="text-slate-300 hover:text-white hover:bg-slate-800"
-                data-testid="logout-btn"
-              >
-                <LogOut className="w-4 h-4 ml-2" />
-                خروج
+            <div className="flex items-center gap-2">
+              <span className="text-xs sm:text-sm text-slate-300 hidden sm:inline">{user?.name}</span>
+              <Button variant="ghost" size="sm" onClick={logout} className="text-slate-300 hover:text-white h-8 px-2">
+                <LogOut className="w-4 h-4" />
+                <span className="hidden sm:inline mr-1">خروج</span>
               </Button>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card className="border-r-4 border-r-orange-500 hover-card">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-slate-500">إجمالي الطلبات</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-slate-900">{stats.total || 0}</div>
-            </CardContent>
-          </Card>
-          <Card className="border-r-4 border-r-yellow-500 hover-card">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-slate-500">بانتظار الاعتماد</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-yellow-600">{stats.pending || 0}</div>
-            </CardContent>
-          </Card>
-          <Card className="border-r-4 border-r-green-500 hover-card">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-slate-500">معتمدة</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-green-600">{stats.approved || 0}</div>
-            </CardContent>
-          </Card>
-          <Card className="border-r-4 border-r-red-500 hover-card">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-slate-500">مرفوضة</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-red-600">{stats.rejected || 0}</div>
-            </CardContent>
-          </Card>
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4">
+        {/* Stats - Mobile Optimized */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+          {[
+            { label: "الإجمالي", value: stats.total || 0, color: "border-orange-500" },
+            { label: "معلقة", value: stats.pending || 0, color: "border-yellow-500" },
+            { label: "معتمدة", value: stats.approved || 0, color: "border-green-500" },
+            { label: "مرفوضة", value: stats.rejected || 0, color: "border-red-500" },
+          ].map((stat, i) => (
+            <Card key={i} className={`border-r-4 ${stat.color}`}>
+              <CardContent className="p-3">
+                <p className="text-xs text-slate-500">{stat.label}</p>
+                <p className="text-2xl font-bold">{stat.value}</p>
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
-        {/* Actions Bar */}
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-slate-900">طلباتي</h2>
-          <div className="flex gap-3">
-            <Button
-              variant="outline"
-              onClick={() => exportRequestsTableToPDF(requests, 'طلباتي')}
-              className="border-slate-300"
-              disabled={requests.length === 0}
-              data-testid="export-all-pdf-btn"
-            >
-              <Download className="w-4 h-4 ml-2" />
-              تصدير PDF
+        {/* Actions */}
+        <div className="flex items-center justify-between mb-4 gap-2">
+          <h2 className="text-lg sm:text-xl font-bold text-slate-900">طلباتي</h2>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => exportRequestsTableToPDF(requests, 'طلباتي')} disabled={!requests.length} className="h-8 px-2 text-xs">
+              <Download className="w-3 h-3 sm:ml-1" /><span className="hidden sm:inline">تصدير</span>
             </Button>
-            <Button
-              variant="outline"
-              onClick={fetchData}
-              className="border-slate-300"
-              data-testid="refresh-btn"
-            >
-              <RefreshCw className="w-4 h-4 ml-2" />
-              تحديث
+            <Button variant="outline" size="sm" onClick={fetchData} className="h-8 px-2">
+              <RefreshCw className="w-3 h-3" />
             </Button>
-            <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
+            <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
               <DialogTrigger asChild>
-                <Button
-                  className="bg-orange-600 hover:bg-orange-700 text-white font-bold"
-                  data-testid="new-request-btn"
-                >
-                  <Plus className="w-4 h-4 ml-2" />
-                  طلب جديد
+                <Button size="sm" className="bg-orange-600 hover:bg-orange-700 text-white h-8 px-3 text-xs">
+                  <Plus className="w-3 h-3 ml-1" />طلب جديد
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto" dir="rtl">
-                <DialogHeader>
-                  <DialogTitle className="text-xl font-bold text-center">إنشاء طلب مواد جديد</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-                  {/* Items Section */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-base font-bold">الأصناف المطلوبة</Label>
-                      <Button type="button" variant="outline" size="sm" onClick={addItem}>
-                        <Plus className="w-4 h-4 ml-1" />
-                        إضافة صنف
-                      </Button>
-                    </div>
-                    
-                    {items.map((item, index) => (
-                      <div key={index} className="flex gap-2 items-start p-3 bg-slate-50 rounded-lg">
-                        <div className="flex-1 space-y-2">
-                          <Input
-                            placeholder="اسم المادة"
-                            value={item.name}
-                            onChange={(e) => updateItem(index, "name", e.target.value)}
-                            className="h-10"
-                            data-testid={`item-name-${index}`}
-                          />
-                          <div className="flex gap-2">
-                            <Input
-                              type="number"
-                              min="1"
-                              placeholder="الكمية"
-                              value={item.quantity}
-                              onChange={(e) => updateItem(index, "quantity", e.target.value)}
-                              className="h-10 w-24"
-                              data-testid={`item-quantity-${index}`}
-                            />
-                            <Select value={item.unit} onValueChange={(v) => updateItem(index, "unit", v)}>
-                              <SelectTrigger className="h-10 w-28">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {UNITS.map(unit => (
-                                  <SelectItem key={unit} value={unit}>{unit}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                        {items.length > 1 && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeItem(index)}
-                            className="text-red-500 hover:text-red-700 hover:bg-red-50 mt-1"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        )}
-                      </div>
-                    ))}
+              <DialogContent className="w-[95vw] max-w-md max-h-[90vh] overflow-y-auto p-4" dir="rtl">
+                <DialogHeader><DialogTitle className="text-center">إنشاء طلب مواد</DialogTitle></DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+                  <ItemForm itemsList={items} updateFn={updateItem} removeFn={removeItem} addFn={addItem} />
+                  <div>
+                    <Label className="text-sm">المشروع</Label>
+                    <Input placeholder="اسم المشروع" value={projectName} onChange={(e) => setProjectName(e.target.value)} className="h-10 mt-1" />
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="project_name">اسم المشروع</Label>
-                    <Input
-                      id="project_name"
-                      placeholder="مثال: مشروع برج السلام"
-                      value={projectName}
-                      onChange={(e) => setProjectName(e.target.value)}
-                      className="h-11"
-                      data-testid="project-name-input"
-                    />
+                  <div>
+                    <Label className="text-sm">سبب الطلب</Label>
+                    <Textarea placeholder="اذكر السبب..." value={reason} onChange={(e) => setReason(e.target.value)} rows={2} className="mt-1" />
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="reason">سبب الطلب</Label>
-                    <Textarea
-                      id="reason"
-                      placeholder="اذكر سبب طلب هذه المواد..."
-                      value={reason}
-                      onChange={(e) => setReason(e.target.value)}
-                      rows={2}
-                      data-testid="reason-input"
-                    />
+                  <div>
+                    <Label className="text-sm">المهندس</Label>
+                    <select value={engineerId} onChange={(e) => setEngineerId(e.target.value)} className="w-full h-10 mt-1 border rounded-md bg-white px-3 text-sm">
+                      <option value="">اختر المهندس</option>
+                      {engineers.map((eng) => <option key={eng.id} value={eng.id}>{eng.name}</option>)}
+                    </select>
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="engineer">اختر المهندس</Label>
-                    <Select value={engineerId} onValueChange={setEngineerId}>
-                      <SelectTrigger className="h-11" data-testid="engineer-select">
-                        <SelectValue placeholder="اختر المهندس للاعتماد" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {engineers.map((eng) => (
-                          <SelectItem key={eng.id} value={eng.id}>
-                            {eng.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <Button
-                    type="submit"
-                    className="w-full h-12 bg-orange-600 hover:bg-orange-700 text-white font-bold"
-                    disabled={submitting}
-                    data-testid="submit-request-btn"
-                  >
+                  <Button type="submit" className="w-full h-11 bg-orange-600 hover:bg-orange-700" disabled={submitting}>
                     {submitting ? "جاري الإرسال..." : "إرسال الطلب"}
                   </Button>
                 </form>
@@ -503,58 +270,73 @@ const SupervisorDashboard = () => {
           </div>
         </div>
 
-        {/* Requests Table */}
+        {/* Requests - Mobile Cards / Desktop Table */}
         <Card className="shadow-sm">
           <CardContent className="p-0">
-            {requests.length === 0 ? (
-              <div className="text-center py-16">
-                <Package className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-slate-600 mb-2">لا توجد طلبات</h3>
-                <p className="text-slate-500 mb-4">ابدأ بإنشاء طلب مواد جديد</p>
+            {!requests.length ? (
+              <div className="text-center py-12">
+                <Package className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                <p className="text-slate-500">لا توجد طلبات</p>
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-slate-50">
-                    <TableHead className="text-right font-bold">الأصناف</TableHead>
-                    <TableHead className="text-right font-bold">المشروع</TableHead>
-                    <TableHead className="text-right font-bold">المهندس</TableHead>
-                    <TableHead className="text-right font-bold">الحالة</TableHead>
-                    <TableHead className="text-right font-bold">التاريخ</TableHead>
-                    <TableHead className="text-right font-bold">الإجراءات</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {requests.map((request) => (
-                    <TableRow key={request.id} className="table-row-hover" data-testid={`request-row-${request.id}`}>
-                      <TableCell className="font-medium">
-                        {getItemsSummary(request.items)}
-                      </TableCell>
-                      <TableCell>{request.project_name}</TableCell>
-                      <TableCell>{request.engineer_name}</TableCell>
-                      <TableCell>{getStatusBadge(request.status)}</TableCell>
-                      <TableCell className="text-slate-500 text-sm">
-                        {formatDate(request.created_at)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button size="sm" variant="ghost" onClick={() => openViewDialog(request)} className="h-8 w-8 p-0">
-                            <Eye className="w-4 h-4 text-slate-600" />
-                          </Button>
-                          {request.status === "pending_engineer" && (
-                            <Button size="sm" variant="ghost" onClick={() => openEditDialog(request)} className="h-8 w-8 p-0">
-                              <Edit className="w-4 h-4 text-blue-600" />
-                            </Button>
-                          )}
-                          <Button size="sm" variant="ghost" onClick={() => exportRequestToPDF(request)} className="h-8 w-8 p-0">
-                            <Download className="w-4 h-4 text-green-600" />
-                          </Button>
+              <>
+                {/* Mobile View */}
+                <div className="sm:hidden divide-y">
+                  {requests.map((req) => (
+                    <div key={req.id} className="p-3 space-y-2">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-medium text-sm">{getItemsSummary(req.items)}</p>
+                          <p className="text-xs text-slate-500">{req.project_name}</p>
                         </div>
-                      </TableCell>
-                    </TableRow>
+                        {getStatusBadge(req.status)}
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-slate-400">{formatDate(req.created_at)}</span>
+                        <div className="flex gap-1">
+                          <Button size="sm" variant="ghost" onClick={() => { setSelectedRequest(req); setViewDialogOpen(true); }} className="h-7 w-7 p-0"><Eye className="w-3 h-3" /></Button>
+                          {req.status === "pending_engineer" && <Button size="sm" variant="ghost" onClick={() => openEditDialog(req)} className="h-7 w-7 p-0"><Edit className="w-3 h-3 text-blue-600" /></Button>}
+                          <Button size="sm" variant="ghost" onClick={() => exportRequestToPDF(req)} className="h-7 w-7 p-0"><Download className="w-3 h-3 text-green-600" /></Button>
+                        </div>
+                      </div>
+                    </div>
                   ))}
-                </TableBody>
-              </Table>
+                </div>
+
+                {/* Desktop View */}
+                <div className="hidden sm:block overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-slate-50">
+                        <TableHead className="text-right">الأصناف</TableHead>
+                        <TableHead className="text-right">المشروع</TableHead>
+                        <TableHead className="text-right">المهندس</TableHead>
+                        <TableHead className="text-right">الحالة</TableHead>
+                        <TableHead className="text-right">التاريخ</TableHead>
+                        <TableHead className="text-right">الإجراءات</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {requests.map((req) => (
+                        <TableRow key={req.id}>
+                          <TableCell className="font-medium">{getItemsSummary(req.items)}</TableCell>
+                          <TableCell>{req.project_name}</TableCell>
+                          <TableCell>{req.engineer_name}</TableCell>
+                          <TableCell>{getStatusBadge(req.status)}</TableCell>
+                          <TableCell className="text-slate-500 text-sm">{formatDate(req.created_at)}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              <Button size="sm" variant="ghost" onClick={() => { setSelectedRequest(req); setViewDialogOpen(true); }} className="h-8 w-8 p-0"><Eye className="w-4 h-4" /></Button>
+                              {req.status === "pending_engineer" && <Button size="sm" variant="ghost" onClick={() => openEditDialog(req)} className="h-8 w-8 p-0"><Edit className="w-4 h-4 text-blue-600" /></Button>}
+                              <Button size="sm" variant="ghost" onClick={() => exportRequestToPDF(req)} className="h-8 w-8 p-0"><Download className="w-4 h-4 text-green-600" /></Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
@@ -562,37 +344,31 @@ const SupervisorDashboard = () => {
 
       {/* View Dialog */}
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]" dir="rtl">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-center">تفاصيل الطلب</DialogTitle>
-          </DialogHeader>
+        <DialogContent className="w-[95vw] max-w-md max-h-[85vh] overflow-y-auto p-4" dir="rtl">
+          <DialogHeader><DialogTitle className="text-center">تفاصيل الطلب</DialogTitle></DialogHeader>
           {selectedRequest && (
-            <div className="space-y-4 mt-4">
-              <div className="bg-slate-50 p-4 rounded-lg space-y-3">
-                <div className="border-b pb-3">
-                  <span className="text-slate-500 block mb-2 font-medium">الأصناف المطلوبة:</span>
-                  <div className="space-y-2">
-                    {selectedRequest.items?.map((item, idx) => (
-                      <div key={idx} className="flex justify-between bg-white p-2 rounded">
-                        <span className="font-medium">{item.name}</span>
-                        <span className="text-slate-600">{item.quantity} {item.unit || "قطعة"}</span>
-                      </div>
-                    ))}
+            <div className="space-y-3 mt-2">
+              <div className="bg-slate-50 p-3 rounded-lg space-y-2">
+                <p className="text-sm font-medium border-b pb-2">الأصناف:</p>
+                {selectedRequest.items?.map((item, idx) => (
+                  <div key={idx} className="flex justify-between text-sm bg-white p-2 rounded">
+                    <span>{item.name}</span>
+                    <span className="text-slate-600">{item.quantity} {item.unit}</span>
                   </div>
-                </div>
-                <div className="flex justify-between"><span className="text-slate-500">المشروع:</span><span className="font-semibold">{selectedRequest.project_name}</span></div>
-                <div className="flex justify-between"><span className="text-slate-500">المهندس:</span><span className="font-semibold">{selectedRequest.engineer_name}</span></div>
-                <div className="flex justify-between"><span className="text-slate-500">الحالة:</span>{getStatusBadge(selectedRequest.status)}</div>
-                <div className="flex justify-between"><span className="text-slate-500">التاريخ:</span><span className="font-semibold">{formatDate(selectedRequest.created_at)}</span></div>
-                <div className="pt-2 border-t"><span className="text-slate-500 block mb-1">سبب الطلب:</span><p className="font-medium">{selectedRequest.reason}</p></div>
-                {selectedRequest.rejection_reason && (
-                  <div className="pt-2 border-t bg-red-50 p-3 rounded">
-                    <span className="text-red-600 block mb-1">سبب الرفض:</span>
-                    <p className="font-medium text-red-800">{selectedRequest.rejection_reason}</p>
-                  </div>
-                )}
+                ))}
               </div>
-              <Button className="w-full bg-green-600 hover:bg-green-700 text-white" onClick={() => exportRequestToPDF(selectedRequest)}>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div><span className="text-slate-500">المشروع:</span><p className="font-medium">{selectedRequest.project_name}</p></div>
+                <div><span className="text-slate-500">المهندس:</span><p className="font-medium">{selectedRequest.engineer_name}</p></div>
+              </div>
+              <div><span className="text-slate-500 text-sm">السبب:</span><p className="text-sm">{selectedRequest.reason}</p></div>
+              {selectedRequest.rejection_reason && (
+                <div className="bg-red-50 p-2 rounded text-sm">
+                  <span className="text-red-600">سبب الرفض:</span>
+                  <p className="text-red-800">{selectedRequest.rejection_reason}</p>
+                </div>
+              )}
+              <Button className="w-full bg-green-600 hover:bg-green-700" onClick={() => exportRequestToPDF(selectedRequest)}>
                 <Download className="w-4 h-4 ml-2" />تصدير PDF
               </Button>
             </div>
@@ -602,54 +378,26 @@ const SupervisorDashboard = () => {
 
       {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto" dir="rtl">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-center">تعديل الطلب</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleEdit} className="space-y-4 mt-4">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-base font-bold">الأصناف</Label>
-                <Button type="button" variant="outline" size="sm" onClick={addEditItem}>
-                  <Plus className="w-4 h-4 ml-1" />إضافة صنف
-                </Button>
-              </div>
-              {editItems.map((item, index) => (
-                <div key={index} className="flex gap-2 items-start p-3 bg-slate-50 rounded-lg">
-                  <div className="flex-1 space-y-2">
-                    <Input placeholder="اسم المادة" value={item.name} onChange={(e) => updateEditItem(index, "name", e.target.value)} className="h-10" />
-                    <div className="flex gap-2">
-                      <Input type="number" min="1" placeholder="الكمية" value={item.quantity} onChange={(e) => updateEditItem(index, "quantity", e.target.value)} className="h-10 w-24" />
-                      <Select value={item.unit} onValueChange={(v) => updateEditItem(index, "unit", v)}>
-                        <SelectTrigger className="h-10 w-28"><SelectValue /></SelectTrigger>
-                        <SelectContent>{UNITS.map(unit => (<SelectItem key={unit} value={unit}>{unit}</SelectItem>))}</SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  {editItems.length > 1 && (
-                    <Button type="button" variant="ghost" size="sm" onClick={() => removeEditItem(index)} className="text-red-500 hover:text-red-700">
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  )}
-                </div>
-              ))}
+        <DialogContent className="w-[95vw] max-w-md max-h-[90vh] overflow-y-auto p-4" dir="rtl">
+          <DialogHeader><DialogTitle className="text-center">تعديل الطلب</DialogTitle></DialogHeader>
+          <form onSubmit={handleEdit} className="space-y-4 mt-2">
+            <ItemForm itemsList={editItems} updateFn={updateEditItem} removeFn={removeEditItem} addFn={addEditItem} />
+            <div>
+              <Label className="text-sm">المشروع</Label>
+              <Input value={editProjectName} onChange={(e) => setEditProjectName(e.target.value)} className="h-10 mt-1" />
             </div>
-            <div className="space-y-2">
-              <Label>اسم المشروع</Label>
-              <Input value={editProjectName} onChange={(e) => setEditProjectName(e.target.value)} className="h-11" />
+            <div>
+              <Label className="text-sm">سبب الطلب</Label>
+              <Textarea value={editReason} onChange={(e) => setEditReason(e.target.value)} rows={2} className="mt-1" />
             </div>
-            <div className="space-y-2">
-              <Label>سبب الطلب</Label>
-              <Textarea value={editReason} onChange={(e) => setEditReason(e.target.value)} rows={2} />
+            <div>
+              <Label className="text-sm">المهندس</Label>
+              <select value={editEngineerId} onChange={(e) => setEditEngineerId(e.target.value)} className="w-full h-10 mt-1 border rounded-md bg-white px-3 text-sm">
+                <option value="">اختر المهندس</option>
+                {engineers.map((eng) => <option key={eng.id} value={eng.id}>{eng.name}</option>)}
+              </select>
             </div>
-            <div className="space-y-2">
-              <Label>المهندس</Label>
-              <Select value={editEngineerId} onValueChange={setEditEngineerId}>
-                <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
-                <SelectContent>{engineers.map((eng) => (<SelectItem key={eng.id} value={eng.id}>{eng.name}</SelectItem>))}</SelectContent>
-              </Select>
-            </div>
-            <Button type="submit" className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-bold" disabled={submitting}>
+            <Button type="submit" className="w-full h-11 bg-blue-600 hover:bg-blue-700" disabled={submitting}>
               {submitting ? "جاري الحفظ..." : "حفظ التعديلات"}
             </Button>
           </form>
