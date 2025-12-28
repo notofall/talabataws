@@ -837,6 +837,7 @@ const ProcurementDashboard = () => {
                           <span className="text-xs text-slate-400">{formatDate(order.created_at)}</span>
                           <div className="flex gap-1">
                             <Button size="sm" variant="ghost" onClick={() => { setSelectedOrder(order); setViewOrderDialogOpen(true); }} className="h-7 w-7 p-0"><Eye className="w-3 h-3" /></Button>
+                            <Button size="sm" variant="ghost" onClick={() => openEditOrderDialog(order)} className="h-7 w-7 p-0"><Edit className="w-3 h-3 text-blue-600" /></Button>
                             <Button size="sm" variant="ghost" onClick={() => exportPurchaseOrderToPDF(order)} className="h-7 w-7 p-0"><Download className="w-3 h-3 text-green-600" /></Button>
                           </div>
                         </div>
