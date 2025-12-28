@@ -70,6 +70,9 @@ const ProcurementDashboard = () => {
   const [budgetReportProjectFilter, setBudgetReportProjectFilter] = useState("");  // فلتر المشروع في تقرير الميزانية
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   
+  // Request filter view mode
+  const [requestViewMode, setRequestViewMode] = useState("all"); // "all", "pending", "approved", "delivered"
+  
   // Edit Purchase Order states
   const [editOrderDialogOpen, setEditOrderDialogOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState(null);
