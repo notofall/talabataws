@@ -110,6 +110,7 @@ class UserRole:
     ENGINEER = "engineer"
     PROCUREMENT_MANAGER = "procurement_manager"
     PRINTER = "printer"  # موظف الطباعة
+    DELIVERY_TRACKER = "delivery_tracker"  # متابع التوريد
 
 class RequestStatus:
     PENDING_ENGINEER = "pending_engineer"
