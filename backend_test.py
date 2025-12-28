@@ -107,7 +107,7 @@ class MaterialRequestAPITester:
             200,
             headers=headers
         )
-        return success, response.get('engineers', response) if success else []
+        return success, response if success else []
 
     def test_create_material_request(self, token, engineer_id):
         """Test creating material request"""
