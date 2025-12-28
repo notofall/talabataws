@@ -1180,6 +1180,232 @@ const ProcurementDashboard = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Budget Categories Dialog */}
+      <Dialog open={budgetDialogOpen} onOpenChange={setBudgetDialogOpen}>
+        <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto p-4" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between">
+              <span>إدارة تصنيفات الميزانية</span>
+              <Button size="sm" onClick={fetchBudgetReport} className="bg-blue-600 hover:bg-blue-700">
+                <BarChart3 className="w-4 h-4 ml-1" /> تقرير الميزانية
+              </Button>
+            </DialogTitle>
+          </DialogHeader>
+          
+          {/* Add New Category Form */}
+          <div className="bg-slate-50 p-4 rounded-lg space-y-3">
+            <h3 className="font-medium text-sm mb-2">إضافة تصنيف جديد</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <Label className="text-xs">اسم التصنيف</Label>
+                <Input 
+                  placeholder="مثال: السباكة" 
+                  value={newCategory.name}
+                  onChange={(e) => setNewCategory({...newCategory, name: e.target.value})}
+                  className="h-9 mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">المشروع</Label>
+                <Input 
+                  placeholder="اسم المشروع" 
+                  value={newCategory.project_name}
+                  onChange={(e) => setNewCategory({...newCategory, project_name: e.target.value})}
+                  className="h-9 mt-1"
+                  list="projects-list"
+                />
+                <datalist id="projects-list">
+                  {[...new Set(requests.map(r => r.project_name))].map((p, i) => (
+                    <option key={i} value={p} />
+                  ))}
+                </datalist>
+              </div>
+              <div>
+                <Label className="text-xs">الميزانية التقديرية (ر.س)</Label>
+                <Input 
+                  type="number"
+                  placeholder="50000"
+                  value={newCategory.estimated_budget}
+                  onChange={(e) => setNewCategory({...newCategory, estimated_budget: e.target.value})}
+                  className="h-9 mt-1"
+                />
+              </div>
+            </div>
+            <Button onClick={handleCreateCategory} className="w-full sm:w-auto bg-orange-600 hover:bg-orange-700">
+              <Plus className="w-4 h-4 ml-1" /> إضافة التصنيف
+            </Button>
+          </div>
+
+          {/* Categories List */}
+          <div className="space-y-2 mt-4">
+            <h3 className="font-medium text-sm">التصنيفات الحالية ({budgetCategories.length})</h3>
+            {budgetCategories.length === 0 ? (
+              <p className="text-center text-slate-500 py-4">لا توجد تصنيفات بعد</p>
+            ) : (
+              <div className="space-y-2 max-h-80 overflow-y-auto">
+                {budgetCategories.map(cat => (
+                  <div key={cat.id} className="bg-white border rounded-lg p-3">
+                    {editingCategory?.id === cat.id ? (
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <Input 
+                            value={editingCategory.name}
+                            onChange={(e) => setEditingCategory({...editingCategory, name: e.target.value})}
+                            className="h-8"
+                          />
+                          <Input 
+                            type="number"
+                            value={editingCategory.estimated_budget}
+                            onChange={(e) => setEditingCategory({...editingCategory, estimated_budget: e.target.value})}
+                            className="h-8"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={handleUpdateCategory} className="bg-green-600 hover:bg-green-700">حفظ</Button>
+                          <Button size="sm" variant="outline" onClick={() => setEditingCategory(null)}>إلغاء</Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">{cat.name}</p>
+                          <p className="text-xs text-slate-500">{cat.project_name}</p>
+                        </div>
+                        <div className="text-left">
+                          <p className="text-sm">
+                            <span className="text-slate-500">التقديري: </span>
+                            <span className="font-medium">{cat.estimated_budget?.toLocaleString('ar-SA')} ر.س</span>
+                          </p>
+                          <p className="text-sm">
+                            <span className="text-slate-500">المصروف: </span>
+                            <span className={`font-medium ${cat.actual_spent > cat.estimated_budget ? 'text-red-600' : 'text-green-600'}`}>
+                              {cat.actual_spent?.toLocaleString('ar-SA')} ر.س
+                            </span>
+                          </p>
+                          <p className="text-xs">
+                            <span className="text-slate-500">المتبقي: </span>
+                            <span className={cat.remaining < 0 ? 'text-red-600 font-bold' : 'text-blue-600'}>
+                              {cat.remaining?.toLocaleString('ar-SA')} ر.س
+                            </span>
+                          </p>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button size="sm" variant="ghost" onClick={() => setEditingCategory({...cat})} className="h-8 w-8 p-0">
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => handleDeleteCategory(cat.id)} className="h-8 w-8 p-0 text-red-500 hover:text-red-700">
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Budget Report Dialog */}
+      <Dialog open={budgetReportDialogOpen} onOpenChange={setBudgetReportDialogOpen}>
+        <DialogContent className="w-[95vw] max-w-3xl max-h-[90vh] overflow-y-auto p-4" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>تقرير الميزانية - المقارنة بين التقديري والفعلي</DialogTitle>
+          </DialogHeader>
+          
+          {budgetReport && (
+            <div className="space-y-4">
+              {/* Summary Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <Card className="border-r-4 border-blue-500">
+                  <CardContent className="p-3">
+                    <p className="text-xs text-slate-500">الميزانية التقديرية</p>
+                    <p className="text-lg font-bold text-blue-600">{budgetReport.total_estimated?.toLocaleString('ar-SA')} ر.س</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-r-4 border-orange-500">
+                  <CardContent className="p-3">
+                    <p className="text-xs text-slate-500">المصروف الفعلي</p>
+                    <p className="text-lg font-bold text-orange-600">{budgetReport.total_spent?.toLocaleString('ar-SA')} ر.س</p>
+                  </CardContent>
+                </Card>
+                <Card className={`border-r-4 ${budgetReport.total_remaining >= 0 ? 'border-green-500' : 'border-red-500'}`}>
+                  <CardContent className="p-3">
+                    <p className="text-xs text-slate-500">المتبقي</p>
+                    <p className={`text-lg font-bold ${budgetReport.total_remaining >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {budgetReport.total_remaining?.toLocaleString('ar-SA')} ر.س
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card className={`border-r-4 ${budgetReport.overall_variance_percentage <= 0 ? 'border-green-500' : 'border-red-500'}`}>
+                  <CardContent className="p-3">
+                    <p className="text-xs text-slate-500">نسبة الاستهلاك</p>
+                    <p className={`text-lg font-bold ${budgetReport.overall_variance_percentage <= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {budgetReport.total_estimated > 0 
+                        ? Math.round((budgetReport.total_spent / budgetReport.total_estimated) * 100) 
+                        : 0}%
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Over Budget Alert */}
+              {budgetReport.over_budget?.length > 0 && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <h3 className="font-medium text-red-700 flex items-center gap-2">
+                    <AlertCircle className="w-5 h-5" />
+                    تصنيفات تجاوزت الميزانية ({budgetReport.over_budget.length})
+                  </h3>
+                  <div className="mt-2 space-y-1">
+                    {budgetReport.over_budget.map(cat => (
+                      <div key={cat.id} className="flex justify-between text-sm">
+                        <span>{cat.name} - {cat.project_name}</span>
+                        <span className="text-red-600 font-medium">تجاوز: {Math.abs(cat.remaining)?.toLocaleString('ar-SA')} ر.س</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Categories Table */}
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-right">التصنيف</TableHead>
+                      <TableHead className="text-right">المشروع</TableHead>
+                      <TableHead className="text-center">التقديري</TableHead>
+                      <TableHead className="text-center">الفعلي</TableHead>
+                      <TableHead className="text-center">المتبقي</TableHead>
+                      <TableHead className="text-center">الحالة</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {budgetReport.categories?.map(cat => (
+                      <TableRow key={cat.id}>
+                        <TableCell className="font-medium">{cat.name}</TableCell>
+                        <TableCell className="text-sm text-slate-600">{cat.project_name}</TableCell>
+                        <TableCell className="text-center">{cat.estimated_budget?.toLocaleString('ar-SA')}</TableCell>
+                        <TableCell className="text-center">{cat.actual_spent?.toLocaleString('ar-SA')}</TableCell>
+                        <TableCell className={`text-center font-medium ${cat.remaining < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          {cat.remaining?.toLocaleString('ar-SA')}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge className={cat.status === 'over_budget' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}>
+                            {cat.status === 'over_budget' ? 'تجاوز' : 'ضمن الميزانية'}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
