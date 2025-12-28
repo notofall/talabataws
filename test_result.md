@@ -446,6 +446,8 @@ test_plan:
   test_priority: "high_first"
 
 agent_communication:
+  - agent: "testing"
+    message: "PURCHASE ORDER EDIT FUNCTIONALITY TESTING COMPLETED - CRITICAL ISSUE FOUND: ❌ Edit buttons are MISSING from purchase orders table UI. Backend implementation is complete (edit dialog, price fields, invoice number, supplier dropdown, save functionality) but Edit buttons not rendered in actions column. Tested with manager1@test.com, found 17 purchase orders with 3 action buttons each: Eye (view) ✅, Download ✅, but Edit button ❌ missing. Expected blue pencil icon edit button not visible. This is a critical UI rendering issue preventing users from accessing the edit feature. Main agent needs to investigate why edit buttons are not being displayed in the purchase orders table actions column."
   - agent: "main"
     message: "COMPLETED: Added supervisor_name and engineer_name to Purchase Order details dialog in ProcurementDashboard.js and PrinterDashboard.js. Verified PDF export is working correctly - HTML content is being generated with full Arabic text (6362 chars), contains 'أمر شراء', 'المشرف', 'المهندس'. Screenshot analysis confirms PDF preview shows complete Arabic content with supervisor 'محمد المشرف' and engineer 'أحمد المهندس'. Please test the complete workflow including PDF export functionality."
   - agent: "main"
