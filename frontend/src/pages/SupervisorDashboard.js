@@ -283,12 +283,13 @@ const SupervisorDashboard = () => {
 
       <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4">
         {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
           {[
             { label: "الإجمالي", value: stats.total || 0, color: "border-orange-500" },
             { label: "معلقة", value: stats.pending || 0, color: "border-yellow-500" },
             { label: "معتمدة", value: stats.approved || 0, color: "border-green-500" },
             { label: "مرفوضة", value: stats.rejected || 0, color: "border-red-500" },
+            { label: "بانتظار الاستلام", value: pendingDeliveries.length, color: "border-purple-500" },
           ].map((stat, i) => (
             <Card key={i} className={`border-r-4 ${stat.color}`}>
               <CardContent className="p-3">
@@ -298,6 +299,39 @@ const SupervisorDashboard = () => {
             </Card>
           ))}
         </div>
+
+        {/* Pending Deliveries Section */}
+        {pendingDeliveries.length > 0 && (
+          <Card className="mb-4 border-purple-200 bg-purple-50">
+            <CardHeader className="p-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Truck className="w-5 h-5 text-purple-600" />
+                <span>أوامر بانتظار الاستلام ({pendingDeliveries.length})</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 pt-0">
+              <div className="space-y-2">
+                {pendingDeliveries.map(order => (
+                  <div key={order.id} className="flex items-center justify-between bg-white p-3 rounded-lg border">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-orange-600 font-bold text-sm">{order.id?.slice(0,8).toUpperCase()}</span>
+                        <Badge className={order.status === 'shipped' ? 'bg-purple-100 text-purple-800 border-purple-300' : 'bg-orange-100 text-orange-800 border-orange-300'}>
+                          {order.status === 'shipped' ? 'تم الشحن' : 'تسليم جزئي'}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-slate-600">{order.project_name} - {order.supplier_name}</p>
+                      <p className="text-xs text-slate-400">{order.items?.length} صنف</p>
+                    </div>
+                    <Button size="sm" onClick={() => openDeliveryDialog(order)} className="bg-purple-600 hover:bg-purple-700 h-8">
+                      <PackageCheck className="w-4 h-4 ml-1" />استلام
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Actions */}
         <div className="flex items-center justify-between mb-4 gap-2">
