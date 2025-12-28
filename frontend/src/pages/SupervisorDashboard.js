@@ -280,7 +280,7 @@ const SupervisorDashboard = () => {
     setEditNewItemName("");
     setEditNewItemQty("");
     setEditNewItemUnit("قطعة");
-    setEditProjectName(request.project_name);
+    setEditProjectId(request.project_id || "");
     setEditReason(request.reason);
     setEditEngineerId(request.engineer_id);
     setEditDialogOpen(true);
