@@ -304,11 +304,15 @@ async def create_material_request(
     request_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
     
+    # Get next sequential request number for this supervisor
+    request_number = await get_next_request_number(current_user["id"])
+    
     # Convert items to dict format
     items_list = [item.model_dump() for item in request_data.items]
     
     request_doc = {
         "id": request_id,
+        "request_number": request_number,
         "items": items_list,
         "project_name": request_data.project_name,
         "reason": request_data.reason,
@@ -330,9 +334,10 @@ async def create_material_request(
     # Send email notification to engineer
     email_content = f"""
     <div dir="rtl" style="font-family: Arial, sans-serif;">
-        <h2>طلب مواد جديد</h2>
+        <h2>طلب مواد جديد - رقم {request_number}</h2>
         <p>مرحباً {engineer['name']},</p>
         <p>تم استلام طلب مواد جديد يحتاج لاعتمادك:</p>
+        <p><strong>رقم الطلب:</strong> {request_number}</p>
         <p><strong>المواد المطلوبة:</strong></p>
         <ul>{items_html}</ul>
         <p><strong>المشروع:</strong> {request_data.project_name}</p>
@@ -342,7 +347,7 @@ async def create_material_request(
     """
     await send_email_notification(
         engineer["email"],
-        "طلب مواد جديد يحتاج اعتمادك",
+        f"طلب مواد جديد #{request_number} يحتاج اعتمادك",
         email_content
     )
     
