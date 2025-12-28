@@ -215,7 +215,7 @@ const PrinterDashboard = () => {
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-xs text-slate-400">طُبع: {order.printed_at ? formatDate(order.printed_at) : '-'}</span>
-                          <Button size="sm" variant="ghost" onClick={() => exportPurchaseOrderToPDF(order).catch(() => {})} className="h-7 w-7 p-0"><Download className="w-3 h-3" /></Button>
+                          <Button size="sm" variant="ghost" onClick={() => exportPurchaseOrderToPDF(order)} className="h-7 w-7 p-0"><Download className="w-3 h-3" /></Button>
                         </div>
                       </div>
                     ))}
@@ -240,7 +240,7 @@ const PrinterDashboard = () => {
                             <TableCell className="text-sm text-slate-500">{order.printed_at ? formatDate(order.printed_at) : '-'}</TableCell>
                             <TableCell>{getStatusBadge(order.status)}</TableCell>
                             <TableCell>
-                              <Button size="sm" variant="ghost" onClick={() => exportPurchaseOrderToPDF(order).catch(() => {})} className="h-8 w-8 p-0"><Download className="w-4 h-4 text-green-600" /></Button>
+                              <Button size="sm" variant="ghost" onClick={() => exportPurchaseOrderToPDF(order)} className="h-8 w-8 p-0"><Download className="w-4 h-4 text-green-600" /></Button>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -279,7 +279,7 @@ const PrinterDashboard = () => {
               </div>
               {selectedOrder.notes && <div><span className="text-slate-500 text-sm">ملاحظات:</span><p className="text-sm">{selectedOrder.notes}</p></div>}
               <div className="flex gap-2">
-                <Button className="flex-1 bg-green-600 hover:bg-green-700" onClick={() => exportPurchaseOrderToPDF(selectedOrder).catch(() => {})}>
+                <Button className="flex-1 bg-green-600 hover:bg-green-700" onClick={() => exportPurchaseOrderToPDF(selectedOrder)}>
                   <Download className="w-4 h-4 ml-2" />تصدير PDF
                 </Button>
                 {selectedOrder.status === "approved" && (

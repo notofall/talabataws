@@ -147,7 +147,7 @@ const EngineerDashboard = () => {
               {pendingRequests.length > 0 && <Badge className="bg-yellow-500 text-white">{pendingRequests.length}</Badge>}
             </h2>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => exportRequestsTableToPDF(requests, 'طلبات المهندس').catch(() => {})} disabled={!requests.length} className="h-8 text-xs">
+              <Button variant="outline" size="sm" onClick={() => exportRequestsTableToPDF(requests, 'طلبات المهندس')} disabled={!requests.length} className="h-8 text-xs">
                 <Download className="w-3 h-3" />
               </Button>
               <Button variant="outline" size="sm" onClick={fetchData} className="h-8"><RefreshCw className="w-3 h-3" /></Button>
@@ -242,7 +242,7 @@ const EngineerDashboard = () => {
                           <span className="text-xs text-slate-400">{formatDate(req.created_at)}</span>
                           <div className="flex gap-1">
                             <Button size="sm" variant="ghost" onClick={() => { setSelectedRequest(req); setViewDialogOpen(true); }} className="h-7 w-7 p-0"><Eye className="w-3 h-3" /></Button>
-                            <Button size="sm" variant="ghost" onClick={() => exportRequestToPDF(req).catch(() => {})} className="h-7 w-7 p-0"><Download className="w-3 h-3 text-green-600" /></Button>
+                            <Button size="sm" variant="ghost" onClick={() => exportRequestToPDF(req)} className="h-7 w-7 p-0"><Download className="w-3 h-3 text-green-600" /></Button>
                           </div>
                         </div>
                       </div>
@@ -270,7 +270,7 @@ const EngineerDashboard = () => {
                             <TableCell>
                               <div className="flex gap-1">
                                 <Button size="sm" variant="ghost" onClick={() => { setSelectedRequest(req); setViewDialogOpen(true); }} className="h-8 w-8 p-0"><Eye className="w-4 h-4" /></Button>
-                                <Button size="sm" variant="ghost" onClick={() => exportRequestToPDF(req).catch(() => {})} className="h-8 w-8 p-0"><Download className="w-4 h-4 text-green-600" /></Button>
+                                <Button size="sm" variant="ghost" onClick={() => exportRequestToPDF(req)} className="h-8 w-8 p-0"><Download className="w-4 h-4 text-green-600" /></Button>
                               </div>
                             </TableCell>
                           </TableRow>
@@ -311,7 +311,7 @@ const EngineerDashboard = () => {
                   <p className="text-red-800">{selectedRequest.rejection_reason}</p>
                 </div>
               )}
-              <Button className="w-full bg-green-600 hover:bg-green-700" onClick={() => exportRequestToPDF(selectedRequest).catch(() => {})}>
+              <Button className="w-full bg-green-600 hover:bg-green-700" onClick={() => exportRequestToPDF(selectedRequest)}>
                 <Download className="w-4 h-4 ml-2" />تصدير PDF
               </Button>
             </div>

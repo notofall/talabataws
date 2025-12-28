@@ -222,7 +222,7 @@ const SupervisorDashboard = () => {
         <div className="flex items-center justify-between mb-4 gap-2">
           <h2 className="text-lg sm:text-xl font-bold text-slate-900">طلباتي</h2>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => exportRequestsTableToPDF(requests, 'طلباتي').catch(() => {})} disabled={!requests.length} className="h-8 px-2 text-xs">
+            <Button variant="outline" size="sm" onClick={() => exportRequestsTableToPDF(requests, 'طلباتي')} disabled={!requests.length} className="h-8 px-2 text-xs">
               <Download className="w-3 h-3 sm:ml-1" /><span className="hidden sm:inline">تصدير</span>
             </Button>
             <Button variant="outline" size="sm" onClick={fetchData} className="h-8 px-2">
@@ -362,7 +362,7 @@ const SupervisorDashboard = () => {
                         <div className="flex gap-1">
                           <Button size="sm" variant="ghost" onClick={() => { setSelectedRequest(req); setViewDialogOpen(true); }} className="h-7 w-7 p-0"><Eye className="w-3 h-3" /></Button>
                           {req.status === "pending_engineer" && <Button size="sm" variant="ghost" onClick={() => openEditDialog(req)} className="h-7 w-7 p-0"><Edit className="w-3 h-3 text-blue-600" /></Button>}
-                          <Button size="sm" variant="ghost" onClick={() => exportRequestToPDF(req).catch(() => {})} className="h-7 w-7 p-0"><Download className="w-3 h-3 text-green-600" /></Button>
+                          <Button size="sm" variant="ghost" onClick={() => exportRequestToPDF(req)} className="h-7 w-7 p-0"><Download className="w-3 h-3 text-green-600" /></Button>
                         </div>
                       </div>
                     </div>
@@ -394,7 +394,7 @@ const SupervisorDashboard = () => {
                             <div className="flex gap-1">
                               <Button size="sm" variant="ghost" onClick={() => { setSelectedRequest(req); setViewDialogOpen(true); }} className="h-8 w-8 p-0"><Eye className="w-4 h-4" /></Button>
                               {req.status === "pending_engineer" && <Button size="sm" variant="ghost" onClick={() => openEditDialog(req)} className="h-8 w-8 p-0"><Edit className="w-4 h-4 text-blue-600" /></Button>}
-                              <Button size="sm" variant="ghost" onClick={() => exportRequestToPDF(req).catch(() => {})} className="h-8 w-8 p-0"><Download className="w-4 h-4 text-green-600" /></Button>
+                              <Button size="sm" variant="ghost" onClick={() => exportRequestToPDF(req)} className="h-8 w-8 p-0"><Download className="w-4 h-4 text-green-600" /></Button>
                             </div>
                           </TableCell>
                         </TableRow>
@@ -434,7 +434,7 @@ const SupervisorDashboard = () => {
                   <p className="text-red-800">{selectedRequest.rejection_reason}</p>
                 </div>
               )}
-              <Button className="w-full bg-green-600 hover:bg-green-700" onClick={() => exportRequestToPDF(selectedRequest).catch(() => {})}>
+              <Button className="w-full bg-green-600 hover:bg-green-700" onClick={() => exportRequestToPDF(selectedRequest)}>
                 <Download className="w-4 h-4 ml-2" />تصدير PDF
               </Button>
             </div>

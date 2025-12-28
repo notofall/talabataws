@@ -426,7 +426,7 @@ const ProcurementDashboard = () => {
               <Button variant="outline" size="sm" onClick={() => setReportDialogOpen(true)} className="h-8 text-xs">
                 <FileText className="w-3 h-3 ml-1" />تقرير بتاريخ
               </Button>
-              <Button variant="outline" size="sm" onClick={() => exportPurchaseOrdersTableToPDF(approvedOrders).catch(() => toast.error("فشل التصدير"))} disabled={!approvedOrders.length} className="h-8 text-xs">
+              <Button variant="outline" size="sm" onClick={() => exportPurchaseOrdersTableToPDF(approvedOrders)} disabled={!approvedOrders.length} className="h-8 text-xs">
                 <Download className="w-3 h-3 ml-1" />تصدير
               </Button>
             </div>
@@ -477,7 +477,7 @@ const ProcurementDashboard = () => {
                           <span className="text-xs text-slate-400">{formatDate(order.created_at)}</span>
                           <div className="flex gap-1">
                             <Button size="sm" variant="ghost" onClick={() => { setSelectedOrder(order); setViewOrderDialogOpen(true); }} className="h-7 w-7 p-0"><Eye className="w-3 h-3" /></Button>
-                            <Button size="sm" variant="ghost" onClick={() => exportPurchaseOrderToPDF(order).catch(() => toast.error("فشل التصدير"))} className="h-7 w-7 p-0"><Download className="w-3 h-3 text-green-600" /></Button>
+                            <Button size="sm" variant="ghost" onClick={() => exportPurchaseOrderToPDF(order)} className="h-7 w-7 p-0"><Download className="w-3 h-3 text-green-600" /></Button>
                           </div>
                         </div>
                       </div>
@@ -505,7 +505,7 @@ const ProcurementDashboard = () => {
                             <TableCell>
                               <div className="flex gap-1">
                                 <Button size="sm" variant="ghost" onClick={() => { setSelectedOrder(order); setViewOrderDialogOpen(true); }} className="h-8 w-8 p-0"><Eye className="w-4 h-4" /></Button>
-                                <Button size="sm" variant="ghost" onClick={() => exportPurchaseOrderToPDF(order).catch(() => toast.error("فشل التصدير"))} className="h-8 w-8 p-0"><Download className="w-4 h-4 text-green-600" /></Button>
+                                <Button size="sm" variant="ghost" onClick={() => exportPurchaseOrderToPDF(order)} className="h-8 w-8 p-0"><Download className="w-4 h-4 text-green-600" /></Button>
                               </div>
                             </TableCell>
                           </TableRow>
@@ -539,7 +539,7 @@ const ProcurementDashboard = () => {
                 <div><span className="text-slate-500">المشروع:</span><p className="font-medium">{selectedRequest.project_name}</p></div>
                 <div><span className="text-slate-500">المشرف:</span><p className="font-medium">{selectedRequest.supervisor_name}</p></div>
               </div>
-              <Button className="w-full bg-green-600 hover:bg-green-700" onClick={() => exportRequestToPDF(selectedRequest).catch(() => toast.error("فشل التصدير"))}>
+              <Button className="w-full bg-green-600 hover:bg-green-700" onClick={() => exportRequestToPDF(selectedRequest)}>
                 <Download className="w-4 h-4 ml-2" />تصدير PDF
               </Button>
             </div>
@@ -573,7 +573,7 @@ const ProcurementDashboard = () => {
               </div>
               <div><span className="text-slate-500 text-sm">الحالة:</span> {getOrderStatusBadge(selectedOrder.status)}</div>
               {selectedOrder.notes && <div><span className="text-slate-500 text-sm">ملاحظات:</span><p className="text-sm">{selectedOrder.notes}</p></div>}
-              <Button className="w-full bg-green-600 hover:bg-green-700" onClick={() => exportPurchaseOrderToPDF(selectedOrder).catch(() => toast.error("فشل التصدير"))}>
+              <Button className="w-full bg-green-600 hover:bg-green-700" onClick={() => exportPurchaseOrderToPDF(selectedOrder)}>
                 <Download className="w-4 h-4 ml-2" />تصدير PDF
               </Button>
             </div>
