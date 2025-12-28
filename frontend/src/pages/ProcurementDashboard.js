@@ -467,6 +467,9 @@ const ProcurementDashboard = () => {
               <Button variant="ghost" size="sm" onClick={() => setSuppliersListDialogOpen(true)} className="text-slate-300 hover:text-white h-8 px-2">
                 <Users className="w-4 h-4 ml-1" /><span className="hidden sm:inline">الموردين</span>
               </Button>
+              <Button variant="ghost" size="sm" onClick={() => setPasswordDialogOpen(true)} className="text-slate-300 hover:text-white h-8 px-2">
+                <KeyRound className="w-4 h-4" />
+              </Button>
               <span className="text-xs sm:text-sm text-slate-300 hidden sm:inline">{user?.name}</span>
               <Button variant="ghost" size="sm" onClick={logout} className="text-slate-300 hover:text-white h-8 px-2">
                 <LogOut className="w-4 h-4" />
