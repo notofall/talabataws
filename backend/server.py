@@ -781,10 +781,35 @@ async def create_purchase_order(
     if not order_data.selected_items:
         raise HTTPException(status_code=400, detail="الرجاء اختيار صنف واحد على الأقل")
     
+    # Build items with prices
     selected_items = []
+    total_amount = 0
+    item_prices_map = {}
+    
+    # Create price lookup from item_prices
+    if order_data.item_prices:
+        for price_item in order_data.item_prices:
+            item_prices_map[price_item.get("index", -1)] = price_item.get("unit_price", 0)
+    
     for idx in order_data.selected_items:
         if 0 <= idx < len(all_items):
-            selected_items.append(all_items[idx])
+            item = all_items[idx].copy() if isinstance(all_items[idx], dict) else all_items[idx]
+            if isinstance(item, dict):
+                item_data = item
+            else:
+                item_data = item.model_dump() if hasattr(item, 'model_dump') else dict(item)
+            
+            # Add price information
+            unit_price = item_prices_map.get(idx, 0)
+            quantity = item_data.get("quantity", 0)
+            item_total = unit_price * quantity
+            
+            item_data["unit_price"] = unit_price
+            item_data["total_price"] = item_total
+            item_data["delivered_quantity"] = 0
+            
+            selected_items.append(item_data)
+            total_amount += item_total
         else:
             raise HTTPException(status_code=400, detail=f"فهرس الصنف {idx} غير صالح")
     
@@ -800,16 +825,23 @@ async def create_purchase_order(
         "request_number": request.get("request_number"),  # رقم الطلب المتسلسل
         "items": selected_items,
         "project_name": request["project_name"],
+        "supplier_id": order_data.supplier_id,
         "supplier_name": order_data.supplier_name,
         "notes": order_data.notes,
+        "terms_conditions": order_data.terms_conditions,
         "manager_id": current_user["id"],
         "manager_name": current_user["name"],
         "supervisor_name": request.get("supervisor_name", ""),
         "engineer_name": request.get("engineer_name", ""),
         "status": PurchaseOrderStatus.PENDING_APPROVAL,
+        "total_amount": total_amount,
+        "expected_delivery_date": order_data.expected_delivery_date,
         "created_at": now,
         "approved_at": None,
-        "printed_at": None
+        "printed_at": None,
+        "shipped_at": None,
+        "delivered_at": None,
+        "delivery_notes": None
     }
     
     await db.purchase_orders.insert_one(order_doc)
