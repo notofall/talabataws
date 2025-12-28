@@ -215,10 +215,12 @@ export const exportRequestToPDF = (request) => {
     </tr>
   `).join('');
 
+  const requestNumber = request.request_number || request.id?.slice(0, 8).toUpperCase() || '-';
+
   const html = `
     <div class="header">
       <div class="title">طلب مواد</div>
-      <div class="subtitle">رقم الطلب: ${request.id?.slice(0, 8).toUpperCase() || '-'}</div>
+      <div class="subtitle">رقم الطلب: ${requestNumber}</div>
     </div>
     
     <div class="info-box">
@@ -263,7 +265,7 @@ export const exportRequestToPDF = (request) => {
     </div>
   `;
 
-  printHTML(html, `طلب مواد - ${request.id?.slice(0, 8) || ''}`);
+  printHTML(html, `طلب مواد - ${requestNumber}`);
 };
 
 export const exportPurchaseOrderToPDF = (order) => {
