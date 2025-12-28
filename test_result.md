@@ -264,6 +264,9 @@ frontend:
       - working: true
         agent: "testing"
         comment: "VERIFIED: PDF export bug completely fixed. Tested clicking download button on purchase orders - no 'autoTable is not a function' error occurred. PDF generation working correctly. Bug fix successful."
+      - working: true
+        agent: "testing"
+        comment: "COMPREHENSIVE PDF EXPORT TESTING COMPLETED: ✅ Individual PO PDF Export (eye icon → dialog → تصدير PDF): Downloaded PO_34c949d8.pdf (7,423 bytes) with valid PDF header and proper content. ✅ Bulk PO PDF Export (main تصدير button): Downloaded purchase_orders.pdf (13,746 bytes) containing all purchase orders table. ✅ Date Range Report Export (تقرير بتاريخ): Successfully generated report for 30-day period. All three PDF export methods working perfectly with actual content, not empty files. PDF structure verified with proper headers, content keywords, and file sizes > 1KB."
 
   - task: "Procurement Manager Dashboard"
     implemented: true
