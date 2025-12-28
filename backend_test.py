@@ -10,7 +10,7 @@ import json
 from datetime import datetime
 
 class MaterialRequestAPITester:
-    def __init__(self, base_url="https://supply-chain-87.preview.emergentagent.com"):
+    def __init__(self, base_url="https://reqflow-5.preview.emergentagent.com"):
         self.base_url = base_url
         self.supervisor_token = None
         self.engineer_token = None
