@@ -224,9 +224,7 @@ metadata:
   run_ui: true
 
 test_plan:
-  current_focus:
-    - "Verify cursor fix in material request form"
-    - "Verify PDF export for purchase orders"
+  current_focus: []
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
