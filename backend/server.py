@@ -277,8 +277,10 @@ class PurchaseOrderResponse(BaseModel):
     delivered_at: Optional[str] = None
     delivery_notes: Optional[str] = None
     supplier_receipt_number: Optional[str] = None  # رقم استلام المورد
+    supplier_invoice_number: Optional[str] = None  # رقم فاتورة المورد
     received_by_id: Optional[str] = None  # معرف المستلم
     received_by_name: Optional[str] = None  # اسم المستلم
+    updated_at: Optional[str] = None  # تاريخ آخر تحديث
 
 # Delivery Record Model
 class DeliveryRecord(BaseModel):
