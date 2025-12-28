@@ -343,100 +343,88 @@ export const exportPurchaseOrderToPDF = (order) => {
     const unitPrice = item.unit_price || 0;
     const itemTotal = item.total_price || (unitPrice * (item.quantity || 0));
     return `
-    <tr style="background: ${idx % 2 === 0 ? '#f8fafc' : '#fff'};">
-      <td style="text-align: center; width: 40px;">${idx + 1}</td>
-      <td>${item.name || '-'}</td>
-      <td style="text-align: center; width: 70px;">${item.quantity || 0}</td>
-      <td style="text-align: center; width: 70px;">${item.unit || 'قطعة'}</td>
-      <td style="text-align: center; width: 90px;">${unitPrice > 0 ? unitPrice.toLocaleString('ar-SA') : '-'}</td>
-      <td style="text-align: center; width: 100px; font-weight: bold;">${itemTotal > 0 ? itemTotal.toLocaleString('ar-SA') : '-'}</td>
+    <tr style="background: ${idx % 2 === 0 ? '#f9fafb' : '#fff'};">
+      <td style="text-align: center; width: 30px; font-size: 9px;">${idx + 1}</td>
+      <td style="font-size: 10px;">${item.name || '-'}</td>
+      <td style="text-align: center; width: 50px;">${item.quantity || 0}</td>
+      <td style="text-align: center; width: 55px;">${item.unit || 'قطعة'}</td>
+      <td style="text-align: center; width: 70px;">${unitPrice > 0 ? unitPrice.toLocaleString('ar-SA') : '-'}</td>
+      <td style="text-align: center; width: 80px; font-weight: 600; color: #059669;">${itemTotal > 0 ? itemTotal.toLocaleString('ar-SA') : '-'}</td>
     </tr>
   `}).join('');
 
   const requestNumber = order.request_number || order.request_id?.slice(0, 8).toUpperCase() || '-';
-  const expectedDelivery = order.expected_delivery_date ? formatDate(order.expected_delivery_date) : '-';
+  const expectedDelivery = order.expected_delivery_date ? formatDateShort(order.expected_delivery_date) : '-';
 
   const html = `
-    <div style="border: 4px solid #ea580c; padding: 20px; margin-bottom: 25px; text-align: center;">
+    <div class="compact-header">
       <div class="title">أمر شراء</div>
-      <div style="font-size: 16px; font-weight: bold; margin-top: 10px;">رقم الأمر: ${order.id?.slice(0, 8).toUpperCase() || '-'}</div>
-      <div class="subtitle">رقم الطلب: ${requestNumber}</div>
+      <div class="order-number">رقم: ${order.id?.slice(0, 8).toUpperCase() || '-'}</div>
+      <div class="subtitle">طلب رقم: ${requestNumber}</div>
     </div>
     
     <div class="info-box">
-      <table style="border: none;">
-        <tr style="border: none;">
-          <td style="border: none; padding: 8px 0; width: 50%;"><span class="info-label">المشروع:</span> ${order.project_name || '-'}</td>
-          <td style="border: none; padding: 8px 0;"><span class="info-label">تاريخ الإصدار:</span> ${formatDate(order.created_at)}</td>
-        </tr>
-        <tr style="border: none;">
-          <td style="border: none; padding: 8px 0;"><span class="info-label">المورد:</span> <span class="badge badge-green">${order.supplier_name || '-'}</span></td>
-          <td style="border: none; padding: 8px 0;"><span class="info-label">تاريخ التسليم المتوقع:</span> ${expectedDelivery}</td>
-        </tr>
-        <tr style="border: none;">
-          <td style="border: none; padding: 8px 0;"><span class="info-label">المشرف:</span> ${order.supervisor_name || '-'}</td>
-          <td style="border: none; padding: 8px 0;"><span class="info-label">المهندس:</span> ${order.engineer_name || '-'}</td>
-        </tr>
-        <tr style="border: none;">
-          <td style="border: none; padding: 8px 0;"><span class="info-label">مدير المشتريات:</span> ${order.manager_name || '-'}</td>
-          <td style="border: none; padding: 8px 0;"><span class="info-label">الحالة:</span> <span class="badge badge-blue">${getOrderStatusTextAr(order.status)}</span></td>
-        </tr>
-        ${order.category_name ? `
-        <tr style="border: none;">
-          <td style="border: none; padding: 8px 0;" colspan="2"><span class="info-label">تصنيف الميزانية:</span> <span style="color: #ea580c; font-weight: bold;">${order.category_name}</span></td>
-        </tr>
-        ` : ''}
-      </table>
+      <div class="info-grid">
+        <div class="info-item"><span class="info-label">المشروع:</span> <span class="info-value">${order.project_name || '-'}</span></div>
+        <div class="info-item"><span class="info-label">تاريخ الإصدار:</span> <span class="info-value">${formatDateShort(order.created_at)}</span></div>
+        <div class="info-item"><span class="info-label">المورد:</span> <span class="info-value" style="color: #059669;">${order.supplier_name || '-'}</span></div>
+        <div class="info-item"><span class="info-label">تاريخ التسليم:</span> <span class="info-value">${expectedDelivery}</span></div>
+        <div class="info-item"><span class="info-label">المشرف:</span> <span class="info-value">${order.supervisor_name || '-'}</span></div>
+        <div class="info-item"><span class="info-label">المهندس:</span> <span class="info-value">${order.engineer_name || '-'}</span></div>
+        <div class="info-item"><span class="info-label">مدير المشتريات:</span> <span class="info-value">${order.manager_name || '-'}</span></div>
+        <div class="info-item"><span class="info-label">الحالة:</span> <span class="badge badge-blue">${getOrderStatusTextAr(order.status)}</span></div>
+        ${order.category_name ? `<div class="info-item" style="grid-column: span 2;"><span class="info-label">تصنيف الميزانية:</span> <span class="info-value" style="color: #ea580c;">${order.category_name}</span></div>` : ''}
+      </div>
     </div>
     
     <div class="section-title">المواد والأسعار</div>
     <table>
       <thead>
         <tr>
-          <th style="width: 40px;">#</th>
+          <th style="width: 30px;">#</th>
           <th>اسم المادة</th>
-          <th style="width: 70px;">الكمية</th>
-          <th style="width: 70px;">الوحدة</th>
-          <th style="width: 90px;">سعر الوحدة</th>
-          <th style="width: 100px;">الإجمالي</th>
+          <th style="width: 50px;">الكمية</th>
+          <th style="width: 55px;">الوحدة</th>
+          <th style="width: 70px;">سعر الوحدة</th>
+          <th style="width: 80px;">الإجمالي</th>
         </tr>
       </thead>
       <tbody>${itemsRows}</tbody>
       <tfoot>
-        <tr style="background: #fef3c7; font-weight: bold;">
-          <td colspan="5" style="text-align: left; padding: 12px;">المجموع الكلي</td>
-          <td style="text-align: center; font-size: 16px; color: #ea580c;">${totalAmount > 0 ? totalAmount.toLocaleString('ar-SA') + ' ر.س' : '-'}</td>
+        <tr style="background: #fef3c7;">
+          <td colspan="5" style="text-align: left; font-weight: 700; font-size: 10px; padding: 6px 8px;">المجموع الكلي</td>
+          <td style="text-align: center; font-size: 12px; font-weight: 700; color: #ea580c; padding: 6px 8px;">${totalAmount > 0 ? totalAmount.toLocaleString('ar-SA') + ' ر.س' : '-'}</td>
         </tr>
       </tfoot>
     </table>
     
     ${order.notes ? `
-      <div class="notes-box" style="margin-top: 20px;">
-        <strong style="color: #92400e;">ملاحظات:</strong> ${order.notes}
+      <div class="notes-box">
+        <strong style="color: #92400e; font-size: 10px;">ملاحظات:</strong> <span style="font-size: 10px;">${order.notes}</span>
       </div>
     ` : ''}
     
     ${order.terms_conditions ? `
-      <div class="notes-box" style="margin-top: 15px; background: #f0f9ff; border-color: #bae6fd;">
-        <strong style="color: #0369a1;">الشروط والأحكام:</strong><br/>
-        <div style="margin-top: 8px; white-space: pre-line;">${order.terms_conditions}</div>
+      <div class="notes-box" style="background: #eff6ff; border-color: #93c5fd;">
+        <strong style="color: #1d4ed8; font-size: 10px;">الشروط والأحكام:</strong>
+        <div style="margin-top: 4px; white-space: pre-line; font-size: 9px; color: #374151;">${order.terms_conditions}</div>
       </div>
     ` : ''}
     
     <div class="signature-area">
       <div class="signature-box">
         <div class="signature-line">توقيع المورد</div>
-        <p style="font-size: 10px; color: #666; margin-top: 5px;">التاريخ: _______________</p>
+        <p style="font-size: 8px; color: #9ca3af; margin-top: 3px;">التاريخ: ___________</p>
       </div>
       <div class="signature-box">
         <div class="signature-line">توقيع مدير المشتريات</div>
-        <p style="font-size: 10px; color: #666; margin-top: 5px;">التاريخ: _______________</p>
+        <p style="font-size: 8px; color: #9ca3af; margin-top: 3px;">التاريخ: ___________</p>
       </div>
     </div>
     
     <div class="footer">
       <p>نظام إدارة طلبات المواد</p>
-      <p style="margin-top: 5px;">تاريخ الطباعة: ${formatDate(new Date().toISOString())}</p>
+      <p style="margin-top: 3px;">تاريخ الطباعة: ${formatDateShort(new Date().toISOString())}</p>
     </div>
   `;
 
