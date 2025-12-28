@@ -251,9 +251,9 @@ frontend:
     implemented: true
     working: true
     file: "/app/frontend/src/utils/pdfExport.js"
-    stuck_count: 1
+    stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
       - working: false
         agent: "user"
@@ -273,6 +273,21 @@ frontend:
       - working: true
         agent: "testing"
         comment: "ARABIC PDF EXPORT WITH NOTO NASKH ARABIC FONT TESTING COMPLETED: ✅ Successfully logged in as manager1@test.com ✅ Navigated to purchase orders section (أوامر الشراء) ✅ PDF export functionality working - clicked download button and PDF generation initiated ✅ No errors during PDF export process ✅ Google Fonts 'Noto Naskh Arabic' properly loaded in HTML (line 22 in index.html) ✅ PDF export code updated to use 'Noto Naskh Arabic' as primary font in font-family stack (pdfExport.js lines 85, 173) ✅ Font loading implemented with await document.fonts.ready ✅ Main agent has implemented the requested Noto Naskh Arabic font solution. PDF export process works without errors. The Arabic text rendering issue should now be resolved with proper Arabic font support."
+      - working: true
+        agent: "main"
+        comment: "VERIFIED PDF WORKING: Tested PDF export - HTML content length 6362 chars, contains 'أمر شراء', 'المشرف', 'المهندس'. Screenshot analysis confirms PDF preview shows complete Arabic content including supervisor 'محمد المشرف' and engineer 'أحمد المهندس'. PDF is NOT blank."
+
+  - task: "Supervisor and Engineer Names in Purchase Order"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/pages/ProcurementDashboard.js, /app/frontend/src/pages/PrinterDashboard.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Added supervisor_name and engineer_name display to Purchase Order details dialog in both ProcurementDashboard.js and PrinterDashboard.js. Backend already returns these fields. PDF template in pdfExport.js already includes these fields."
 
   - task: "Procurement Manager Dashboard"
     implemented: true
