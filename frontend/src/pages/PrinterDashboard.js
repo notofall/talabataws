@@ -19,6 +19,7 @@ const PrinterDashboard = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [printing, setPrinting] = useState(false);
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
 
   const fetchData = async () => {
     try {
