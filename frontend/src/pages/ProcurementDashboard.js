@@ -71,10 +71,14 @@ const ProcurementDashboard = () => {
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   
   // Request filter view mode
-  const [requestViewMode, setRequestViewMode] = useState("all"); // "all", "pending", "approved", "delivered"
+  const [requestViewMode, setRequestViewMode] = useState("approved"); // Default to approved
+  const [requestsPage, setRequestsPage] = useState(1);
+  const REQUESTS_PER_PAGE = 10;
   
   // Orders filter view mode
   const [ordersViewMode, setOrdersViewMode] = useState("all"); // "all", "pending", "approved", "shipped", "delivered"
+  const [ordersPage, setOrdersPage] = useState(1);
+  const ORDERS_PER_PAGE = 10;
   
   // Orders search filters
   const [orderSearchTerm, setOrderSearchTerm] = useState("");
