@@ -166,6 +166,19 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 
 # ==================== EMAIL SERVICE ====================
 
+async def get_next_request_number(supervisor_id: str) -> int:
+    """Get the next sequential request number for a supervisor"""
+    # Find the highest request number for this supervisor
+    last_request = await db.material_requests.find_one(
+        {"supervisor_id": supervisor_id},
+        {"request_number": 1},
+        sort=[("request_number", -1)]
+    )
+    
+    if last_request and last_request.get("request_number"):
+        return last_request["request_number"] + 1
+    return 1
+
 async def send_email_notification(to_email: str, subject: str, content: str):
     """Send email notification using SendGrid"""
     sendgrid_api_key = os.environ.get('SENDGRID_API_KEY')
