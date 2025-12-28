@@ -522,73 +522,77 @@ export const exportPurchaseOrdersTableToPDF = (orders) => {
 // تصدير تقرير الميزانية
 export const exportBudgetReportToPDF = (report, projectName = null) => {
   const categoriesRows = report.categories?.map((cat, idx) => `
-    <tr style="background: ${idx % 2 === 0 ? '#f8fafc' : '#fff'};">
-      <td style="font-weight: bold;">${cat.name}</td>
-      <td>${cat.project_name || '-'}</td>
-      <td style="text-align: center; color: #2563eb;">${cat.estimated_budget?.toLocaleString('ar-SA')} ر.س</td>
-      <td style="text-align: center; color: #ea580c;">${cat.actual_spent?.toLocaleString('ar-SA')} ر.س</td>
-      <td style="text-align: center; font-weight: bold; color: ${cat.remaining >= 0 ? '#16a34a' : '#dc2626'};">${cat.remaining?.toLocaleString('ar-SA')} ر.س</td>
+    <tr style="background: ${idx % 2 === 0 ? '#f9fafb' : '#fff'};">
+      <td style="font-weight: 600; font-size: 10px;">${cat.name}</td>
+      <td style="font-size: 10px;">${cat.project_name || '-'}</td>
+      <td style="text-align: center; color: #2563eb; font-size: 10px;">${cat.estimated_budget?.toLocaleString('ar-SA')}</td>
+      <td style="text-align: center; color: #ea580c; font-size: 10px;">${cat.actual_spent?.toLocaleString('ar-SA')}</td>
+      <td style="text-align: center; font-weight: 600; color: ${cat.remaining >= 0 ? '#059669' : '#dc2626'}; font-size: 10px;">${cat.remaining?.toLocaleString('ar-SA')}</td>
       <td style="text-align: center;">
-        <span style="padding: 4px 8px; border-radius: 4px; font-size: 10px; background: ${cat.status === 'over_budget' ? '#fef2f2' : '#f0fdf4'}; color: ${cat.status === 'over_budget' ? '#dc2626' : '#16a34a'};">
-          ${cat.status === 'over_budget' ? 'تجاوز' : 'ضمن الميزانية'}
+        <span style="padding: 2px 6px; border-radius: 3px; font-size: 8px; background: ${cat.status === 'over_budget' ? '#fef2f2' : '#f0fdf4'}; color: ${cat.status === 'over_budget' ? '#dc2626' : '#059669'};">
+          ${cat.status === 'over_budget' ? 'تجاوز' : 'ضمن'}
         </span>
       </td>
     </tr>
   `).join('') || '';
 
   const html = `
-    <div class="header">
+    <div class="compact-header">
       <div class="title">تقرير الميزانية</div>
-      ${projectName ? `<p style="font-size: 14px; color: #64748b; margin-top: 5px;">${projectName}</p>` : ''}
-      ${report.project ? `
-        <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px; margin-top: 15px; text-align: right;">
-          <p style="font-weight: bold; color: #1e40af; margin: 0;">${report.project.name}</p>
-          <p style="font-size: 12px; color: #3b82f6; margin: 5px 0 0 0;">المالك: ${report.project.owner_name}</p>
-          ${report.project.location ? `<p style="font-size: 11px; color: #64748b; margin: 3px 0 0 0;">${report.project.location}</p>` : ''}
-        </div>
-      ` : ''}
+      ${projectName ? `<div class="subtitle">${projectName}</div>` : ''}
     </div>
     
-    <div style="display: flex; gap: 15px; margin: 20px 0; flex-wrap: wrap;">
-      <div style="flex: 1; min-width: 150px; background: linear-gradient(135deg, #eff6ff, #dbeafe); border-radius: 10px; padding: 15px; text-align: center;">
-        <p style="font-size: 11px; color: #64748b; margin: 0;">الميزانية التقديرية</p>
-        <p style="font-size: 20px; font-weight: bold; color: #2563eb; margin: 5px 0 0 0;">${report.total_estimated?.toLocaleString('ar-SA')} ر.س</p>
+    ${report.project ? `
+      <div class="info-box" style="background: #eff6ff; border-color: #93c5fd;">
+        <div class="info-grid">
+          <div class="info-item"><span class="info-label">المشروع:</span> <span class="info-value" style="color: #1d4ed8; font-weight: 700;">${report.project.name}</span></div>
+          <div class="info-item"><span class="info-label">المالك:</span> <span class="info-value">${report.project.owner_name}</span></div>
+          ${report.project.location ? `<div class="info-item"><span class="info-label">الموقع:</span> <span class="info-value">${report.project.location}</span></div>` : ''}
+        </div>
       </div>
-      <div style="flex: 1; min-width: 150px; background: linear-gradient(135deg, #fff7ed, #ffedd5); border-radius: 10px; padding: 15px; text-align: center;">
-        <p style="font-size: 11px; color: #64748b; margin: 0;">المصروف الفعلي</p>
-        <p style="font-size: 20px; font-weight: bold; color: #ea580c; margin: 5px 0 0 0;">${report.total_spent?.toLocaleString('ar-SA')} ر.س</p>
+    ` : ''}
+    
+    <div style="display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap;">
+      <div style="flex: 1; min-width: 120px; background: #eff6ff; border-radius: 6px; padding: 10px; text-align: center;">
+        <p style="font-size: 9px; color: #6b7280; margin: 0;">الميزانية التقديرية</p>
+        <p style="font-size: 14px; font-weight: 700; color: #2563eb; margin: 3px 0 0 0;">${report.total_estimated?.toLocaleString('ar-SA')} ر.س</p>
       </div>
-      <div style="flex: 1; min-width: 150px; background: linear-gradient(135deg, ${report.total_remaining >= 0 ? '#f0fdf4, #dcfce7' : '#fef2f2, #fee2e2'}); border-radius: 10px; padding: 15px; text-align: center;">
-        <p style="font-size: 11px; color: #64748b; margin: 0;">المتبقي</p>
-        <p style="font-size: 20px; font-weight: bold; color: ${report.total_remaining >= 0 ? '#16a34a' : '#dc2626'}; margin: 5px 0 0 0;">${report.total_remaining?.toLocaleString('ar-SA')} ر.س</p>
+      <div style="flex: 1; min-width: 120px; background: #fff7ed; border-radius: 6px; padding: 10px; text-align: center;">
+        <p style="font-size: 9px; color: #6b7280; margin: 0;">المصروف الفعلي</p>
+        <p style="font-size: 14px; font-weight: 700; color: #ea580c; margin: 3px 0 0 0;">${report.total_spent?.toLocaleString('ar-SA')} ر.س</p>
       </div>
-      <div style="flex: 1; min-width: 150px; background: linear-gradient(135deg, #f8fafc, #f1f5f9); border-radius: 10px; padding: 15px; text-align: center;">
-        <p style="font-size: 11px; color: #64748b; margin: 0;">نسبة الاستهلاك</p>
-        <p style="font-size: 20px; font-weight: bold; color: #334155; margin: 5px 0 0 0;">${report.total_estimated > 0 ? Math.round((report.total_spent / report.total_estimated) * 100) : 0}%</p>
+      <div style="flex: 1; min-width: 120px; background: ${report.total_remaining >= 0 ? '#f0fdf4' : '#fef2f2'}; border-radius: 6px; padding: 10px; text-align: center;">
+        <p style="font-size: 9px; color: #6b7280; margin: 0;">المتبقي</p>
+        <p style="font-size: 14px; font-weight: 700; color: ${report.total_remaining >= 0 ? '#059669' : '#dc2626'}; margin: 3px 0 0 0;">${report.total_remaining?.toLocaleString('ar-SA')} ر.س</p>
+      </div>
+      <div style="flex: 1; min-width: 120px; background: #f1f5f9; border-radius: 6px; padding: 10px; text-align: center;">
+        <p style="font-size: 9px; color: #6b7280; margin: 0;">نسبة الاستهلاك</p>
+        <p style="font-size: 14px; font-weight: 700; color: #334155; margin: 3px 0 0 0;">${report.total_estimated > 0 ? Math.round((report.total_spent / report.total_estimated) * 100) : 0}%</p>
       </div>
     </div>
 
     ${report.over_budget?.length > 0 ? `
-      <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 12px; margin-bottom: 20px;">
-        <p style="color: #dc2626; font-weight: bold; margin: 0 0 8px 0;">⚠️ تصنيفات تجاوزت الميزانية (${report.over_budget.length})</p>
+      <div style="background: #fef2f2; border: 1px solid #fca5a5; border-radius: 4px; padding: 8px 10px; margin-bottom: 12px;">
+        <p style="color: #dc2626; font-weight: 700; margin: 0 0 5px 0; font-size: 10px;">⚠️ تجاوز الميزانية (${report.over_budget.length})</p>
         ${report.over_budget.map(cat => `
-          <div style="display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; border-bottom: 1px solid #fee2e2;">
-            <span>${cat.name} - ${cat.project_name}</span>
-            <span style="color: #dc2626; font-weight: bold;">تجاوز: ${Math.abs(cat.remaining)?.toLocaleString('ar-SA')} ر.س</span>
+          <div style="display: flex; justify-content: space-between; font-size: 9px; padding: 2px 0; border-bottom: 1px solid #fee2e2;">
+            <span>${cat.name}</span>
+            <span style="color: #dc2626; font-weight: 600;">${Math.abs(cat.remaining)?.toLocaleString('ar-SA')} ر.س</span>
           </div>
         `).join('')}
       </div>
     ` : ''}
     
-    <table style="width: 100%; font-size: 11px;">
+    <div class="section-title">تفاصيل التصنيفات</div>
+    <table>
       <thead>
         <tr>
           <th style="width: 20%;">التصنيف</th>
-          <th style="width: 20%;">المشروع</th>
+          <th style="width: 18%;">المشروع</th>
           <th style="width: 15%; text-align: center;">التقديري</th>
           <th style="width: 15%; text-align: center;">الفعلي</th>
           <th style="width: 15%; text-align: center;">المتبقي</th>
-          <th style="width: 15%; text-align: center;">الحالة</th>
+          <th style="width: 12%; text-align: center;">الحالة</th>
         </tr>
       </thead>
       <tbody>${categoriesRows}</tbody>
@@ -596,7 +600,7 @@ export const exportBudgetReportToPDF = (report, projectName = null) => {
     
     <div class="footer">
       <p>نظام إدارة طلبات المواد - تقرير الميزانية</p>
-      <p style="margin-top: 5px;">تاريخ التصدير: ${formatDate(new Date().toISOString())}</p>
+      <p style="margin-top: 3px;">تاريخ التصدير: ${formatDateShort(new Date().toISOString())}</p>
     </div>
   `;
 
