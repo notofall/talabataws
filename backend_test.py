@@ -110,21 +110,36 @@ class MaterialRequestAPITester:
         return success, response if success else []
 
     def test_create_material_request(self, token, engineer_id):
-        """Test creating material request"""
+        """Test creating material request with multiple items"""
         headers = {'Authorization': f'Bearer {token}'}
         request_data = {
-            "material_name": "حديد تسليح 12مم",
-            "quantity": 100,
+            "items": [
+                {
+                    "name": "حديد تسليح 12مم",
+                    "quantity": 100,
+                    "unit": "طن"
+                },
+                {
+                    "name": "أسمنت بورتلاندي",
+                    "quantity": 50,
+                    "unit": "كيس"
+                },
+                {
+                    "name": "رمل ناعم",
+                    "quantity": 20,
+                    "unit": "متر مكعب"
+                }
+            ],
             "project_name": "مشروع برج السلام",
-            "reason": "مطلوب للأساسات",
+            "reason": "مطلوب للأساسات والخرسانة",
             "engineer_id": engineer_id
         }
         
         success, response = self.run_test(
-            "Create Material Request",
+            "Create Material Request (Multi-Item)",
             "POST",
             "requests",
-            200,  # Changed from 201 to 200
+            200,
             data=request_data,
             headers=headers
         )
