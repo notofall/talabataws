@@ -69,6 +69,20 @@ const ProcurementDashboard = () => {
   const [selectedProjectReport, setSelectedProjectReport] = useState(null);
   const [budgetReportProjectFilter, setBudgetReportProjectFilter] = useState("");  // فلتر المشروع في تقرير الميزانية
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  
+  // Edit Purchase Order states
+  const [editOrderDialogOpen, setEditOrderDialogOpen] = useState(false);
+  const [editingOrder, setEditingOrder] = useState(null);
+  const [editOrderData, setEditOrderData] = useState({
+    supplier_name: "",
+    supplier_id: "",
+    category_id: "",
+    notes: "",
+    terms_conditions: "",
+    expected_delivery_date: "",
+    supplier_invoice_number: "",
+    item_prices: {}
+  });
 
   const fetchData = async () => {
     try {
