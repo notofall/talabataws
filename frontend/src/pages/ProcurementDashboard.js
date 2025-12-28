@@ -137,6 +137,61 @@ const ProcurementDashboard = () => {
     setFilteredOrders(allOrders);
   };
 
+  // Supplier management functions
+  const handleCreateSupplier = async () => {
+    if (!newSupplier.name.trim()) {
+      toast.error("الرجاء إدخال اسم المورد");
+      return;
+    }
+    
+    try {
+      const res = await axios.post(`${API_URL}/suppliers`, newSupplier, getAuthHeaders());
+      setSuppliers([...suppliers, res.data]);
+      setNewSupplier({ name: "", contact_person: "", phone: "", email: "", address: "", notes: "" });
+      setSupplierDialogOpen(false);
+      toast.success("تم إضافة المورد بنجاح");
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "فشل في إضافة المورد");
+    }
+  };
+
+  const handleUpdateSupplier = async () => {
+    if (!editingSupplier || !editingSupplier.name.trim()) {
+      toast.error("الرجاء إدخال اسم المورد");
+      return;
+    }
+    
+    try {
+      const res = await axios.put(`${API_URL}/suppliers/${editingSupplier.id}`, editingSupplier, getAuthHeaders());
+      setSuppliers(suppliers.map(s => s.id === editingSupplier.id ? res.data : s));
+      setEditingSupplier(null);
+      toast.success("تم تحديث المورد بنجاح");
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "فشل في تحديث المورد");
+    }
+  };
+
+  const handleDeleteSupplier = async (supplierId) => {
+    if (!window.confirm("هل أنت متأكد من حذف هذا المورد؟")) return;
+    
+    try {
+      await axios.delete(`${API_URL}/suppliers/${supplierId}`, getAuthHeaders());
+      setSuppliers(suppliers.filter(s => s.id !== supplierId));
+      toast.success("تم حذف المورد بنجاح");
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "فشل في حذف المورد");
+    }
+  };
+
+  // Calculate total amount
+  const calculateTotal = () => {
+    return selectedItemIndices.reduce((total, idx) => {
+      const price = itemPrices[idx] || 0;
+      const item = remainingItems[idx];
+      return total + (price * (item?.quantity || 0));
+    }, 0);
+  };
+
   // Generate report
   const generateReport = () => {
     if (!reportStartDate || !reportEndDate) {
@@ -170,9 +225,13 @@ const ProcurementDashboard = () => {
 
   const openOrderDialog = async (request) => {
     setSelectedRequest(request);
+    setSelectedSupplierId("");
     setSupplierName("");
     setOrderNotes("");
+    setTermsConditions("");
+    setExpectedDeliveryDate("");
     setSelectedItemIndices([]);
+    setItemPrices({});
     setLoadingItems(true);
     setOrderDialogOpen(true);
     
