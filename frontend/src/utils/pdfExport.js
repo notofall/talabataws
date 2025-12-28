@@ -70,29 +70,46 @@ const printHTML = (html, title) => {
           font-family: 'Cairo', 'Segoe UI', Tahoma, Arial, sans-serif;
           direction: rtl;
           text-align: right;
-          padding: 20px;
+          padding: 25px;
           background: white;
           color: #1e293b;
+          font-size: 12px;
+          max-width: 900px;
+          margin: 0 auto;
         }
         @media print {
-          body { padding: 0; }
+          body { 
+            padding: 15px; 
+            font-size: 11px;
+          }
           .no-print { display: none !important; }
+          @page {
+            size: A4;
+            margin: 15mm;
+          }
         }
         table {
           width: 100%;
           border-collapse: collapse;
+          font-size: 11px;
+          margin: 15px 0;
         }
         th, td {
-          padding: 10px;
+          padding: 8px 10px;
           border: 1px solid #e2e8f0;
         }
         th {
           background: #ea580c;
           color: white;
+          font-size: 11px;
+          font-weight: 600;
+        }
+        td {
+          font-size: 11px;
         }
         .header {
-          border-bottom: 4px solid #ea580c;
-          padding-bottom: 15px;
+          border-bottom: 3px solid #ea580c;
+          padding-bottom: 12px;
           margin-bottom: 25px;
           text-align: center;
         }
