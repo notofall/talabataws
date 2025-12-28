@@ -754,17 +754,8 @@ const ProcurementDashboard = () => {
             <h2 className="text-lg font-bold flex items-center gap-2">
               <Truck className="w-5 h-5 text-green-600" />أوامر الشراء
             </h2>
-            {/* Filter Buttons for Orders */}
+            {/* Filter Buttons for Orders - Reordered */}
             <div className="flex flex-wrap gap-2">
-              <Button 
-                size="sm" 
-                variant={ordersViewMode === "all" ? "default" : "outline"}
-                onClick={() => setOrdersViewMode("all")}
-                className={`h-8 text-xs ${ordersViewMode === "all" ? "bg-slate-800" : ""}`}
-              >
-                الكل
-                <Badge className="mr-1 bg-slate-600 text-white text-xs">{filteredOrders.length}</Badge>
-              </Button>
               <Button 
                 size="sm" 
                 variant={ordersViewMode === "approved" ? "default" : "outline"}
@@ -798,17 +789,49 @@ const ProcurementDashboard = () => {
                   {filteredOrders.filter(o => o.status === "delivered").length}
                 </Badge>
               </Button>
+              <Button 
+                size="sm" 
+                variant={ordersViewMode === "all" ? "default" : "outline"}
+                onClick={() => setOrdersViewMode("all")}
+                className={`h-8 text-xs ${ordersViewMode === "all" ? "bg-slate-800" : ""}`}
+              >
+                الكل
+                <Badge className="mr-1 bg-slate-600 text-white text-xs">{filteredOrders.length}</Badge>
+              </Button>
               <Button variant="outline" size="sm" onClick={() => exportPurchaseOrdersTableToPDF(filteredOrders)} disabled={!filteredOrders.length} className="h-8 w-8 p-0">
                 <Download className="w-3 h-3" />
               </Button>
             </div>
           </div>
 
+          {/* Search Box */}
+          <div className="mb-3">
+            <div className="relative">
+              <Input
+                placeholder="بحث برقم أمر الشراء، رقم الطلب، المشروع، المورد، أو رقم استلام المورد..."
+                value={orderSearchTerm}
+                onChange={(e) => setOrderSearchTerm(e.target.value)}
+                className="h-10 pr-10 text-sm"
+              />
+              <Filter className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              {orderSearchTerm && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="absolute left-2 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
+                  onClick={() => setOrderSearchTerm("")}
+                >
+                  <X className="w-3 h-3" />
+                </Button>
+              )}
+            </div>
+          </div>
+
           <Card className="shadow-sm">
             <CardContent className="p-0">
               {(() => {
-                // Filter orders based on view mode
-                const displayOrders = filteredOrders.filter(order => {
+                // Filter orders based on view mode AND search term
+                let displayOrders = filteredOrders.filter(order => {
                   if (ordersViewMode === "all") return true;
                   if (ordersViewMode === "approved") return ["approved", "printed", "pending_approval"].includes(order.status);
                   if (ordersViewMode === "shipped") return ["shipped", "partially_delivered"].includes(order.status);
@@ -816,13 +839,29 @@ const ProcurementDashboard = () => {
                   return true;
                 });
                 
+                // Apply search filter
+                if (orderSearchTerm.trim()) {
+                  const term = orderSearchTerm.toLowerCase().trim();
+                  displayOrders = displayOrders.filter(order => 
+                    order.id?.toLowerCase().includes(term) ||
+                    order.request_id?.toLowerCase().includes(term) ||
+                    order.request_number?.toLowerCase().includes(term) ||
+                    order.project_name?.toLowerCase().includes(term) ||
+                    order.supplier_name?.toLowerCase().includes(term) ||
+                    order.supplier_receipt_number?.toLowerCase().includes(term)
+                  );
+                }
+                
                 if (!displayOrders.length) {
                   return (
                     <div className="text-center py-8">
                       <FileText className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-                      <p className="text-slate-500 text-sm">لا توجد أوامر شراء</p>
+                      <p className="text-slate-500 text-sm">
+                        {orderSearchTerm ? "لا توجد نتائج للبحث" : "لا توجد أوامر شراء"}
+                      </p>
                     </div>
                   );
+                }
                 }
                 
                 return (
