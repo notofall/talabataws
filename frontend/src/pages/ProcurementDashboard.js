@@ -594,12 +594,14 @@ const ProcurementDashboard = () => {
             <div className="flex flex-wrap gap-2">
               <Button 
                 size="sm" 
-                variant={requestViewMode === "all" ? "default" : "outline"}
-                onClick={() => setRequestViewMode("all")}
-                className={`h-8 text-xs ${requestViewMode === "all" ? "bg-slate-800" : ""}`}
+                variant={requestViewMode === "approved" ? "default" : "outline"}
+                onClick={() => setRequestViewMode("approved")}
+                className={`h-8 text-xs ${requestViewMode === "approved" ? "bg-green-600" : "text-green-700 border-green-300"}`}
               >
-                الكل
-                <Badge className="mr-1 bg-slate-600 text-white text-xs">{requests.length}</Badge>
+                معتمدة
+                <Badge className="mr-1 bg-green-500 text-white text-xs">
+                  {requests.filter(r => ["approved_by_engineer", "partially_ordered"].includes(r.status)).length}
+                </Badge>
               </Button>
               <Button 
                 size="sm" 
@@ -614,17 +616,6 @@ const ProcurementDashboard = () => {
               </Button>
               <Button 
                 size="sm" 
-                variant={requestViewMode === "approved" ? "default" : "outline"}
-                onClick={() => setRequestViewMode("approved")}
-                className={`h-8 text-xs ${requestViewMode === "approved" ? "bg-green-600" : "text-green-700 border-green-300"}`}
-              >
-                معتمدة
-                <Badge className="mr-1 bg-green-500 text-white text-xs">
-                  {requests.filter(r => ["approved_by_engineer", "partially_ordered"].includes(r.status)).length}
-                </Badge>
-              </Button>
-              <Button 
-                size="sm" 
                 variant={requestViewMode === "ordered" ? "default" : "outline"}
                 onClick={() => setRequestViewMode("ordered")}
                 className={`h-8 text-xs ${requestViewMode === "ordered" ? "bg-blue-600" : "text-blue-700 border-blue-300"}`}
@@ -633,6 +624,15 @@ const ProcurementDashboard = () => {
                 <Badge className="mr-1 bg-blue-500 text-white text-xs">
                   {requests.filter(r => r.status === "ordered").length}
                 </Badge>
+              </Button>
+              <Button 
+                size="sm" 
+                variant={requestViewMode === "all" ? "default" : "outline"}
+                onClick={() => setRequestViewMode("all")}
+                className={`h-8 text-xs ${requestViewMode === "all" ? "bg-slate-800" : ""}`}
+              >
+                الكل
+                <Badge className="mr-1 bg-slate-600 text-white text-xs">{requests.length}</Badge>
               </Button>
               <Button variant="outline" size="sm" onClick={fetchData} className="h-8 w-8 p-0"><RefreshCw className="w-3 h-3" /></Button>
             </div>
