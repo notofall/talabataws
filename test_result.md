@@ -394,7 +394,7 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Delivery Tracking Feature"
+    - "Budget Management System"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
