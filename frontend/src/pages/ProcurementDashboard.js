@@ -522,7 +522,7 @@ const ProcurementDashboard = () => {
                 <div><span className="text-slate-500">المشروع:</span><p className="font-medium">{selectedRequest.project_name}</p></div>
                 <div><span className="text-slate-500">المشرف:</span><p className="font-medium">{selectedRequest.supervisor_name}</p></div>
               </div>
-              <Button className="w-full bg-green-600 hover:bg-green-700" onClick={() => exportRequestToPDF(selectedRequest)}>
+              <Button className="w-full bg-green-600 hover:bg-green-700" onClick={() => exportRequestToPDF(selectedRequest).catch(() => toast.error("فشل التصدير"))}>
                 <Download className="w-4 h-4 ml-2" />تصدير PDF
               </Button>
             </div>
