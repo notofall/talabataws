@@ -710,13 +710,31 @@ async def create_project(
     
     await db.projects.insert_one(project_doc)
     
+    # نسخ التصنيفات الافتراضية تلقائياً للمشروع الجديد
+    default_categories = await db.default_budget_categories.find({}, {"_id": 0}).to_list(100)
+    categories_added = 0
+    for default_cat in default_categories:
+        category_id = str(uuid.uuid4())
+        category_doc = {
+            "id": category_id,
+            "name": default_cat["name"],
+            "project_id": project_id,
+            "project_name": project_data.name,
+            "estimated_budget": default_cat["default_budget"],
+            "created_by": default_cat["created_by"],
+            "created_by_name": default_cat["created_by_name"],
+            "created_at": now
+        }
+        await db.budget_categories.insert_one(category_doc)
+        categories_added += 1
+    
     # Log audit
     await log_audit(
         entity_type="project",
         entity_id=project_id,
         action="create",
         user=current_user,
-        description=f"إنشاء مشروع جديد: {project_data.name}"
+        description=f"إنشاء مشروع جديد: {project_data.name} (مع {categories_added} تصنيف)"
     )
     
     return {
@@ -724,7 +742,8 @@ async def create_project(
         "total_requests": 0,
         "total_orders": 0,
         "total_budget": 0,
-        "total_spent": 0
+        "total_spent": 0,
+        "categories_added": categories_added
     }
 
 @api_router.get("/projects")
