@@ -583,7 +583,7 @@ const ProcurementDashboard = () => {
                         {approvedOrders.map((order) => (
                           <TableRow key={order.id}>
                             <TableCell className="font-mono text-orange-600 font-bold">{order.id?.slice(0, 8).toUpperCase()}</TableCell>
-                            <TableCell className="font-mono text-slate-600">{order.request_id?.slice(0, 8).toUpperCase()}</TableCell>
+                            <TableCell className="font-bold text-blue-600">{order.request_number || order.request_id?.slice(0, 8).toUpperCase()}</TableCell>
                             <TableCell>{order.project_name}</TableCell>
                             <TableCell><Badge className="bg-green-50 text-green-800 border-green-200 border">{order.supplier_name}</Badge></TableCell>
                             <TableCell>{getOrderStatusBadge(order.status)}</TableCell>
