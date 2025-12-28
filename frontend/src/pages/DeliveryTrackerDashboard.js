@@ -404,22 +404,23 @@ const DeliveryTrackerDashboard = () => {
         </Card>
       </div>
 
-      {/* Orders List */}
-      <Card>
+      {/* Pending Orders - بانتظار الاستلام */}
+      <Card className="mb-4">
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
-            <FileText className="w-5 h-5 text-orange-600" />
-            أوامر الشراء - متابعة التوريد
+            <Clock className="w-5 h-5 text-orange-600" />
+            أوامر بانتظار الاستلام
+            <Badge className="bg-orange-100 text-orange-800">{pendingOrders.length}</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent className="p-3">
-          {orders.length === 0 ? (
-            <p className="text-center text-slate-500 py-8">لا توجد أوامر تحتاج متابعة</p>
+          {pendingOrders.length === 0 ? (
+            <p className="text-center text-slate-500 py-6">لا توجد أوامر بانتظار الاستلام</p>
           ) : (
             <>
               {/* Mobile View */}
               <div className="sm:hidden space-y-3">
-                {orders.map((order) => (
+                {pendingOrders.map((order) => (
                   <div key={order.id} className="bg-slate-50 rounded-lg p-3 border">
                     <div className="flex justify-between items-start mb-2">
                       <div>
@@ -431,19 +432,14 @@ const DeliveryTrackerDashboard = () => {
                     <div className="grid grid-cols-2 gap-2 text-xs mb-2">
                       <div><span className="text-slate-400">المورد:</span> {order.supplier_name}</div>
                       <div><span className="text-slate-400">المبلغ:</span> <span className="font-bold text-emerald-600">{order.total_amount?.toLocaleString('ar-SA')} ر.س</span></div>
-                      {order.supplier_receipt_number && (
-                        <div className="col-span-2"><span className="text-slate-400">رقم الاستلام:</span> <span className="font-bold text-blue-600">{order.supplier_receipt_number}</span></div>
-                      )}
                     </div>
                     <div className="flex gap-2">
                       <Button size="sm" variant="outline" onClick={() => { setSelectedOrder(order); setViewDialogOpen(true); }} className="flex-1">
                         <Eye className="w-3 h-3 ml-1" />التفاصيل
                       </Button>
-                      {order.status !== 'delivered' && (
-                        <Button size="sm" onClick={() => openReceiptDialog(order)} className="flex-1 bg-orange-600 hover:bg-orange-700">
-                          <ClipboardCheck className="w-3 h-3 ml-1" />تأكيد الاستلام
-                        </Button>
-                      )}
+                      <Button size="sm" onClick={() => openReceiptDialog(order)} className="flex-1 bg-orange-600 hover:bg-orange-700">
+                        <ClipboardCheck className="w-3 h-3 ml-1" />تأكيد الاستلام
+                      </Button>
                     </div>
                   </div>
                 ))}
@@ -458,36 +454,116 @@ const DeliveryTrackerDashboard = () => {
                       <TableHead className="text-right">المشروع</TableHead>
                       <TableHead className="text-right">المورد</TableHead>
                       <TableHead className="text-center">المبلغ</TableHead>
-                      <TableHead className="text-center">رقم استلام المورد</TableHead>
                       <TableHead className="text-center">الحالة</TableHead>
                       <TableHead className="text-center">إجراءات</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {orders.map((order) => (
+                    {pendingOrders.map((order) => (
                       <TableRow key={order.id}>
                         <TableCell className="font-bold text-orange-600">{order.id?.slice(0, 8).toUpperCase()}</TableCell>
                         <TableCell>{order.project_name}</TableCell>
                         <TableCell>{order.supplier_name}</TableCell>
                         <TableCell className="text-center font-bold text-emerald-600">{order.total_amount?.toLocaleString('ar-SA')} ر.س</TableCell>
-                        <TableCell className="text-center">
-                          {order.supplier_receipt_number ? (
-                            <span className="font-bold text-blue-600">{order.supplier_receipt_number}</span>
-                          ) : (
-                            <span className="text-slate-400">-</span>
-                          )}
-                        </TableCell>
                         <TableCell className="text-center">{getStatusBadge(order.status)}</TableCell>
                         <TableCell className="text-center">
                           <div className="flex gap-1 justify-center">
                             <Button size="sm" variant="ghost" onClick={() => { setSelectedOrder(order); setViewDialogOpen(true); }} className="h-8 w-8 p-0">
                               <Eye className="w-4 h-4" />
                             </Button>
-                            {order.status !== 'delivered' && (
-                              <Button size="sm" onClick={() => openReceiptDialog(order)} className="h-8 bg-orange-600 hover:bg-orange-700">
-                                <ClipboardCheck className="w-4 h-4 ml-1" />استلام
-                              </Button>
-                            )}
+                            <Button size="sm" onClick={() => openReceiptDialog(order)} className="h-8 bg-orange-600 hover:bg-orange-700">
+                              <ClipboardCheck className="w-4 h-4 ml-1" />استلام
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Delivered Orders - تم الاستلام */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <CheckCircle className="w-5 h-5 text-emerald-600" />
+            أوامر تم استلامها
+            <Badge className="bg-emerald-100 text-emerald-800">{deliveredOrders.length}</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-3">
+          {deliveredOrders.length === 0 ? (
+            <p className="text-center text-slate-500 py-6">لا توجد أوامر مستلمة</p>
+          ) : (
+            <>
+              {/* Mobile View */}
+              <div className="sm:hidden space-y-3">
+                {deliveredOrders.map((order) => (
+                  <div key={order.id} className="bg-emerald-50 rounded-lg p-3 border border-emerald-200">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <p className="font-bold text-emerald-700">{order.id?.slice(0, 8).toUpperCase()}</p>
+                        <p className="text-xs text-slate-500">{order.project_name}</p>
+                      </div>
+                      {getStatusBadge(order.status)}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs mb-2">
+                      <div><span className="text-slate-400">المورد:</span> {order.supplier_name}</div>
+                      <div><span className="text-slate-400">المبلغ:</span> <span className="font-bold text-emerald-600">{order.total_amount?.toLocaleString('ar-SA')} ر.س</span></div>
+                      <div className="col-span-2">
+                        <span className="text-slate-400">رقم الاستلام:</span> 
+                        <span className="font-bold text-blue-600 mr-1">{order.supplier_receipt_number || '-'}</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => { setSelectedOrder(order); setViewDialogOpen(true); }} className="flex-1">
+                        <Eye className="w-3 h-3 ml-1" />التفاصيل
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => exportReceiptPDF(order)} className="flex-1 text-emerald-700 border-emerald-300 hover:bg-emerald-50">
+                        <Download className="w-3 h-3 ml-1" />تصدير الإيصال
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop View */}
+              <div className="hidden sm:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-emerald-50">
+                      <TableHead className="text-right">رقم الأمر</TableHead>
+                      <TableHead className="text-right">المشروع</TableHead>
+                      <TableHead className="text-right">المورد</TableHead>
+                      <TableHead className="text-center">المبلغ</TableHead>
+                      <TableHead className="text-center">رقم استلام المورد</TableHead>
+                      <TableHead className="text-center">المستلم</TableHead>
+                      <TableHead className="text-center">إجراءات</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {deliveredOrders.map((order) => (
+                      <TableRow key={order.id} className="bg-emerald-50/50 hover:bg-emerald-100/50">
+                        <TableCell className="font-bold text-emerald-700">{order.id?.slice(0, 8).toUpperCase()}</TableCell>
+                        <TableCell>{order.project_name}</TableCell>
+                        <TableCell>{order.supplier_name}</TableCell>
+                        <TableCell className="text-center font-bold text-emerald-600">{order.total_amount?.toLocaleString('ar-SA')} ر.س</TableCell>
+                        <TableCell className="text-center">
+                          <span className="font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">{order.supplier_receipt_number || '-'}</span>
+                        </TableCell>
+                        <TableCell className="text-center text-sm">{order.received_by_name || '-'}</TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex gap-1 justify-center">
+                            <Button size="sm" variant="ghost" onClick={() => { setSelectedOrder(order); setViewDialogOpen(true); }} className="h-8 w-8 p-0">
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => exportReceiptPDF(order)} className="h-8 text-emerald-700 border-emerald-300 hover:bg-emerald-50">
+                              <Printer className="w-4 h-4 ml-1" />طباعة
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
