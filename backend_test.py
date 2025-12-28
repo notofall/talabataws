@@ -15,6 +15,7 @@ class MaterialRequestAPITester:
         self.supervisor_token = None
         self.engineer_token = None
         self.manager_token = None
+        self.printer_token = None  # Added printer token
         self.tests_run = 0
         self.tests_passed = 0
         self.test_results = []
