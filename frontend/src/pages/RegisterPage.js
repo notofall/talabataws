@@ -28,6 +28,7 @@ const RegisterPage = () => {
     { value: "engineer", label: "مهندس", icon: "👨‍💼" },
     { value: "procurement_manager", label: "مدير مشتريات", icon: "📋" },
     { value: "printer", label: "موظف طباعة", icon: "🖨️" },
+    { value: "delivery_tracker", label: "متتبع التوريد", icon: "🚚" },
   ];
 
   const handleSubmit = async (e) => {
