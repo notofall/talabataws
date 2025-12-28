@@ -1332,8 +1332,35 @@ const ProcurementDashboard = () => {
             <DialogTitle>تقرير الميزانية - المقارنة بين التقديري والفعلي</DialogTitle>
           </DialogHeader>
           
+          {/* Project Filter */}
+          <div className="bg-slate-50 p-3 rounded-lg flex items-center gap-3">
+            <Label className="text-sm font-medium whitespace-nowrap">تصفية حسب المشروع:</Label>
+            <select 
+              value={budgetReportProjectFilter}
+              onChange={(e) => {
+                setBudgetReportProjectFilter(e.target.value);
+                fetchBudgetReport(e.target.value || null);
+              }}
+              className="flex-1 h-9 border rounded-lg bg-white px-3 text-sm"
+            >
+              <option value="">جميع المشاريع</option>
+              {projects.map(p => (
+                <option key={p.id} value={p.id}>{p.name} - {p.owner_name}</option>
+              ))}
+            </select>
+          </div>
+
           {budgetReport && (
             <div className="space-y-4">
+              {/* Project Info if filtered */}
+              {budgetReport.project && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <h3 className="font-bold text-blue-800">{budgetReport.project.name}</h3>
+                  <p className="text-sm text-blue-600">المالك: {budgetReport.project.owner_name}</p>
+                  {budgetReport.project.location && <p className="text-xs text-blue-500">{budgetReport.project.location}</p>}
+                </div>
+              )}
+
               {/* Summary Cards */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <Card className="border-r-4 border-blue-500">
