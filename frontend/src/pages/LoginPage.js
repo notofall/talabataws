@@ -39,6 +39,29 @@ const LoginPage = () => {
     }
   };
 
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    if (!forgotEmail) {
+      toast.error("الرجاء إدخال البريد الإلكتروني");
+      return;
+    }
+
+    setForgotLoading(true);
+    try {
+      const response = await axios.post(`${API_URL}/auth/forgot-password`, { email: forgotEmail });
+      toast.success(response.data.message);
+      if (response.data.temp_password) {
+        toast.info(`كلمة المرور الجديدة: ${response.data.temp_password}`, { duration: 10000 });
+      }
+      setForgotDialogOpen(false);
+      setForgotEmail("");
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "حدث خطأ أثناء استعادة كلمة المرور");
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex">
       {/* Right Side - Form */}
