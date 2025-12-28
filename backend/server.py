@@ -483,8 +483,15 @@ async def create_budget_category(
     
     await db.budget_categories.insert_one(category_doc)
     
+    # Return without _id
     return {
-        **category_doc,
+        "id": category_id,
+        "name": category_data.name,
+        "project_name": category_data.project_name,
+        "estimated_budget": category_data.estimated_budget,
+        "created_by": current_user["id"],
+        "created_by_name": current_user["name"],
+        "created_at": now,
         "actual_spent": 0,
         "remaining": category_data.estimated_budget,
         "variance_percentage": 0
