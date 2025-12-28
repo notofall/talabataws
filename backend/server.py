@@ -428,17 +428,17 @@ async def approve_request(request_id: str, current_user: dict = Depends(get_curr
     # Notify procurement manager
     managers = await db.users.find({"role": UserRole.PROCUREMENT_MANAGER}, {"_id": 0}).to_list(10)
     for manager in managers:
+        # Build items list for email
+        items_html = "".join([f"<li>{item['name']} - {item['quantity']} {item.get('unit', 'قطعة')}</li>" for item in request.get('items', [])])
         email_content = f"""
         <div dir="rtl" style="font-family: Arial, sans-serif;">
             <h2>طلب مواد معتمد</h2>
             <p>مرحباً {manager['name']},</p>
             <p>تم اعتماد طلب مواد ويحتاج لإصدار أمر شراء:</p>
-            <ul>
-                <li><strong>اسم المادة:</strong> {request['material_name']}</li>
-                <li><strong>الكمية:</strong> {request['quantity']}</li>
-                <li><strong>المشروع:</strong> {request['project_name']}</li>
-                <li><strong>المهندس المعتمد:</strong> {current_user['name']}</li>
-            </ul>
+            <p><strong>المواد:</strong></p>
+            <ul>{items_html}</ul>
+            <p><strong>المشروع:</strong> {request['project_name']}</p>
+            <p><strong>المهندس المعتمد:</strong> {current_user['name']}</p>
         </div>
         """
         await send_email_notification(
