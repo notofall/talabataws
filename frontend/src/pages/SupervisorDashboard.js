@@ -672,6 +672,111 @@ const SupervisorDashboard = () => {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Delivery Dialog */}
+      <Dialog open={deliveryDialogOpen} onOpenChange={setDeliveryDialogOpen}>
+        <DialogContent className="w-[95vw] max-w-md max-h-[90vh] overflow-y-auto p-4" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-center flex items-center justify-center gap-2">
+              <PackageCheck className="w-5 h-5 text-purple-600" />
+              تسجيل استلام المواد
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedDelivery && (
+            <div className="space-y-4 mt-4">
+              {/* Order Info */}
+              <div className="bg-slate-50 p-3 rounded-lg">
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div><span className="text-slate-500">رقم الأمر:</span> <span className="font-mono font-bold text-orange-600">{selectedDelivery.id?.slice(0,8).toUpperCase()}</span></div>
+                  <div><span className="text-slate-500">المورد:</span> {selectedDelivery.supplier_name}</div>
+                  <div><span className="text-slate-500">المشروع:</span> {selectedDelivery.project_name}</div>
+                  <div><span className="text-slate-500">الإجمالي:</span> {(selectedDelivery.total_amount || 0).toLocaleString('ar-SA')} ر.س</div>
+                </div>
+              </div>
+
+              {/* Items to Deliver */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">الأصناف المُسلَّمة</Label>
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {deliveryItems.map((item, idx) => (
+                    <div key={idx} className={`p-3 rounded-lg border ${item.remaining <= 0 ? 'bg-green-50 border-green-200' : 'bg-white'}`}>
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <p className="font-medium">{item.name}</p>
+                          <p className="text-xs text-slate-500">
+                            المطلوب: {item.quantity} | المُستلَم سابقاً: {item.delivered_quantity} | المتبقي: {item.remaining}
+                          </p>
+                        </div>
+                        {item.remaining <= 0 && (
+                          <Badge className="bg-green-100 text-green-800 text-xs">مكتمل</Badge>
+                        )}
+                      </div>
+                      {item.remaining > 0 && (
+                        <div className="flex items-center gap-2">
+                          <Label className="text-xs text-slate-500 whitespace-nowrap">الكمية المُستلَمة:</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            max={item.remaining}
+                            value={item.quantity_to_deliver || ""}
+                            onChange={(e) => {
+                              const val = Math.min(parseInt(e.target.value) || 0, item.remaining);
+                              const newItems = [...deliveryItems];
+                              newItems[idx].quantity_to_deliver = val;
+                              setDeliveryItems(newItems);
+                            }}
+                            className="h-8 w-20 text-center"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const newItems = [...deliveryItems];
+                              newItems[idx].quantity_to_deliver = item.remaining;
+                              setDeliveryItems(newItems);
+                            }}
+                            className="h-8 text-xs"
+                          >
+                            الكل
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <Label className="text-sm">ملاحظات الاستلام</Label>
+                <Textarea
+                  placeholder="أي ملاحظات على الاستلام..."
+                  value={deliveryNotes}
+                  onChange={(e) => setDeliveryNotes(e.target.value)}
+                  rows={2}
+                  className="mt-1"
+                />
+              </div>
+
+              {/* Submit Button */}
+              <Button
+                className="w-full h-11 bg-purple-600 hover:bg-purple-700"
+                onClick={handleRecordDelivery}
+                disabled={submitting || !deliveryItems.some(item => item.quantity_to_deliver > 0)}
+              >
+                {submitting ? "جاري التسجيل..." : (
+                  <>
+                    <PackageCheck className="w-4 h-4 ml-2" />
+                    تأكيد الاستلام ({deliveryItems.filter(i => i.quantity_to_deliver > 0).length} صنف)
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
