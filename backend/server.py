@@ -236,6 +236,28 @@ class DeliveryRecord(BaseModel):
     received_by: str  # اسم المستلم
     notes: Optional[str] = None
 
+# Budget Category Models - تصنيفات الميزانية
+class BudgetCategoryCreate(BaseModel):
+    name: str  # اسم التصنيف (سباكة، كهرباء، رخام...)
+    project_name: str  # اسم المشروع
+    estimated_budget: float  # الميزانية التقديرية
+
+class BudgetCategoryUpdate(BaseModel):
+    name: Optional[str] = None
+    estimated_budget: Optional[float] = None
+
+class BudgetCategoryResponse(BaseModel):
+    id: str
+    name: str
+    project_name: str
+    estimated_budget: float
+    actual_spent: float = 0  # المصروف الفعلي (يُحسب من أوامر الشراء)
+    remaining: float = 0  # المتبقي
+    variance_percentage: float = 0  # نسبة الفرق
+    created_by: str
+    created_by_name: str
+    created_at: str
+
 # ==================== HELPER FUNCTIONS ====================
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
