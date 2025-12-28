@@ -116,6 +116,9 @@ backend:
       - working: true
         agent: "main"
         comment: "Auth system working - tested with supervisor, engineer, manager accounts"
+      - working: true
+        agent: "testing"
+        comment: "Comprehensive testing completed - all login endpoints working correctly. Tested supervisor1@test.com, engineer1@test.com, manager1@test.com with password 123456. JWT tokens generated successfully."
 
   - task: "Create Material Requests with Multiple Items"
     implemented: true
@@ -128,6 +131,9 @@ backend:
       - working: true
         agent: "main"
         comment: "Multi-item requests working correctly"
+      - working: true
+        agent: "testing"
+        comment: "Verified multi-item request creation with 4 different materials (حديد تسليح 16مم, أسمنت مقاوم, رمل خشن, حصى مدرج). POST /api/requests endpoint working perfectly with new items array format."
 
   - task: "Request Approval/Rejection by Engineer"
     implemented: true
@@ -140,6 +146,12 @@ backend:
       - working: true
         agent: "main"
         comment: "Approval workflow functioning"
+      - working: false
+        agent: "testing"
+        comment: "Found and fixed critical bug in approve_request function - was trying to access old 'material_name' field instead of new 'items' array in email notification"
+      - working: true
+        agent: "testing"
+        comment: "Fixed email template to use items array format. PUT /api/requests/{id}/approve now working correctly. Engineer approval workflow fully functional."
 
   - task: "Create Purchase Orders"
     implemented: true
@@ -152,6 +164,9 @@ backend:
       - working: true
         agent: "main"
         comment: "PO creation tested and working"
+      - working: true
+        agent: "testing"
+        comment: "Verified purchase order creation by procurement manager. POST /api/purchase-orders working correctly. Full workflow from request creation → engineer approval → PO creation tested successfully."
 
 frontend:
   - task: "Supervisor Dashboard - Create Material Request Form"
