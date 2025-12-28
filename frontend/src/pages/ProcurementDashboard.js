@@ -299,6 +299,7 @@ const ProcurementDashboard = () => {
     setExpectedDeliveryDate("");
     setSelectedItemIndices([]);
     setItemPrices({});
+    setSelectedCategoryId("");  // Reset category selection
     setLoadingItems(true);
     setOrderDialogOpen(true);
     
