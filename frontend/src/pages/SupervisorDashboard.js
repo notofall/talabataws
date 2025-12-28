@@ -352,6 +352,7 @@ const SupervisorDashboard = () => {
                     <div key={req.id} className="p-3 space-y-2">
                       <div className="flex justify-between items-start">
                         <div>
+                          <p className="font-bold text-blue-600">طلب #{req.request_number || '-'}</p>
                           <p className="font-medium text-sm">{getItemsSummary(req.items)}</p>
                           <p className="text-xs text-slate-500">{req.project_name}</p>
                         </div>
@@ -374,6 +375,7 @@ const SupervisorDashboard = () => {
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-slate-50">
+                        <TableHead className="text-right">رقم الطلب</TableHead>
                         <TableHead className="text-right">الأصناف</TableHead>
                         <TableHead className="text-right">المشروع</TableHead>
                         <TableHead className="text-right">المهندس</TableHead>
@@ -385,6 +387,7 @@ const SupervisorDashboard = () => {
                     <TableBody>
                       {requests.map((req) => (
                         <TableRow key={req.id}>
+                          <TableCell className="font-bold text-blue-600">{req.request_number || '-'}</TableCell>
                           <TableCell className="font-medium">{getItemsSummary(req.items)}</TableCell>
                           <TableCell>{req.project_name}</TableCell>
                           <TableCell>{req.engineer_name}</TableCell>
