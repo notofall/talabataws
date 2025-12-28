@@ -237,18 +237,18 @@ const ProcurementDashboard = () => {
 
   // Budget Categories Functions
   const handleCreateCategory = async () => {
-    if (!newCategory.name || !newCategory.project_name || !newCategory.estimated_budget) {
+    if (!newCategory.name || !newCategory.project_id || !newCategory.estimated_budget) {
       toast.error("الرجاء ملء جميع الحقول");
       return;
     }
     try {
       await axios.post(`${API_URL}/budget-categories`, {
         name: newCategory.name,
-        project_name: newCategory.project_name,
+        project_id: newCategory.project_id,
         estimated_budget: parseFloat(newCategory.estimated_budget)
       }, getAuthHeaders());
       toast.success("تم إضافة التصنيف بنجاح");
-      setNewCategory({ name: "", project_name: "", estimated_budget: "" });
+      setNewCategory({ name: "", project_id: "", estimated_budget: "" });
       fetchData();
     } catch (error) {
       toast.error(error.response?.data?.detail || "فشل في إضافة التصنيف");
