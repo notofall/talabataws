@@ -941,6 +941,40 @@ const ProcurementDashboard = () => {
                     />
                   </div>
 
+                  {/* Budget Category Selection */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">تصنيف الميزانية</Label>
+                    <select 
+                      value={selectedCategoryId}
+                      onChange={(e) => setSelectedCategoryId(e.target.value)}
+                      className="w-full h-10 border rounded-lg bg-white px-3 text-sm"
+                    >
+                      <option value="">-- اختر التصنيف (اختياري) --</option>
+                      {budgetCategories
+                        .filter(c => c.project_name === selectedRequest?.project_name)
+                        .map(c => (
+                          <option key={c.id} value={c.id}>
+                            {c.name} - متبقي: {(c.remaining || 0).toLocaleString('ar-SA')} ر.س
+                          </option>
+                        ))
+                      }
+                    </select>
+                    {selectedCategoryId && (() => {
+                      const cat = budgetCategories.find(c => c.id === selectedCategoryId);
+                      if (!cat) return null;
+                      const total = calculateTotal();
+                      const willExceed = total > cat.remaining;
+                      return (
+                        <div className={`text-xs p-2 rounded ${willExceed ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+                          {willExceed 
+                            ? `⚠️ تجاوز الميزانية بـ ${(total - cat.remaining).toLocaleString('ar-SA')} ر.س`
+                            : `✓ ضمن الميزانية - سيتبقى ${(cat.remaining - total).toLocaleString('ar-SA')} ر.س`
+                          }
+                        </div>
+                      );
+                    })()}
+                  </div>
+
                   {/* Item Prices */}
                   {selectedItemIndices.length > 0 && (
                     <div className="space-y-2">
