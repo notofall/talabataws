@@ -258,6 +258,57 @@ class MaterialRequestAPITester:
         )
         return success
 
+    # ==================== DELIVERY TRACKING TESTS ====================
+
+    def test_ship_order(self, token, order_id, expected_status=200):
+        """Test shipping a purchase order"""
+        headers = {'Authorization': f'Bearer {token}'}
+        success, response = self.run_test(
+            f"Ship Order {order_id}",
+            "PUT",
+            f"purchase-orders/{order_id}/ship",
+            expected_status,
+            headers=headers
+        )
+        return success
+
+    def test_get_pending_delivery_orders(self, token, role_name):
+        """Test getting orders pending delivery"""
+        headers = {'Authorization': f'Bearer {token}'}
+        success, response = self.run_test(
+            f"Get Pending Delivery Orders - {role_name}",
+            "GET",
+            "purchase-orders/pending-delivery",
+            200,
+            headers=headers
+        )
+        return success, response if success else []
+
+    def test_deliver_order(self, token, order_id, delivery_data, expected_status=200):
+        """Test recording delivery of items"""
+        headers = {'Authorization': f'Bearer {token}'}
+        success, response = self.run_test(
+            f"Deliver Order {order_id}",
+            "PUT",
+            f"purchase-orders/{order_id}/deliver",
+            expected_status,
+            data=delivery_data,
+            headers=headers
+        )
+        return success, response if success else {}
+
+    def test_get_delivery_records(self, token, order_id):
+        """Test getting delivery records for an order"""
+        headers = {'Authorization': f'Bearer {token}'}
+        success, response = self.run_test(
+            f"Get Delivery Records for Order {order_id}",
+            "GET",
+            f"purchase-orders/{order_id}/deliveries",
+            200,
+            headers=headers
+        )
+        return success, response if success else []
+
     def run_new_features_test(self):
         """Test new features: Multiple POs, Approval Workflow, Printer Role"""
         print("\n🆕 Starting New Features Test...")
