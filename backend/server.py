@@ -74,6 +74,7 @@ class UserResponse(BaseModel):
     name: str
     email: str
     role: str
+    supervisor_prefix: Optional[str] = None  # حرف المشرف (A, B, C...)
 
 class TokenResponse(BaseModel):
     access_token: str
