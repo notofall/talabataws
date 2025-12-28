@@ -424,11 +424,18 @@ metadata:
 
   - task: "Pagination Feature for Procurement Dashboard"
     implemented: true
-    working: "NA"
+    working: false
     file: "/app/frontend/src/pages/ProcurementDashboard.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Pagination feature implemented for both Material Requests and Purchase Orders sections with 10 items per page limit, Previous/Next buttons, and page indicators."
+      - working: false
+        agent: "testing"
+        comment: "PAGINATION TESTING COMPLETED - PARTIAL SUCCESS: ✅ Material Requests Pagination: Fully functional with Previous/Next buttons (السابق/التالي), page indicator (1/3), display count (عرض 1-10 من 22), navigation working correctly, filter integration working, search integration working, mobile responsive. ❌ Purchase Orders Pagination: MISSING - Only found single pagination set for requests. Purchase Orders section (أوامر الشراء) exists but lacks separate pagination controls. Expected second pagination set for orders not found. Code analysis shows pagination implementation exists (lines 988-1017) but not rendering in UI. This is a critical issue as Purchase Orders section should have independent pagination controls as specified in requirements."
 
   - task: "Purchase Order Edit Functionality"
     implemented: true
