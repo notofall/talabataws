@@ -282,13 +282,26 @@ const ProcurementDashboard = () => {
     }
   };
 
-  const fetchBudgetReport = async () => {
+  const fetchBudgetReport = async (projectId = null) => {
     try {
-      const res = await axios.get(`${API_URL}/budget-reports`, getAuthHeaders());
+      const url = projectId 
+        ? `${API_URL}/budget-reports?project_id=${projectId}`
+        : `${API_URL}/budget-reports`;
+      const res = await axios.get(url, getAuthHeaders());
       setBudgetReport(res.data);
       setBudgetReportDialogOpen(true);
     } catch (error) {
       toast.error("فشل في تحميل تقرير الميزانية");
+    }
+  };
+
+  const fetchProjectReport = async (projectId) => {
+    try {
+      const res = await axios.get(`${API_URL}/reports/project/${projectId}`, getAuthHeaders());
+      setSelectedProjectReport(res.data);
+      setProjectReportDialogOpen(true);
+    } catch (error) {
+      toast.error("فشل في تحميل تقرير المشروع");
     }
   };
 
