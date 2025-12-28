@@ -64,8 +64,23 @@ async def create_indexes():
         
         # Budget categories indexes
         await db.budget_categories.create_index("id", unique=True)
-        await db.budget_categories.create_index("project_name")
+        await db.budget_categories.create_index("project_id")
         await db.budget_categories.create_index("created_by")
+        
+        # Projects indexes
+        await db.projects.create_index("id", unique=True)
+        await db.projects.create_index("status")
+        await db.projects.create_index("created_by")
+        
+        # Audit logs indexes
+        await db.audit_logs.create_index("id", unique=True)
+        await db.audit_logs.create_index([("entity_type", 1), ("entity_id", 1)])
+        await db.audit_logs.create_index("timestamp")
+        await db.audit_logs.create_index("user_id")
+        
+        # Attachments indexes
+        await db.attachments.create_index("id", unique=True)
+        await db.attachments.create_index([("entity_type", 1), ("entity_id", 1)])
         
         print("✅ Database indexes created successfully")
     except Exception as e:
