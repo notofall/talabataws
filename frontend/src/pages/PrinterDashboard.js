@@ -40,7 +40,7 @@ const PrinterDashboard = () => {
     setPrinting(true);
     try {
       // First export PDF
-      await exportPurchaseOrderToPDF(order);
+      exportPurchaseOrderToPDF(order);
       
       // Mark as printed
       await axios.put(`${API_URL}/purchase-orders/${order.id}/print`, {}, getAuthHeaders());
