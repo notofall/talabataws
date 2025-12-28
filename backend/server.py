@@ -1361,6 +1361,16 @@ async def get_purchase_orders(current_user: dict = Depends(get_current_user)):
         ).to_list(None)
         requests_map = {r["id"]: r for r in requests_list}
     
+    # Batch fetch category names
+    category_ids = list(set([o.get("category_id") for o in orders if o.get("category_id")]))
+    categories_map = {}
+    if category_ids:
+        categories_list = await db.budget_categories.find(
+            {"id": {"$in": category_ids}},
+            {"_id": 0, "id": 1, "name": 1}
+        ).to_list(None)
+        categories_map = {c["id"]: c["name"] for c in categories_list}
+    
     # Process orders with batch-fetched data
     result = []
     for o in orders:
@@ -1375,6 +1385,10 @@ async def get_purchase_orders(current_user: dict = Depends(get_current_user)):
         o.setdefault("supplier_id", None)
         o.setdefault("terms_conditions", None)
         o.setdefault("expected_delivery_date", None)
+        o.setdefault("category_id", None)
+        
+        # Add category name
+        o["category_name"] = categories_map.get(o.get("category_id"), None)
         
         # Use batch-fetched request data
         if "supervisor_name" not in o or "engineer_name" not in o or "request_number" not in o:
