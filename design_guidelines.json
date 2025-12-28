@@ -1,0 +1,158 @@
+{
+  "identity": {
+    "name": "E1",
+    "role": "Anti-AI Creative Designer",
+    "principles": [
+      "Fusion over Imitation",
+      "Emotion First",
+      "Content is King",
+      "Zoom In",
+      "Negative Space",
+      "Contrast"
+    ]
+  },
+  "project": {
+    "name": "Material Request System (نظام إدارة طلبات المواد)",
+    "description": "A dashboard for construction procurement management involving Supervisors, Engineers, and Procurement Managers.",
+    "language": "ar",
+    "direction": "rtl",
+    "theme_strategy": "Swiss & High-Contrast (Construction Edition)"
+  },
+  "typography": {
+    "font_family_arabic": "Cairo, sans-serif",
+    "font_family_latin": "Inter, sans-serif",
+    "import_url": "https://fonts.googleapis.com/css2?family=Cairo:wght@200;300;400;500;600;700;800;900&display=swap",
+    "usage": {
+      "headings": "font-cairo font-bold tracking-tight",
+      "body": "font-cairo font-medium leading-relaxed",
+      "numbers": "font-inter"
+    },
+    "scale": {
+      "h1": "text-4xl md:text-5xl font-black",
+      "h2": "text-3xl font-bold",
+      "h3": "text-2xl font-semibold",
+      "body": "text-base",
+      "small": "text-sm text-muted-foreground"
+    }
+  },
+  "colors": {
+    "palette": {
+      "primary": {
+        "name": "Construction Slate",
+        "hex": "#0F172A",
+        "tailwind": "bg-slate-900 text-white"
+      },
+      "secondary": {
+        "name": "Concrete Grey",
+        "hex": "#F1F5F9",
+        "tailwind": "bg-slate-100 text-slate-900"
+      },
+      "accent": {
+        "name": "Safety Orange",
+        "hex": "#EA580C",
+        "tailwind": "bg-orange-600 hover:bg-orange-700 text-white"
+      },
+      "success": {
+        "name": "Site Safe Green",
+        "hex": "#16A34A",
+        "tailwind": "text-green-600 bg-green-50 border-green-200"
+      },
+      "warning": {
+        "name": "Caution Yellow",
+        "hex": "#CA8A04",
+        "tailwind": "text-yellow-600 bg-yellow-50 border-yellow-200"
+      },
+      "danger": {
+        "name": "Hazard Red",
+        "hex": "#DC2626",
+        "tailwind": "text-red-600 bg-red-50 border-red-200"
+      }
+    },
+    "backgrounds": {
+      "page": "bg-slate-50",
+      "card": "bg-white",
+      "sidebar": "bg-slate-900 text-slate-50"
+    }
+  },
+  "layout": {
+    "direction": "rtl",
+    "grid_system": "The Control Room Grid",
+    "spacing": {
+      "container_padding": "p-6 md:p-8 lg:p-12",
+      "gap": "gap-6",
+      "section_spacing": "my-12"
+    },
+    "rtl_rules": [
+      "Mirror all margins and paddings (ml -> mr, pl -> pr)",
+      "Sidebar must be on the RIGHT",
+      "Back buttons point RIGHT",
+      "Form labels align RIGHT",
+      "Table columns align RIGHT"
+    ]
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-6 rounded-sm shadow-sm transition-transform active:scale-95",
+      "secondary": "bg-white border-2 border-slate-200 text-slate-900 hover:bg-slate-50 font-semibold py-3 px-6 rounded-sm",
+      "ghost": "hover:bg-slate-100 text-slate-600 hover:text-slate-900"
+    },
+    "cards": {
+      "style": "bg-white border border-slate-200 shadow-sm rounded-sm p-6 hover:shadow-md transition-shadow",
+      "dashboard_metric": "flex flex-col justify-between h-full border-r-4 border-r-orange-500"
+    },
+    "inputs": {
+      "style": "flex h-12 w-full rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-right"
+    },
+    "status_badges": {
+      "pending": "inline-flex items-center rounded-full border border-yellow-200 bg-yellow-50 px-2.5 py-0.5 text-xs font-semibold text-yellow-800",
+      "approved": "inline-flex items-center rounded-full border border-green-200 bg-green-50 px-2.5 py-0.5 text-xs font-semibold text-green-800",
+      "rejected": "inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-800"
+    }
+  },
+  "visual_enhancers": {
+    "shadows": "shadow-[0_2px_8px_rgba(0,0,0,0.08)]",
+    "borders": "border border-slate-200",
+    "glassmorphism": "backdrop-blur-md bg-white/80 border-b border-white/20",
+    "textures": "Use subtle noise texture on the sidebar background to give it a 'concrete' feel if possible."
+  },
+  "images": {
+    "login_hero": {
+      "url": "https://images.unsplash.com/photo-1644411813513-ad77c1b77581?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzF8MHwxfHNlYXJjaHwyfHxjb25zdHJ1Y3Rpb24lMjBzaXRlJTIwbW9kZXJuJTIwYXJjaGl0ZWN0dXJlfGVufDB8fHx8MTc2NjkxMzc2NHww&ixlib=rb-4.1.0&q=85",
+      "alt": "Modern construction site with crane",
+      "category": "hero"
+    },
+    "avatars": [
+      {
+        "role": "Supervisor",
+        "url": "https://images.unsplash.com/photo-1703585571126-07d02f357d2b?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzd8MHwxfHNlYXJjaHwxfHxjb25zdHJ1Y3Rpb24lMjBzdXBlcnZpc29yJTIwcG9ydHJhaXQlMjBzaXRlfGVufDB8fHx8MTc2NjkxMzc2OHww&ixlib=rb-4.1.0&q=85",
+        "alt": "Site Supervisor"
+      },
+      {
+        "role": "Engineer",
+        "url": "https://images.unsplash.com/photo-1688841747582-41097036109d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Njd8MHwxfHNlYXJjaHwxfHxjaXZpbCUyMGVuZ2luZWVyJTIwcG9ydHJhaXQlMjBwcm9mZXNzaW9uYWx8ZW58MHx8fHwxNzY2OTEzNzY2fDA&ixlib=rb-4.1.0&q=85",
+        "alt": "Civil Engineer"
+      },
+      {
+        "role": "Manager",
+        "url": "https://images.pexels.com/photos/3771045/pexels-photo-3771045.jpeg",
+        "alt": "Procurement Manager"
+      }
+    ]
+  },
+  "instructions_to_main_agent": [
+    "1. SET UP RTL: Add 'dir=\"rtl\"' to the root html tag and 'lang=\"ar\"'.",
+    "2. INSTALL FONTS: Add the Cairo font import to index.css immediately.",
+    "3. TAILWIND CONFIG: Extend the theme with the 'Construction Slate' and 'Safety Orange' colors.",
+    "4. SHADCN: When using Shadcn components, ensure they are wrapped in a DirectionProvider or manually adjusted for RTL (e.g., Chevrons in Select/Accordion might need rotation).",
+    "5. TRANSLATIONS: All UI text MUST be in Arabic. Use the provided terms: 'طلب مواد' (Material Request), 'مشرف' (Supervisor), 'مهندس' (Engineer), 'مدير مشتريات' (Procurement Manager).",
+    "6. DASHBOARD LAYOUT: Use a fixed right sidebar for navigation. Main content area on the left.",
+    "7. DATA-TESTID: Add data-testid to all inputs and buttons (e.g., 'login-email-input', 'submit-request-btn')."
+  ],
+  "universal_guidelines": [
+    "Avoid generic gradients. Use solid, high-contrast colors.",
+    "Use 2-3x more spacing than typical. 'p-8' is the new 'p-4'.",
+    "Every interaction needs a micro-animation (hover, focus, active).",
+    "Do not use 'Inter' for Arabic text. Use 'Cairo'.",
+    "Never use transparent backgrounds without blur."
+  ]
+}
