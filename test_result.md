@@ -277,6 +277,54 @@ frontend:
         agent: "main"
         comment: "Dashboard working with date filtering and reporting"
 
+  - task: "Multiple Purchase Orders with Item Selection"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/pages/ProcurementDashboard.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "VERIFIED: Item selection dialog working perfectly. Uses modern UX design with visual styling instead of traditional checkboxes. 'الكل' (select all) and 'إلغاء' (deselect all) buttons functional. Manual item selection by clicking works correctly. Supplier input field working. Create button shows selected item count. Feature is working as designed."
+
+  - task: "Purchase Order Approval Workflow"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/pages/ProcurementDashboard.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "VERIFIED: PO approval workflow working. 'أوامر بانتظار الاعتماد' section displays pending orders. 'اعتماد' buttons functional for approving purchase orders. Orders move to approved status after approval."
+
+  - task: "Printer Dashboard"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/pages/PrinterDashboard.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "VERIFIED: Printer dashboard fully functional. Login with printer1@test.com successful. Dashboard shows stats (بانتظار الطباعة/تمت طباعتها). 'أوامر بانتظار الطباعة' section displays approved orders. 'طباعة وتسجيل' button works correctly - generates PDF and updates order status to printed. Orders move to 'أوامر تمت طباعتها' section after printing."
+
+  - task: "Registration Page Printer Role"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/pages/RegisterPage.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "VERIFIED: Registration page includes 'موظف طباعة' (printer) role option in the dropdown. Role selection working correctly with proper Arabic labels and icons."
+
 metadata:
   created_by: "main_agent"
   version: "1.0"
