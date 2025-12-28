@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Badge } from "../components/ui/badge";
-import { Package, Plus, LogOut, FileText, Clock, CheckCircle, XCircle, RefreshCw, Download, Eye, Edit, Trash2, Menu, X } from "lucide-react";
+import { Package, Plus, LogOut, FileText, Clock, CheckCircle, XCircle, RefreshCw, Download, Eye, Edit, Trash2, X } from "lucide-react";
 import { exportRequestToPDF, exportRequestsTableToPDF } from "../utils/pdfExport";
 
 const UNITS = ["قطعة", "طن", "كيلو", "متر", "متر مربع", "متر مكعب", "كيس", "لتر", "علبة", "رول"];
@@ -26,16 +26,21 @@ const SupervisorDashboard = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [submitting, setSubmitting] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Form state
-  const [items, setItems] = useState([{ name: "", quantity: "", unit: "قطعة" }]);
+  const [items, setItems] = useState([]);
+  const [newItemName, setNewItemName] = useState("");
+  const [newItemQty, setNewItemQty] = useState("");
+  const [newItemUnit, setNewItemUnit] = useState("قطعة");
   const [projectName, setProjectName] = useState("");
   const [reason, setReason] = useState("");
   const [engineerId, setEngineerId] = useState("");
 
   // Edit form state
   const [editItems, setEditItems] = useState([]);
+  const [editNewItemName, setEditNewItemName] = useState("");
+  const [editNewItemQty, setEditNewItemQty] = useState("");
+  const [editNewItemUnit, setEditNewItemUnit] = useState("قطعة");
   const [editProjectName, setEditProjectName] = useState("");
   const [editReason, setEditReason] = useState("");
   const [editEngineerId, setEditEngineerId] = useState("");
@@ -59,24 +64,38 @@ const SupervisorDashboard = () => {
 
   useEffect(() => { fetchData(); }, []);
 
-  const addItem = () => setItems([...items, { name: "", quantity: "", unit: "قطعة" }]);
-  const removeItem = (index) => items.length > 1 && setItems(items.filter((_, i) => i !== index));
-  const updateItem = (index, field, value) => {
-    const newItems = [...items];
-    newItems[index][field] = value;
-    setItems(newItems);
+  // Add item to list
+  const addItem = () => {
+    if (!newItemName.trim()) { toast.error("أدخل اسم المادة"); return; }
+    if (!newItemQty || parseInt(newItemQty) <= 0) { toast.error("أدخل الكمية"); return; }
+    
+    setItems([...items, { name: newItemName.trim(), quantity: newItemQty, unit: newItemUnit }]);
+    setNewItemName("");
+    setNewItemQty("");
+    setNewItemUnit("قطعة");
+    toast.success("تم إضافة الصنف");
   };
 
-  const addEditItem = () => setEditItems([...editItems, { name: "", quantity: "", unit: "قطعة" }]);
-  const removeEditItem = (index) => editItems.length > 1 && setEditItems(editItems.filter((_, i) => i !== index));
-  const updateEditItem = (index, field, value) => {
-    const newItems = [...editItems];
-    newItems[index][field] = value;
-    setEditItems(newItems);
+  const removeItem = (index) => setItems(items.filter((_, i) => i !== index));
+
+  // Edit item functions
+  const addEditItem = () => {
+    if (!editNewItemName.trim()) { toast.error("أدخل اسم المادة"); return; }
+    if (!editNewItemQty || parseInt(editNewItemQty) <= 0) { toast.error("أدخل الكمية"); return; }
+    
+    setEditItems([...editItems, { name: editNewItemName.trim(), quantity: editNewItemQty, unit: editNewItemUnit }]);
+    setEditNewItemName("");
+    setEditNewItemQty("");
+    setEditNewItemUnit("قطعة");
   };
+
+  const removeEditItem = (index) => setEditItems(editItems.filter((_, i) => i !== index));
 
   const resetForm = () => {
-    setItems([{ name: "", quantity: "", unit: "قطعة" }]);
+    setItems([]);
+    setNewItemName("");
+    setNewItemQty("");
+    setNewItemUnit("قطعة");
     setProjectName("");
     setReason("");
     setEngineerId("");
@@ -84,14 +103,13 @@ const SupervisorDashboard = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const validItems = items.filter(item => item.name && item.quantity);
-    if (validItems.length === 0) { toast.error("الرجاء إضافة صنف واحد على الأقل"); return; }
+    if (items.length === 0) { toast.error("الرجاء إضافة صنف واحد على الأقل"); return; }
     if (!projectName || !reason || !engineerId) { toast.error("الرجاء إكمال جميع الحقول"); return; }
 
     setSubmitting(true);
     try {
       await axios.post(`${API_URL}/requests`, {
-        items: validItems.map(item => ({ name: item.name, quantity: parseInt(item.quantity), unit: item.unit })),
+        items: items.map(item => ({ name: item.name, quantity: parseInt(item.quantity), unit: item.unit })),
         project_name: projectName, reason, engineer_id: engineerId,
       }, getAuthHeaders());
       toast.success("تم إنشاء الطلب بنجاح");
@@ -107,14 +125,13 @@ const SupervisorDashboard = () => {
 
   const handleEdit = async (e) => {
     e.preventDefault();
-    const validItems = editItems.filter(item => item.name && item.quantity);
-    if (validItems.length === 0) { toast.error("الرجاء إضافة صنف واحد على الأقل"); return; }
+    if (editItems.length === 0) { toast.error("الرجاء إضافة صنف واحد على الأقل"); return; }
     if (!editProjectName || !editReason || !editEngineerId) { toast.error("الرجاء إكمال جميع الحقول"); return; }
 
     setSubmitting(true);
     try {
       await axios.put(`${API_URL}/requests/${selectedRequest.id}/edit`, {
-        items: validItems.map(item => ({ name: item.name, quantity: parseInt(item.quantity), unit: item.unit || "قطعة" })),
+        items: editItems.map(item => ({ name: item.name, quantity: parseInt(item.quantity), unit: item.unit || "قطعة" })),
         project_name: editProjectName, reason: editReason, engineer_id: editEngineerId,
       }, getAuthHeaders());
       toast.success("تم تعديل الطلب بنجاح");
@@ -130,6 +147,9 @@ const SupervisorDashboard = () => {
   const openEditDialog = (request) => {
     setSelectedRequest(request);
     setEditItems(request.items.map(item => ({ name: item.name, quantity: String(item.quantity), unit: item.unit || "قطعة" })));
+    setEditNewItemName("");
+    setEditNewItemQty("");
+    setEditNewItemUnit("قطعة");
     setEditProjectName(request.project_name);
     setEditReason(request.reason);
     setEditEngineerId(request.engineer_id);
@@ -154,32 +174,77 @@ const SupervisorDashboard = () => {
     return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="w-10 h-10 border-4 border-orange-600 border-t-transparent rounded-full animate-spin"></div></div>;
   }
 
-  // Item Form Component
-  const ItemForm = ({ itemsList, updateFn, removeFn, addFn }) => (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <Label className="font-bold">الأصناف المطلوبة</Label>
-        <Button type="button" variant="outline" size="sm" onClick={addFn} className="h-8 text-xs">
-          <Plus className="w-3 h-3 ml-1" />إضافة
+  // Item Input Component
+  const ItemInput = ({ name, setName, qty, setQty, unit, setUnit, onAdd }) => (
+    <div className="bg-orange-50 border-2 border-dashed border-orange-300 rounded-xl p-4">
+      <p className="text-sm font-medium text-orange-800 mb-3 text-center">إضافة صنف جديد</p>
+      <div className="space-y-3">
+        <Input 
+          placeholder="اسم المادة (مثال: حديد تسليح)" 
+          value={name} 
+          onChange={(e) => setName(e.target.value)} 
+          className="h-11 text-center bg-white"
+        />
+        <div className="flex gap-2">
+          <Input 
+            type="number" 
+            min="1" 
+            placeholder="الكمية" 
+            value={qty} 
+            onChange={(e) => setQty(e.target.value)} 
+            className="h-11 flex-1 text-center bg-white"
+          />
+          <select 
+            value={unit} 
+            onChange={(e) => setUnit(e.target.value)} 
+            className="h-11 flex-1 border rounded-lg bg-white px-3 text-sm"
+          >
+            {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+          </select>
+        </div>
+        <Button 
+          type="button" 
+          onClick={onAdd} 
+          className="w-full h-11 bg-orange-600 hover:bg-orange-700 text-white font-medium"
+        >
+          <Plus className="w-5 h-5 ml-2" />
+          إضافة للقائمة
         </Button>
       </div>
-      <div className="space-y-2 max-h-48 overflow-y-auto">
-        {itemsList.map((item, index) => (
-          <div key={index} className="grid grid-cols-12 gap-2 items-center bg-slate-50 p-2 rounded-lg">
-            <Input placeholder="اسم المادة" value={item.name} onChange={(e) => updateFn(index, "name", e.target.value)} className="col-span-5 h-9 text-sm" />
-            <Input type="number" min="1" placeholder="الكمية" value={item.quantity} onChange={(e) => updateFn(index, "quantity", e.target.value)} className="col-span-3 h-9 text-sm" />
-            <select value={item.unit} onChange={(e) => updateFn(index, "unit", e.target.value)} className="col-span-3 h-9 text-sm border rounded-md bg-white px-2">
-              {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-            </select>
-            {itemsList.length > 1 && (
-              <Button type="button" variant="ghost" size="sm" onClick={() => removeFn(index)} className="col-span-1 h-9 w-9 p-0 text-red-500 hover:text-red-700">
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            )}
-          </div>
-        ))}
-      </div>
     </div>
+  );
+
+  // Items List Component
+  const ItemsList = ({ itemsList, onRemove, title = "الأصناف المضافة" }) => (
+    itemsList.length > 0 && (
+      <div className="space-y-2">
+        <p className="text-sm font-medium text-slate-700">{title} ({itemsList.length})</p>
+        <div className="space-y-2 max-h-40 overflow-y-auto">
+          {itemsList.map((item, index) => (
+            <div key={index} className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-3">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                  {index + 1}
+                </div>
+                <div>
+                  <p className="font-medium text-slate-800">{item.name}</p>
+                  <p className="text-sm text-slate-500">{item.quantity} {item.unit}</p>
+                </div>
+              </div>
+              <Button 
+                type="button" 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => onRemove(index)} 
+                className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+              >
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
   );
 
   return (
@@ -209,7 +274,7 @@ const SupervisorDashboard = () => {
       </header>
 
       <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4">
-        {/* Stats - Mobile Optimized */}
+        {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
           {[
             { label: "الإجمالي", value: stats.total || 0, color: "border-orange-500" },
@@ -243,26 +308,42 @@ const SupervisorDashboard = () => {
                 </Button>
               </DialogTrigger>
               <DialogContent className="w-[95vw] max-w-md max-h-[90vh] overflow-y-auto p-4" dir="rtl">
-                <DialogHeader><DialogTitle className="text-center">إنشاء طلب مواد</DialogTitle></DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4 mt-2">
-                  <ItemForm itemsList={items} updateFn={updateItem} removeFn={removeItem} addFn={addItem} />
+                <DialogHeader><DialogTitle className="text-center text-lg">إنشاء طلب مواد جديد</DialogTitle></DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+                  
+                  {/* Items List */}
+                  <ItemsList itemsList={items} onRemove={removeItem} />
+                  
+                  {/* Add Item Input */}
+                  <ItemInput 
+                    name={newItemName} setName={setNewItemName}
+                    qty={newItemQty} setQty={setNewItemQty}
+                    unit={newItemUnit} setUnit={setNewItemUnit}
+                    onAdd={addItem}
+                  />
+
+                  <hr className="border-slate-200" />
+
                   <div>
-                    <Label className="text-sm">المشروع</Label>
-                    <Input placeholder="اسم المشروع" value={projectName} onChange={(e) => setProjectName(e.target.value)} className="h-10 mt-1" />
+                    <Label className="text-sm font-medium">اسم المشروع</Label>
+                    <Input placeholder="مثال: مشروع برج الرياض" value={projectName} onChange={(e) => setProjectName(e.target.value)} className="h-11 mt-1" />
                   </div>
+
                   <div>
-                    <Label className="text-sm">سبب الطلب</Label>
-                    <Textarea placeholder="اذكر السبب..." value={reason} onChange={(e) => setReason(e.target.value)} rows={2} className="mt-1" />
+                    <Label className="text-sm font-medium">سبب الطلب</Label>
+                    <Textarea placeholder="اذكر سبب طلب هذه المواد..." value={reason} onChange={(e) => setReason(e.target.value)} rows={2} className="mt-1" />
                   </div>
+
                   <div>
-                    <Label className="text-sm">المهندس</Label>
-                    <select value={engineerId} onChange={(e) => setEngineerId(e.target.value)} className="w-full h-10 mt-1 border rounded-md bg-white px-3 text-sm">
+                    <Label className="text-sm font-medium">المهندس المعتمد</Label>
+                    <select value={engineerId} onChange={(e) => setEngineerId(e.target.value)} className="w-full h-11 mt-1 border rounded-lg bg-white px-3">
                       <option value="">اختر المهندس</option>
                       {engineers.map((eng) => <option key={eng.id} value={eng.id}>{eng.name}</option>)}
                     </select>
                   </div>
-                  <Button type="submit" className="w-full h-11 bg-orange-600 hover:bg-orange-700" disabled={submitting}>
-                    {submitting ? "جاري الإرسال..." : "إرسال الطلب"}
+
+                  <Button type="submit" className="w-full h-12 bg-green-600 hover:bg-green-700 text-white font-bold text-base" disabled={submitting || items.length === 0}>
+                    {submitting ? "جاري الإرسال..." : `إرسال الطلب (${items.length} صنف)`}
                   </Button>
                 </form>
               </DialogContent>
@@ -270,7 +351,7 @@ const SupervisorDashboard = () => {
           </div>
         </div>
 
-        {/* Requests - Mobile Cards / Desktop Table */}
+        {/* Requests */}
         <Card className="shadow-sm">
           <CardContent className="p-0">
             {!requests.length ? (
@@ -349,10 +430,10 @@ const SupervisorDashboard = () => {
           {selectedRequest && (
             <div className="space-y-3 mt-2">
               <div className="bg-slate-50 p-3 rounded-lg space-y-2">
-                <p className="text-sm font-medium border-b pb-2">الأصناف:</p>
+                <p className="text-sm font-medium border-b pb-2">الأصناف ({selectedRequest.items?.length || 0})</p>
                 {selectedRequest.items?.map((item, idx) => (
-                  <div key={idx} className="flex justify-between text-sm bg-white p-2 rounded">
-                    <span>{item.name}</span>
+                  <div key={idx} className="flex justify-between text-sm bg-white p-2 rounded border">
+                    <span className="font-medium">{item.name}</span>
                     <span className="text-slate-600">{item.quantity} {item.unit}</span>
                   </div>
                 ))}
@@ -363,8 +444,8 @@ const SupervisorDashboard = () => {
               </div>
               <div><span className="text-slate-500 text-sm">السبب:</span><p className="text-sm">{selectedRequest.reason}</p></div>
               {selectedRequest.rejection_reason && (
-                <div className="bg-red-50 p-2 rounded text-sm">
-                  <span className="text-red-600">سبب الرفض:</span>
+                <div className="bg-red-50 p-2 rounded text-sm border border-red-200">
+                  <span className="text-red-600 font-medium">سبب الرفض:</span>
                   <p className="text-red-800">{selectedRequest.rejection_reason}</p>
                 </div>
               )}
@@ -380,25 +461,38 @@ const SupervisorDashboard = () => {
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className="w-[95vw] max-w-md max-h-[90vh] overflow-y-auto p-4" dir="rtl">
           <DialogHeader><DialogTitle className="text-center">تعديل الطلب</DialogTitle></DialogHeader>
-          <form onSubmit={handleEdit} className="space-y-4 mt-2">
-            <ItemForm itemsList={editItems} updateFn={updateEditItem} removeFn={removeEditItem} addFn={addEditItem} />
+          <form onSubmit={handleEdit} className="space-y-4 mt-4">
+            
+            {/* Edit Items List */}
+            <ItemsList itemsList={editItems} onRemove={removeEditItem} title="الأصناف الحالية" />
+            
+            {/* Add Edit Item Input */}
+            <ItemInput 
+              name={editNewItemName} setName={setEditNewItemName}
+              qty={editNewItemQty} setQty={setEditNewItemQty}
+              unit={editNewItemUnit} setUnit={setEditNewItemUnit}
+              onAdd={addEditItem}
+            />
+
+            <hr className="border-slate-200" />
+
             <div>
-              <Label className="text-sm">المشروع</Label>
-              <Input value={editProjectName} onChange={(e) => setEditProjectName(e.target.value)} className="h-10 mt-1" />
+              <Label className="text-sm font-medium">اسم المشروع</Label>
+              <Input value={editProjectName} onChange={(e) => setEditProjectName(e.target.value)} className="h-11 mt-1" />
             </div>
             <div>
-              <Label className="text-sm">سبب الطلب</Label>
+              <Label className="text-sm font-medium">سبب الطلب</Label>
               <Textarea value={editReason} onChange={(e) => setEditReason(e.target.value)} rows={2} className="mt-1" />
             </div>
             <div>
-              <Label className="text-sm">المهندس</Label>
-              <select value={editEngineerId} onChange={(e) => setEditEngineerId(e.target.value)} className="w-full h-10 mt-1 border rounded-md bg-white px-3 text-sm">
+              <Label className="text-sm font-medium">المهندس</Label>
+              <select value={editEngineerId} onChange={(e) => setEditEngineerId(e.target.value)} className="w-full h-11 mt-1 border rounded-lg bg-white px-3">
                 <option value="">اختر المهندس</option>
                 {engineers.map((eng) => <option key={eng.id} value={eng.id}>{eng.name}</option>)}
               </select>
             </div>
-            <Button type="submit" className="w-full h-11 bg-blue-600 hover:bg-blue-700" disabled={submitting}>
-              {submitting ? "جاري الحفظ..." : "حفظ التعديلات"}
+            <Button type="submit" className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-bold" disabled={submitting || editItems.length === 0}>
+              {submitting ? "جاري الحفظ..." : `حفظ التعديلات (${editItems.length} صنف)`}
             </Button>
           </form>
         </DialogContent>
