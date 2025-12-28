@@ -179,32 +179,52 @@ class MaterialRequestResponse(BaseModel):
     engineer_name: str
     status: str
     rejection_reason: Optional[str] = None
+    expected_delivery_date: Optional[str] = None  # تاريخ الحاجة المتوقع
     created_at: str
     updated_at: str
 
 # Purchase Order Models
 class PurchaseOrderCreate(BaseModel):
     request_id: str
-    supplier_name: str
+    supplier_id: Optional[str] = None  # معرف المورد من القائمة
+    supplier_name: str  # اسم المورد (يدوي أو من القائمة)
     selected_items: List[int]  # قائمة فهارس الأصناف المختارة من الطلب الأصلي
+    item_prices: Optional[List[dict]] = None  # أسعار الأصناف [{"index": 0, "unit_price": 100}]
     notes: Optional[str] = None
+    terms_conditions: Optional[str] = None  # الشروط والأحكام
+    expected_delivery_date: Optional[str] = None  # تاريخ التسليم المتوقع
 
 class PurchaseOrderResponse(BaseModel):
     id: str
     request_id: str
     request_number: Optional[str] = None  # رقم الطلب المتسلسل (A1, A2, B1...)
-    items: List[MaterialItem]
+    items: List[dict]  # Changed to dict to include prices
     project_name: str
+    supplier_id: Optional[str] = None
     supplier_name: str
     notes: Optional[str] = None
+    terms_conditions: Optional[str] = None
     manager_id: str
     manager_name: str
     supervisor_name: Optional[str] = None
     engineer_name: Optional[str] = None
-    status: str  # pending_approval, approved, printed
+    status: str  # pending_approval, approved, printed, shipped, delivered
+    total_amount: float = 0  # المبلغ الإجمالي
+    expected_delivery_date: Optional[str] = None
     created_at: str
     approved_at: Optional[str] = None
     printed_at: Optional[str] = None
+    shipped_at: Optional[str] = None
+    delivered_at: Optional[str] = None
+    delivery_notes: Optional[str] = None
+
+# Delivery Record Model
+class DeliveryRecord(BaseModel):
+    order_id: str
+    items_delivered: List[dict]  # [{"name": "...", "quantity_delivered": 5}]
+    delivery_date: str
+    received_by: str  # اسم المستلم
+    notes: Optional[str] = None
 
 # ==================== HELPER FUNCTIONS ====================
 
