@@ -70,6 +70,12 @@ const ProcurementDashboard = () => {
   const [budgetReportProjectFilter, setBudgetReportProjectFilter] = useState("");  // فلتر المشروع في تقرير الميزانية
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   
+  // Default Budget Categories - التصنيفات الافتراضية
+  const [defaultCategories, setDefaultCategories] = useState([]);
+  const [newDefaultCategory, setNewDefaultCategory] = useState({ name: "", default_budget: "" });
+  const [editingDefaultCategory, setEditingDefaultCategory] = useState(null);
+  const [budgetViewMode, setBudgetViewMode] = useState("default"); // "default" or "projects"
+  
   // Request filter view mode
   const [requestViewMode, setRequestViewMode] = useState("approved"); // Default to approved
   const [requestsPage, setRequestsPage] = useState(1);
