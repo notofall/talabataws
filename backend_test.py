@@ -110,9 +110,34 @@ class MaterialRequestAPITester:
         )
         return success, response if success else []
 
-    def test_create_material_request(self, token, engineer_id):
+    def test_create_material_request(self, token, engineer_id, project_id=None):
         """Test creating material request with multiple items"""
         headers = {'Authorization': f'Bearer {token}'}
+        
+        # If no project_id provided, create a project first
+        if not project_id:
+            project_data = {
+                "name": "مشروع برج السلام",
+                "owner_name": "مالك المشروع",
+                "description": "مشروع اختبار",
+                "location": "الرياض"
+            }
+            
+            success, project_response = self.run_test(
+                "Create Project for Request",
+                "POST",
+                "projects",
+                200,
+                data=project_data,
+                headers=headers
+            )
+            
+            if success and project_response.get('id'):
+                project_id = project_response['id']
+            else:
+                print("❌ Failed to create project for request")
+                return False, None
+        
         request_data = {
             "items": [
                 {
@@ -131,7 +156,7 @@ class MaterialRequestAPITester:
                     "unit": "متر مكعب"
                 }
             ],
-            "project_name": "مشروع برج السلام",
+            "project_id": project_id,
             "reason": "مطلوب للأساسات والخرسانة",
             "engineer_id": engineer_id
         }
