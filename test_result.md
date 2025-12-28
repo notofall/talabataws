@@ -338,8 +338,10 @@ metadata:
   run_ui: true
 
 test_plan:
-  current_focus: []
-  stuck_tasks: []
+  current_focus:
+    - "Purchase Order PDF Export"
+  stuck_tasks:
+    - "Purchase Order PDF Export"
   test_all: false
   test_priority: "high_first"
 
