@@ -105,13 +105,14 @@ const ProcurementDashboard = () => {
 
   const fetchData = async () => {
     try {
-      const [requestsRes, ordersRes, statsRes, suppliersRes, categoriesRes, projectsRes] = await Promise.all([
+      const [requestsRes, ordersRes, statsRes, suppliersRes, categoriesRes, projectsRes, defaultCatsRes] = await Promise.all([
         axios.get(`${API_URL}/requests`, getAuthHeaders()),
         axios.get(`${API_URL}/purchase-orders`, getAuthHeaders()),
         axios.get(`${API_URL}/dashboard/stats`, getAuthHeaders()),
         axios.get(`${API_URL}/suppliers`, getAuthHeaders()),
         axios.get(`${API_URL}/budget-categories`, getAuthHeaders()),
         axios.get(`${API_URL}/projects`, getAuthHeaders()),
+        axios.get(`${API_URL}/default-budget-categories`, getAuthHeaders()),
       ]);
       setRequests(requestsRes.data);
       setAllOrders(ordersRes.data);
@@ -120,6 +121,7 @@ const ProcurementDashboard = () => {
       setSuppliers(suppliersRes.data);
       setBudgetCategories(categoriesRes.data);
       setProjects(projectsRes.data || []);
+      setDefaultCategories(defaultCatsRes.data || []);
     } catch (error) {
       toast.error("فشل في تحميل البيانات");
     } finally {
