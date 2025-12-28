@@ -49,6 +49,9 @@ const getOrderStatusTextAr = (status) => {
 };
 
 const generatePDF = async (element, filename, options = {}) => {
+  // Wait for fonts to load
+  await document.fonts.ready;
+  
   const opt = {
     margin: [10, 10, 10, 10],
     filename: filename,
@@ -57,7 +60,8 @@ const generatePDF = async (element, filename, options = {}) => {
       scale: 2,
       useCORS: true,
       logging: false,
-      letterRendering: true
+      letterRendering: true,
+      allowTaint: true
     },
     jsPDF: { 
       unit: 'mm', 
