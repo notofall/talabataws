@@ -56,7 +56,7 @@ const SupervisorDashboard = () => {
 
   const fetchData = async () => {
     try {
-      const [requestsRes, engineersRes, statsRes] = await Promise.all([
+      const [requestsRes, engineersRes, statsRes, deliveriesRes] = await Promise.all([
         axios.get(`${API_URL}/requests`, getAuthHeaders()),
         axios.get(`${API_URL}/users/engineers`, getAuthHeaders()),
         axios.get(`${API_URL}/dashboard/stats`, getAuthHeaders()),
@@ -65,7 +65,7 @@ const SupervisorDashboard = () => {
       setRequests(requestsRes.data);
       setEngineers(engineersRes.data);
       setStats(statsRes.data);
-      setPendingDeliveries(ordersRes.data || []);
+      setPendingDeliveries(deliveriesRes.data || []);
     } catch (error) {
       toast.error("فشل في تحميل البيانات");
     } finally {
