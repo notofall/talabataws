@@ -21,6 +21,41 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
+# Create database indexes for better performance with high load
+async def create_indexes():
+    """Create indexes for optimized queries with 500+ daily operations"""
+    try:
+        # Users collection indexes
+        await db.users.create_index("id", unique=True)
+        await db.users.create_index("email", unique=True)
+        await db.users.create_index("role")
+        await db.users.create_index("supervisor_prefix")
+        
+        # Material requests indexes
+        await db.material_requests.create_index("id", unique=True)
+        await db.material_requests.create_index("supervisor_id")
+        await db.material_requests.create_index("engineer_id")
+        await db.material_requests.create_index("status")
+        await db.material_requests.create_index("created_at")
+        await db.material_requests.create_index("request_number")
+        await db.material_requests.create_index([("supervisor_id", 1), ("request_seq", -1)])
+        await db.material_requests.create_index([("status", 1), ("created_at", -1)])
+        
+        # Purchase orders indexes
+        await db.purchase_orders.create_index("id", unique=True)
+        await db.purchase_orders.create_index("request_id")
+        await db.purchase_orders.create_index("manager_id")
+        await db.purchase_orders.create_index("status")
+        await db.purchase_orders.create_index("created_at")
+        await db.purchase_orders.create_index("supplier_name")
+        await db.purchase_orders.create_index("project_name")
+        await db.purchase_orders.create_index([("status", 1), ("created_at", -1)])
+        await db.purchase_orders.create_index([("manager_id", 1), ("status", 1)])
+        
+        print("✅ Database indexes created successfully")
+    except Exception as e:
+        print(f"⚠️ Index creation warning: {e}")
+
 # JWT Settings
 SECRET_KEY = os.environ.get('SECRET_KEY', 'your-secret-key-change-in-production')
 ALGORITHM = "HS256"
