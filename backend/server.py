@@ -560,6 +560,8 @@ async def create_purchase_order(
         "notes": order_data.notes,
         "manager_id": current_user["id"],
         "manager_name": current_user["name"],
+        "supervisor_name": request.get("supervisor_name", ""),
+        "engineer_name": request.get("engineer_name", ""),
         "status": PurchaseOrderStatus.PENDING_APPROVAL,
         "created_at": now,
         "approved_at": None,
