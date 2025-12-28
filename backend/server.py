@@ -258,6 +258,7 @@ class BudgetCategoryResponse(BaseModel):
     id: str
     name: str
     project_name: str
+    project_id: Optional[str] = None
     estimated_budget: float
     actual_spent: float = 0  # المصروف الفعلي (يُحسب من أوامر الشراء)
     remaining: float = 0  # المتبقي
@@ -265,6 +266,61 @@ class BudgetCategoryResponse(BaseModel):
     created_by: str
     created_by_name: str
     created_at: str
+
+# Project Models - إدارة المشاريع
+class ProjectCreate(BaseModel):
+    name: str  # اسم المشروع
+    owner_name: str  # اسم مالك المشروع
+    description: Optional[str] = None
+    location: Optional[str] = None
+
+class ProjectUpdate(BaseModel):
+    name: Optional[str] = None
+    owner_name: Optional[str] = None
+    description: Optional[str] = None
+    location: Optional[str] = None
+    status: Optional[str] = None  # active, completed, on_hold
+
+class ProjectResponse(BaseModel):
+    id: str
+    name: str
+    owner_name: str
+    description: Optional[str] = None
+    location: Optional[str] = None
+    status: str = "active"
+    created_by: str
+    created_by_name: str
+    created_at: str
+    total_requests: int = 0
+    total_orders: int = 0
+    total_budget: float = 0
+    total_spent: float = 0
+
+# Audit Trail Model - سجل المراجعة
+class AuditLogResponse(BaseModel):
+    id: str
+    entity_type: str  # project, request, order, category
+    entity_id: str
+    action: str  # create, update, delete, approve, reject, ship, deliver
+    changes: Optional[dict] = None  # التغييرات {field: {old: x, new: y}}
+    user_id: str
+    user_name: str
+    user_role: str
+    timestamp: str
+    description: str  # وصف مختصر للإجراء
+
+# Attachment Models - المرفقات
+class AttachmentResponse(BaseModel):
+    id: str
+    entity_type: str  # request, order
+    entity_id: str
+    filename: str
+    original_filename: str
+    file_size: int
+    file_type: str
+    uploaded_by: str
+    uploaded_by_name: str
+    uploaded_at: str
 
 # ==================== HELPER FUNCTIONS ====================
 
