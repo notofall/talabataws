@@ -232,6 +232,8 @@ test_plan:
 agent_communication:
   - agent: "main"
     message: "Fixed two critical bugs: 1) Cursor focus issue in SupervisorDashboard by moving ItemInput inline 2) PDF export error by using correct jspdf-autotable import syntax. Please verify both fixes work correctly."
+  - agent: "main"
+    message: "Added new features: 1) Printer role for printing purchase orders after manager approval 2) Procurement manager can create multiple POs for same request with item selection 3) PO approval workflow before printing"
   - agent: "testing"
     message: "Backend testing completed successfully. Found and fixed critical bug in request approval email template. All API endpoints working: POST /api/auth/login (✅), GET /api/requests (✅), POST /api/requests (✅), POST /api/purchase-orders (✅), GET /api/purchase-orders (✅). Complete workflow tested: supervisor login → create multi-item request → engineer login → approve request → manager login → create purchase order. All 24 backend tests passed (100% success rate). Backend is fully functional."
   - agent: "testing"
