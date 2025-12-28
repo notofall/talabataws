@@ -358,6 +358,7 @@ metadata:
 test_plan:
   current_focus:
     - "Purchase Order PDF Export"
+    - "Supervisor and Engineer Names in Purchase Order"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
