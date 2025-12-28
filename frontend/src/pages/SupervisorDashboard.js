@@ -238,16 +238,74 @@ const SupervisorDashboard = () => {
                 <DialogHeader><DialogTitle className="text-center text-lg">إنشاء طلب مواد جديد</DialogTitle></DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4 mt-4">
                   
-                  {/* Items List */}
-                  <ItemsList itemsList={items} onRemove={removeItem} />
+                  {/* Items List - inline */}
+                  {items.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-slate-700">الأصناف المضافة ({items.length})</p>
+                      <div className="space-y-2 max-h-40 overflow-y-auto">
+                        {items.map((item, index) => (
+                          <div key={`item-${index}`} className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                                {index + 1}
+                              </div>
+                              <div>
+                                <p className="font-medium text-slate-800">{item.name}</p>
+                                <p className="text-sm text-slate-500">{item.quantity} {item.unit}</p>
+                              </div>
+                            </div>
+                            <Button 
+                              type="button" 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => removeItem(index)} 
+                              className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <X className="w-5 h-5" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   
-                  {/* Add Item Input */}
-                  <ItemInput 
-                    name={newItemName} setName={setNewItemName}
-                    qty={newItemQty} setQty={setNewItemQty}
-                    unit={newItemUnit} setUnit={setNewItemUnit}
-                    onAdd={addItem}
-                  />
+                  {/* Add Item Input - inline */}
+                  <div className="bg-orange-50 border-2 border-dashed border-orange-300 rounded-xl p-4">
+                    <p className="text-sm font-medium text-orange-800 mb-3 text-center">إضافة صنف جديد</p>
+                    <div className="space-y-3">
+                      <Input 
+                        placeholder="اسم المادة (مثال: حديد تسليح)" 
+                        value={newItemName} 
+                        onChange={(e) => setNewItemName(e.target.value)} 
+                        className="h-11 text-center bg-white"
+                      />
+                      <div className="flex gap-2">
+                        <Input 
+                          type="number" 
+                          min="1" 
+                          placeholder="الكمية" 
+                          value={newItemQty} 
+                          onChange={(e) => setNewItemQty(e.target.value)} 
+                          className="h-11 flex-1 text-center bg-white"
+                        />
+                        <select 
+                          value={newItemUnit} 
+                          onChange={(e) => setNewItemUnit(e.target.value)} 
+                          className="h-11 flex-1 border rounded-lg bg-white px-3 text-sm"
+                        >
+                          {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                        </select>
+                      </div>
+                      <Button 
+                        type="button" 
+                        onClick={addItem} 
+                        className="w-full h-11 bg-orange-600 hover:bg-orange-700 text-white font-medium"
+                      >
+                        <Plus className="w-5 h-5 ml-2" />
+                        إضافة للقائمة
+                      </Button>
+                    </div>
+                  </div>
 
                   <hr className="border-slate-200" />
 
