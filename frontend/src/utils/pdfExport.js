@@ -272,61 +272,57 @@ const printHTML = (html, title) => {
 export const exportRequestToPDF = (request) => {
   const items = Array.isArray(request.items) ? request.items : [];
   const itemsRows = items.map((item, idx) => `
-    <tr style="background: ${idx % 2 === 0 ? '#f8fafc' : '#fff'};">
-      <td style="text-align: center; width: 40px;">${idx + 1}</td>
-      <td>${item.name || '-'}</td>
-      <td style="text-align: center; width: 80px;">${item.quantity || 0}</td>
-      <td style="text-align: center; width: 80px;">${item.unit || 'قطعة'}</td>
+    <tr style="background: ${idx % 2 === 0 ? '#f9fafb' : '#fff'};">
+      <td style="text-align: center; width: 30px; font-size: 9px;">${idx + 1}</td>
+      <td style="font-size: 10px;">${item.name || '-'}</td>
+      <td style="text-align: center; width: 60px;">${item.quantity || 0}</td>
+      <td style="text-align: center; width: 60px;">${item.unit || 'قطعة'}</td>
+      <td style="text-align: center; width: 80px;">${item.estimated_price ? item.estimated_price.toLocaleString('ar-SA') + ' ر.س' : '-'}</td>
     </tr>
   `).join('');
 
   const requestNumber = request.request_number || request.id?.slice(0, 8).toUpperCase() || '-';
 
   const html = `
-    <div class="header">
+    <div class="compact-header">
       <div class="title">طلب مواد</div>
-      <div class="subtitle">رقم الطلب: ${requestNumber}</div>
+      <div class="order-number">رقم: ${requestNumber}</div>
     </div>
     
     <div class="info-box">
-      <table style="border: none;">
-        <tr style="border: none;">
-          <td style="border: none; padding: 8px 0; width: 50%;"><span class="info-label">المشروع:</span> ${request.project_name || '-'}</td>
-          <td style="border: none; padding: 8px 0;"><span class="info-label">تاريخ الطلب:</span> ${formatDate(request.created_at)}</td>
-        </tr>
-        <tr style="border: none;">
-          <td style="border: none; padding: 8px 0;"><span class="info-label">المشرف:</span> ${request.supervisor_name || '-'}</td>
-          <td style="border: none; padding: 8px 0;"><span class="info-label">المهندس:</span> ${request.engineer_name || '-'}</td>
-        </tr>
-        <tr style="border: none;">
-          <td style="border: none; padding: 8px 0;"><span class="info-label">الحالة:</span> <span class="badge badge-green">${getStatusTextAr(request.status)}</span></td>
-          <td style="border: none; padding: 8px 0;"><span class="info-label">سبب الطلب:</span> ${request.reason || '-'}</td>
-        </tr>
-      </table>
+      <div class="info-grid">
+        <div class="info-item"><span class="info-label">المشروع:</span> <span class="info-value">${request.project_name || '-'}</span></div>
+        <div class="info-item"><span class="info-label">تاريخ الطلب:</span> <span class="info-value">${formatDateShort(request.created_at)}</span></div>
+        <div class="info-item"><span class="info-label">المشرف:</span> <span class="info-value">${request.supervisor_name || '-'}</span></div>
+        <div class="info-item"><span class="info-label">المهندس:</span> <span class="info-value">${request.engineer_name || '-'}</span></div>
+        <div class="info-item"><span class="info-label">الحالة:</span> <span class="badge badge-green">${getStatusTextAr(request.status)}</span></div>
+        <div class="info-item"><span class="info-label">سبب الطلب:</span> <span class="info-value">${request.reason || '-'}</span></div>
+      </div>
     </div>
     
     <div class="section-title">الأصناف المطلوبة</div>
     <table>
       <thead>
         <tr>
-          <th style="width: 40px;">#</th>
+          <th style="width: 30px;">#</th>
           <th>اسم المادة</th>
-          <th style="width: 80px;">الكمية</th>
-          <th style="width: 80px;">الوحدة</th>
+          <th style="width: 60px;">الكمية</th>
+          <th style="width: 60px;">الوحدة</th>
+          <th style="width: 80px;">السعر التقديري</th>
         </tr>
       </thead>
       <tbody>${itemsRows}</tbody>
     </table>
     
     ${request.rejection_reason ? `
-      <div class="notes-box" style="background: #fef2f2; border-color: #fecaca; margin-top: 20px;">
-        <strong style="color: #dc2626;">سبب الرفض:</strong> ${request.rejection_reason}
+      <div class="notes-box" style="background: #fef2f2; border-color: #fca5a5; margin-top: 10px;">
+        <strong style="color: #dc2626; font-size: 10px;">سبب الرفض:</strong> <span style="font-size: 10px;">${request.rejection_reason}</span>
       </div>
     ` : ''}
     
     <div class="footer">
       <p>نظام إدارة طلبات المواد</p>
-      <p style="margin-top: 5px;">تاريخ الطباعة: ${formatDate(new Date().toISOString())}</p>
+      <p style="margin-top: 3px;">تاريخ الطباعة: ${formatDateShort(new Date().toISOString())}</p>
     </div>
   `;
 
