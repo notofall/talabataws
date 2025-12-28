@@ -555,7 +555,7 @@ const ProcurementDashboard = () => {
               </div>
               <div><span className="text-slate-500 text-sm">الحالة:</span> {getOrderStatusBadge(selectedOrder.status)}</div>
               {selectedOrder.notes && <div><span className="text-slate-500 text-sm">ملاحظات:</span><p className="text-sm">{selectedOrder.notes}</p></div>}
-              <Button className="w-full bg-green-600 hover:bg-green-700" onClick={() => exportPurchaseOrderToPDF(selectedOrder)}>
+              <Button className="w-full bg-green-600 hover:bg-green-700" onClick={() => exportPurchaseOrderToPDF(selectedOrder).catch(() => toast.error("فشل التصدير"))}>
                 <Download className="w-4 h-4 ml-2" />تصدير PDF
               </Button>
             </div>
