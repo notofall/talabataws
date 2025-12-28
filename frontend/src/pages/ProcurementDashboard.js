@@ -755,6 +755,9 @@ const ProcurementDashboard = () => {
                         <div className="grid grid-cols-2 gap-2 text-xs">
                           <div><span className="text-slate-400">رقم الطلب:</span> <span className="font-bold text-blue-600">{order.request_number || order.request_id?.slice(0, 8).toUpperCase()}</span></div>
                           <div><span className="text-slate-400">المورد:</span> {order.supplier_name}</div>
+                          {order.total_amount > 0 && (
+                            <div className="col-span-2"><span className="text-slate-400">المبلغ:</span> <span className="font-bold text-emerald-600">{order.total_amount.toLocaleString('ar-SA')} ر.س</span></div>
+                          )}
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-xs text-slate-400">{formatDate(order.created_at)}</span>
