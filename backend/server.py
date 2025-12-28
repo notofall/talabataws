@@ -104,6 +104,12 @@ security = HTTPBearer()
 # Create the main app
 app = FastAPI(title="نظام إدارة طلبات المواد")
 
+# Health check endpoint at root level (for Kubernetes)
+@app.get("/health")
+async def root_health_check():
+    """Health check endpoint for Kubernetes liveness/readiness probes"""
+    return {"status": "healthy"}
+
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
