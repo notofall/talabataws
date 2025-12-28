@@ -649,7 +649,7 @@ const ProcurementDashboard = () => {
             <CardContent className="p-0">
               {(() => {
                 // Filter requests based on view mode
-                const filteredRequests = requests.filter(req => {
+                const allFilteredRequests = requests.filter(req => {
                   if (requestViewMode === "all") return true;
                   if (requestViewMode === "pending") return req.status === "pending_engineer";
                   if (requestViewMode === "approved") return ["approved_by_engineer", "partially_ordered"].includes(req.status);
@@ -657,7 +657,12 @@ const ProcurementDashboard = () => {
                   return true;
                 });
                 
-                if (!filteredRequests.length) {
+                // Pagination
+                const totalPages = Math.ceil(allFilteredRequests.length / REQUESTS_PER_PAGE);
+                const startIndex = (requestsPage - 1) * REQUESTS_PER_PAGE;
+                const filteredRequests = allFilteredRequests.slice(startIndex, startIndex + REQUESTS_PER_PAGE);
+                
+                if (!allFilteredRequests.length) {
                   return (
                     <div className="text-center py-8">
                       <CheckCircle className="w-10 h-10 text-green-300 mx-auto mb-2" />
