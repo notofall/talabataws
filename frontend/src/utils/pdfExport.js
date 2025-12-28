@@ -106,7 +106,7 @@ export const exportPurchaseOrderToPDF = (order) => {
   doc.text('أمر شراء', 105, 20, { align: 'center' });
   
   doc.setFontSize(14);
-  doc.text(`رقم الأمر: ${order.id.slice(0, 8).toUpperCase()}`, 105, 30, { align: 'center' });
+  doc.text(`رقم الأمر: ${order.id?.slice(0, 8).toUpperCase() || 'N/A'}`, 105, 30, { align: 'center' });
 
   doc.setLineWidth(0.5);
   doc.line(20, 35, 190, 35);
@@ -114,24 +114,25 @@ export const exportPurchaseOrderToPDF = (order) => {
   doc.setFontSize(12);
   
   let yPos = 50;
-  doc.text(`المشروع: ${order.project_name}`, 190, yPos, { align: 'right' });
+  doc.text(`المشروع: ${order.project_name || '-'}`, 190, yPos, { align: 'right' });
   yPos += 10;
-  doc.text(`المورد: ${order.supplier_name}`, 190, yPos, { align: 'right' });
+  doc.text(`المورد: ${order.supplier_name || '-'}`, 190, yPos, { align: 'right' });
   yPos += 10;
-  doc.text(`مدير المشتريات: ${order.manager_name}`, 190, yPos, { align: 'right' });
+  doc.text(`مدير المشتريات: ${order.manager_name || '-'}`, 190, yPos, { align: 'right' });
   yPos += 10;
-  doc.text(`تاريخ الإصدار: ${formatDate(order.created_at)}`, 190, yPos, { align: 'right' });
+  doc.text(`تاريخ الإصدار: ${order.created_at ? formatDate(order.created_at) : '-'}`, 190, yPos, { align: 'right' });
   yPos += 15;
 
   // Items table
   doc.text('المواد:', 190, yPos, { align: 'right' });
   yPos += 5;
 
-  const items = order.items || [];
+  // Ensure items is always an array
+  const items = Array.isArray(order.items) ? order.items : [];
   const tableData = items.map((item, idx) => [
     item.unit || 'قطعة',
-    String(item.quantity),
-    item.name,
+    String(item.quantity || 0),
+    item.name || '-',
     idx + 1
   ]);
 
@@ -164,7 +165,7 @@ export const exportPurchaseOrderToPDF = (order) => {
   doc.setFontSize(10);
   doc.text('نظام إدارة طلبات المواد', 105, 280, { align: 'center' });
 
-  doc.save(`امر_شراء_${order.id.slice(0, 8)}.pdf`);
+  doc.save(`امر_شراء_${order.id?.slice(0, 8) || 'order'}.pdf`);
 };
 
 export const exportRequestsTableToPDF = (requests, title = 'قائمة الطلبات') => {
