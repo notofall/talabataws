@@ -255,86 +255,22 @@ const EngineerDashboard = () => {
 
           <Card className="shadow-sm">
             <CardContent className="p-0">
-              {!pendingRequests.length ? (
-                <div className="text-center py-8"><CheckCircle className="w-10 h-10 text-green-300 mx-auto mb-2" /><p className="text-slate-500 text-sm">لا توجد طلبات معلقة</p></div>
+              {!paginatedRequests.length ? (
+                <div className="text-center py-8">
+                  <Package className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                  <p className="text-slate-500 text-sm">{filterMode === "all" ? "لا توجد طلبات" : "لا توجد طلبات في هذا التصنيف"}</p>
+                </div>
               ) : (
                 <>
                   {/* Mobile */}
                   <div className="sm:hidden divide-y">
-                    {pendingRequests.map((req) => (
-                      <div key={req.id} className="p-3 space-y-2">
-                        <div>
-                          <p className="font-medium text-sm">{getItemsSummary(req.items)}</p>
-                          <p className="text-xs text-slate-500">{req.project_name} • {req.supervisor_name}</p>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs text-slate-400">{formatDate(req.created_at)}</span>
-                          <div className="flex gap-1">
-                            <Button size="sm" variant="ghost" onClick={() => { setSelectedRequest(req); setViewDialogOpen(true); }} className="h-7 w-7 p-0"><Eye className="w-3 h-3" /></Button>
-                            <Button size="sm" className="bg-green-600 h-7 text-xs px-2" onClick={() => handleApprove(req.id)} disabled={actionLoading}>
-                              <Check className="w-3 h-3 ml-1" />اعتماد
-                            </Button>
-                            <Button size="sm" variant="destructive" className="h-7 text-xs px-2" onClick={() => { setSelectedRequest(req); setRejectDialogOpen(true); }} disabled={actionLoading}>
-                              <X className="w-3 h-3 ml-1" />رفض
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  {/* Desktop */}
-                  <div className="hidden sm:block overflow-x-auto">
-                    <Table>
-                      <TableHeader><TableRow className="bg-slate-50">
-                        <TableHead className="text-right">الأصناف</TableHead>
-                        <TableHead className="text-right">المشروع</TableHead>
-                        <TableHead className="text-right">المشرف</TableHead>
-                        <TableHead className="text-right">التاريخ</TableHead>
-                        <TableHead className="text-right">الإجراءات</TableHead>
-                      </TableRow></TableHeader>
-                      <TableBody>
-                        {pendingRequests.map((req) => (
-                          <TableRow key={req.id}>
-                            <TableCell className="font-medium">{getItemsSummary(req.items)}</TableCell>
-                            <TableCell>{req.project_name}</TableCell>
-                            <TableCell>{req.supervisor_name}</TableCell>
-                            <TableCell className="text-sm text-slate-500">{formatDate(req.created_at)}</TableCell>
-                            <TableCell>
-                              <div className="flex gap-1">
-                                <Button size="sm" variant="ghost" onClick={() => { setSelectedRequest(req); setViewDialogOpen(true); }} className="h-8 w-8 p-0"><Eye className="w-4 h-4" /></Button>
-                                <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleApprove(req.id)} disabled={actionLoading}><Check className="w-4 h-4 ml-1" />اعتماد</Button>
-                                <Button size="sm" variant="destructive" onClick={() => { setSelectedRequest(req); setRejectDialogOpen(true); }} disabled={actionLoading}><X className="w-4 h-4 ml-1" />رفض</Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Processed Requests */}
-        <div>
-          <h2 className="text-lg font-bold mb-3">الطلبات السابقة</h2>
-          <Card className="shadow-sm">
-            <CardContent className="p-0">
-              {!processedRequests.length ? (
-                <div className="text-center py-8"><FileText className="w-10 h-10 text-slate-300 mx-auto mb-2" /><p className="text-slate-500 text-sm">لا توجد طلبات</p></div>
-              ) : (
-                <>
-                  {/* Mobile */}
-                  <div className="sm:hidden divide-y">
-                    {processedRequests.map((req) => (
+                    {paginatedRequests.map((req) => (
                       <div key={req.id} className="p-3 space-y-2">
                         <div className="flex justify-between items-start">
                           <div>
                             <p className="font-bold text-blue-600">طلب #{req.request_number || '-'}</p>
                             <p className="font-medium text-sm">{getItemsSummary(req.items)}</p>
-                            <p className="text-xs text-slate-500">{req.project_name}</p>
+                            <p className="text-xs text-slate-500">{req.project_name} • {req.supervisor_name}</p>
                           </div>
                           {getStatusBadge(req.status)}
                         </div>
@@ -342,6 +278,16 @@ const EngineerDashboard = () => {
                           <span className="text-xs text-slate-400">{formatDate(req.created_at)}</span>
                           <div className="flex gap-1">
                             <Button size="sm" variant="ghost" onClick={() => { setSelectedRequest(req); setViewDialogOpen(true); }} className="h-7 w-7 p-0"><Eye className="w-3 h-3" /></Button>
+                            {req.status === "pending_engineer" && (
+                              <>
+                                <Button size="sm" className="bg-green-600 h-7 text-xs px-2" onClick={() => handleApprove(req.id)} disabled={actionLoading}>
+                                  <Check className="w-3 h-3 ml-1" />اعتماد
+                                </Button>
+                                <Button size="sm" variant="destructive" className="h-7 text-xs px-2" onClick={() => { setSelectedRequest(req); setRejectDialogOpen(true); }} disabled={actionLoading}>
+                                  <X className="w-3 h-3 ml-1" />رفض
+                                </Button>
+                              </>
+                            )}
                             <Button size="sm" variant="ghost" onClick={() => exportRequestToPDF(req)} className="h-7 w-7 p-0"><Download className="w-3 h-3 text-green-600" /></Button>
                           </div>
                         </div>
@@ -361,7 +307,7 @@ const EngineerDashboard = () => {
                         <TableHead className="text-right">الإجراءات</TableHead>
                       </TableRow></TableHeader>
                       <TableBody>
-                        {processedRequests.map((req) => (
+                        {paginatedRequests.map((req) => (
                           <TableRow key={req.id}>
                             <TableCell className="font-bold text-blue-600">{req.request_number || '-'}</TableCell>
                             <TableCell className="font-medium">{getItemsSummary(req.items)}</TableCell>
@@ -372,6 +318,12 @@ const EngineerDashboard = () => {
                             <TableCell>
                               <div className="flex gap-1">
                                 <Button size="sm" variant="ghost" onClick={() => { setSelectedRequest(req); setViewDialogOpen(true); }} className="h-8 w-8 p-0"><Eye className="w-4 h-4" /></Button>
+                                {req.status === "pending_engineer" && (
+                                  <>
+                                    <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleApprove(req.id)} disabled={actionLoading}><Check className="w-4 h-4 ml-1" />اعتماد</Button>
+                                    <Button size="sm" variant="destructive" onClick={() => { setSelectedRequest(req); setRejectDialogOpen(true); }} disabled={actionLoading}><X className="w-4 h-4 ml-1" />رفض</Button>
+                                  </>
+                                )}
                                 <Button size="sm" variant="ghost" onClick={() => exportRequestToPDF(req)} className="h-8 w-8 p-0"><Download className="w-4 h-4 text-green-600" /></Button>
                               </div>
                             </TableCell>
@@ -380,6 +332,38 @@ const EngineerDashboard = () => {
                       </TableBody>
                     </Table>
                   </div>
+                  
+                  {/* Pagination */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between p-3 border-t bg-slate-50">
+                      <span className="text-xs text-slate-500">
+                        عرض {(currentPage - 1) * ITEMS_PER_PAGE + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, filteredRequests.length)} من {filteredRequests.length}
+                      </span>
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                          disabled={currentPage === 1}
+                          className="h-7 px-2 text-xs"
+                        >
+                          السابق
+                        </Button>
+                        <span className="flex items-center px-2 text-xs text-slate-600">
+                          {currentPage} / {totalPages}
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                          disabled={currentPage === totalPages}
+                          className="h-7 px-2 text-xs"
+                        >
+                          التالي
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
             </CardContent>
