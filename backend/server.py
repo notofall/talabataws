@@ -3307,6 +3307,45 @@ async def reset_database(current_user: dict = Depends(get_current_user)):
         "deleted": deleted_counts
     }
 
+@api_router.post("/admin/clean-data-keep-users")
+async def clean_data_keep_users(current_user: dict = Depends(get_current_user)):
+    """
+    تنظيف جميع البيانات مع الحفاظ على المستخدمين والتصنيفات الافتراضية
+    """
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه تنظيف البيانات")
+    
+    # Collections to clear (keep users and default_budget_categories)
+    collections_to_clear = [
+        "material_requests", 
+        "purchase_orders",
+        "suppliers",
+        "delivery_records",
+        "budget_categories",
+        "projects",
+        "audit_logs",
+        "attachments"
+    ]
+    
+    deleted_counts = {}
+    for collection_name in collections_to_clear:
+        collection = db[collection_name]
+        result = await collection.delete_many({})
+        deleted_counts[collection_name] = result.deleted_count
+    
+    # Get counts of preserved data
+    users_count = await db.users.count_documents({})
+    default_cats_count = await db.default_budget_categories.count_documents({})
+    
+    return {
+        "message": "تم تنظيف البيانات بنجاح مع الحفاظ على المستخدمين والتصنيفات الافتراضية",
+        "deleted": deleted_counts,
+        "preserved": {
+            "users": users_count,
+            "default_budget_categories": default_cats_count
+        }
+    }
+
 @api_router.delete("/admin/clear-test-data")
 async def clear_test_data(current_user: dict = Depends(get_current_user)):
     """
