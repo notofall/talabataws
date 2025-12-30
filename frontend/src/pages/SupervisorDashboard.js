@@ -588,21 +588,61 @@ const SupervisorDashboard = () => {
               </DialogContent>
             </Dialog>
           </div>
+          
+          {/* Filter Buttons - أزرار الفلترة */}
+          <div className="flex flex-wrap gap-2">
+            <Button 
+              size="sm" 
+              variant={filterMode === "approved" ? "default" : "outline"}
+              onClick={() => setFilterMode("approved")}
+              className={`h-8 text-xs ${filterMode === "approved" ? "bg-green-600 hover:bg-green-700" : "text-green-700 border-green-300 hover:bg-green-50"}`}
+            >
+              معتمدة
+              <Badge className="mr-1 bg-green-500 text-white text-xs">{filterCounts.approved}</Badge>
+            </Button>
+            <Button 
+              size="sm" 
+              variant={filterMode === "pending_engineer" ? "default" : "outline"}
+              onClick={() => setFilterMode("pending_engineer")}
+              className={`h-8 text-xs ${filterMode === "pending_engineer" ? "bg-yellow-600 hover:bg-yellow-700" : "text-yellow-700 border-yellow-300 hover:bg-yellow-50"}`}
+            >
+              بانتظار المهندس
+              <Badge className="mr-1 bg-yellow-500 text-white text-xs">{filterCounts.pending_engineer}</Badge>
+            </Button>
+            <Button 
+              size="sm" 
+              variant={filterMode === "ordered" ? "default" : "outline"}
+              onClick={() => setFilterMode("ordered")}
+              className={`h-8 text-xs ${filterMode === "ordered" ? "bg-blue-600 hover:bg-blue-700" : "text-blue-700 border-blue-300 hover:bg-blue-50"}`}
+            >
+              تم الإصدار
+              <Badge className="mr-1 bg-blue-500 text-white text-xs">{filterCounts.ordered}</Badge>
+            </Button>
+            <Button 
+              size="sm" 
+              variant={filterMode === "all" ? "default" : "outline"}
+              onClick={() => setFilterMode("all")}
+              className={`h-8 text-xs ${filterMode === "all" ? "bg-slate-600 hover:bg-slate-700" : "text-slate-700 border-slate-300 hover:bg-slate-50"}`}
+            >
+              الكل
+              <Badge className="mr-1 bg-slate-500 text-white text-xs">{filterCounts.all}</Badge>
+            </Button>
+          </div>
         </div>
 
         {/* Requests */}
         <Card className="shadow-sm">
           <CardContent className="p-0">
-            {!requests.length ? (
+            {!paginatedRequests.length ? (
               <div className="text-center py-12">
                 <Package className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                <p className="text-slate-500">لا توجد طلبات</p>
+                <p className="text-slate-500">{filterMode === "all" ? "لا توجد طلبات" : "لا توجد طلبات في هذا التصنيف"}</p>
               </div>
             ) : (
               <>
                 {/* Mobile View */}
                 <div className="sm:hidden divide-y">
-                  {requests.map((req) => (
+                  {paginatedRequests.map((req) => (
                     <div key={req.id} className="p-3 space-y-2">
                       <div className="flex justify-between items-start">
                         <div>
