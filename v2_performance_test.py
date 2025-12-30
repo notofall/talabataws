@@ -7,8 +7,6 @@ Tests paginated APIs, dashboard stats, health checks, concurrent load, and searc
 import requests
 import sys
 import json
-import asyncio
-import aiohttp
 import time
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
