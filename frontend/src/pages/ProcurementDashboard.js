@@ -2201,6 +2201,131 @@ const ProcurementDashboard = () => {
         onOpenChange={setPasswordDialogOpen}
         token={localStorage.getItem("token")}
       />
+
+      {/* Backup Dialog - نافذة النسخ الاحتياطي */}
+      <Dialog open={backupDialogOpen} onOpenChange={setBackupDialogOpen}>
+        <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto p-4" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Database className="w-5 h-5 text-orange-600" />
+              النسخ الاحتياطي والاستعادة
+            </DialogTitle>
+          </DialogHeader>
+          
+          {/* System Stats */}
+          <div className="bg-slate-50 rounded-lg p-4 mb-4">
+            <h3 className="font-medium text-sm mb-3 flex items-center gap-2">
+              <HardDrive className="w-4 h-4" />
+              إحصائيات النظام الحالية
+            </h3>
+            {backupLoading && !backupStats ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="w-6 h-6 animate-spin text-orange-600" />
+              </div>
+            ) : backupStats && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
+                <div className="bg-white p-2 rounded border">
+                  <span className="text-slate-500">المستخدمين:</span>
+                  <span className="font-bold mr-1">{backupStats.users}</span>
+                </div>
+                <div className="bg-white p-2 rounded border">
+                  <span className="text-slate-500">المشاريع:</span>
+                  <span className="font-bold mr-1">{backupStats.projects}</span>
+                </div>
+                <div className="bg-white p-2 rounded border">
+                  <span className="text-slate-500">الطلبات:</span>
+                  <span className="font-bold mr-1">{backupStats.material_requests}</span>
+                </div>
+                <div className="bg-white p-2 rounded border">
+                  <span className="text-slate-500">أوامر الشراء:</span>
+                  <span className="font-bold mr-1">{backupStats.purchase_orders}</span>
+                </div>
+                <div className="bg-white p-2 rounded border">
+                  <span className="text-slate-500">الموردين:</span>
+                  <span className="font-bold mr-1">{backupStats.suppliers}</span>
+                </div>
+                <div className="bg-white p-2 rounded border">
+                  <span className="text-slate-500">الإجمالي:</span>
+                  <span className="font-bold mr-1 text-orange-600">{backupStats.total_records}</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Export Section */}
+          <div className="border rounded-lg p-4 mb-4">
+            <h3 className="font-medium text-sm mb-2 flex items-center gap-2">
+              <Download className="w-4 h-4 text-green-600" />
+              تصدير نسخة احتياطية
+            </h3>
+            <p className="text-xs text-slate-500 mb-3">
+              تصدير جميع بيانات النظام في ملف JSON واحد
+            </p>
+            <Button 
+              onClick={handleExportBackup} 
+              disabled={backupLoading}
+              className="w-full bg-green-600 hover:bg-green-700"
+            >
+              {backupLoading ? <Loader2 className="w-4 h-4 animate-spin ml-2" /> : <Download className="w-4 h-4 ml-2" />}
+              تصدير النسخة الاحتياطية
+            </Button>
+          </div>
+
+          {/* Import Section */}
+          <div className="border rounded-lg p-4">
+            <h3 className="font-medium text-sm mb-2 flex items-center gap-2">
+              <Upload className="w-4 h-4 text-blue-600" />
+              استيراد نسخة احتياطية
+            </h3>
+            <p className="text-xs text-slate-500 mb-3">
+              استعادة البيانات من ملف نسخة احتياطية سابقة
+            </p>
+            
+            <div className="mb-3">
+              <Input 
+                type="file" 
+                accept=".json"
+                onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+                className="text-sm"
+              />
+              {importFile && (
+                <p className="text-xs text-green-600 mt-1">
+                  ✓ تم اختيار: {importFile.name}
+                </p>
+              )}
+            </div>
+            
+            <div className="space-y-2">
+              <Button 
+                onClick={() => handleImportBackup(false)} 
+                disabled={!importFile || backupLoading}
+                variant="outline"
+                className="w-full"
+              >
+                {backupLoading ? <Loader2 className="w-4 h-4 animate-spin ml-2" /> : <Upload className="w-4 h-4 ml-2" />}
+                استيراد (دمج مع البيانات الحالية)
+              </Button>
+              <Button 
+                onClick={() => {
+                  if (window.confirm("⚠️ تحذير: سيتم حذف جميع البيانات الحالية واستبدالها بالنسخة الاحتياطية. هل أنت متأكد؟")) {
+                    handleImportBackup(true);
+                  }
+                }} 
+                disabled={!importFile || backupLoading}
+                variant="destructive"
+                className="w-full"
+              >
+                <Trash2 className="w-4 h-4 ml-2" />
+                استيراد (استبدال البيانات الحالية)
+              </Button>
+            </div>
+          </div>
+
+          <p className="text-xs text-slate-400 text-center mt-2">
+            💡 يُنصح بعمل نسخة احتياطية بشكل دوري للحفاظ على البيانات
+          </p>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
