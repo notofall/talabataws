@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Badge } from "../components/ui/badge";
-import { Package, LogOut, Clock, CheckCircle, XCircle, RefreshCw, FileText, Check, X, Eye, Download, KeyRound } from "lucide-react";
+import { Package, LogOut, Clock, CheckCircle, XCircle, RefreshCw, FileText, Check, X, Eye, Download, KeyRound, Loader2 } from "lucide-react";
 import { exportRequestToPDF, exportRequestsTableToPDF } from "../utils/pdfExport";
 import ChangePasswordDialog from "../components/ChangePasswordDialog";
 
@@ -17,12 +17,18 @@ const EngineerDashboard = () => {
   const [requests, setRequests] = useState([]);
   const [stats, setStats] = useState({});
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
+  
+  // Filter and pagination state
+  const [filterMode, setFilterMode] = useState("pending"); // pending, approved, rejected, ordered, all
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   const fetchData = async () => {
     try {
@@ -36,10 +42,44 @@ const EngineerDashboard = () => {
       toast.error("فشل في تحميل البيانات");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchData();
+    toast.success("تم تحديث البيانات");
+  };
+
   useEffect(() => { fetchData(); }, []);
+  
+  // Reset page when filter changes
+  useEffect(() => { setCurrentPage(1); }, [filterMode]);
+  
+  // Filter counts
+  const filterCounts = {
+    all: requests.length,
+    pending: requests.filter(r => r.status === "pending_engineer").length,
+    approved: requests.filter(r => r.status === "approved_by_engineer" || r.status === "partially_ordered").length,
+    rejected: requests.filter(r => r.status === "rejected_by_engineer").length,
+    ordered: requests.filter(r => r.status === "purchase_order_issued").length,
+  };
+  
+  // Get filtered requests
+  const getFilteredRequests = () => {
+    switch (filterMode) {
+      case "pending": return requests.filter(r => r.status === "pending_engineer");
+      case "approved": return requests.filter(r => r.status === "approved_by_engineer" || r.status === "partially_ordered");
+      case "rejected": return requests.filter(r => r.status === "rejected_by_engineer");
+      case "ordered": return requests.filter(r => r.status === "purchase_order_issued");
+      default: return requests;
+    }
+  };
+  
+  const filteredRequests = getFilteredRequests();
+  const totalPages = Math.ceil(filteredRequests.length / ITEMS_PER_PAGE);
+  const paginatedRequests = filteredRequests.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const handleApprove = async (requestId) => {
     setActionLoading(true);
