@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
@@ -11,9 +11,27 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Badge } from "../components/ui/badge";
 import { Checkbox } from "../components/ui/checkbox";
-import { Package, LogOut, Clock, CheckCircle, RefreshCw, FileText, ShoppingCart, Truck, Eye, Download, Calendar, Filter, Check, AlertCircle, Plus, Users, X, Edit, DollarSign, BarChart3, Trash2, KeyRound } from "lucide-react";
+import { Package, LogOut, Clock, CheckCircle, RefreshCw, FileText, ShoppingCart, Truck, Eye, Download, Calendar, Filter, Check, AlertCircle, Plus, Users, X, Edit, DollarSign, BarChart3, Trash2, KeyRound, Loader2, Search } from "lucide-react";
 import { exportRequestToPDF, exportPurchaseOrderToPDF, exportRequestsTableToPDF, exportPurchaseOrdersTableToPDF, exportBudgetReportToPDF } from "../utils/pdfExport";
 import ChangePasswordDialog from "../components/ChangePasswordDialog";
+
+// Skeleton loader component for better UX during loading
+const SkeletonLoader = ({ rows = 5 }) => (
+  <div className="animate-pulse space-y-3">
+    {[...Array(rows)].map((_, i) => (
+      <div key={i} className="h-12 bg-slate-200 rounded"></div>
+    ))}
+  </div>
+);
+
+// Stats card skeleton
+const StatsSkeleton = () => (
+  <div className="animate-pulse grid grid-cols-2 sm:grid-cols-4 gap-2">
+    {[...Array(4)].map((_, i) => (
+      <div key={i} className="bg-slate-200 h-20 rounded-lg"></div>
+    ))}
+  </div>
+);
 
 const ProcurementDashboard = () => {
   const { user, logout, getAuthHeaders, API_URL } = useAuth();
@@ -23,6 +41,7 @@ const ProcurementDashboard = () => {
   const [suppliers, setSuppliers] = useState([]);
   const [stats, setStats] = useState({});
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [orderDialogOpen, setOrderDialogOpen] = useState(false);
