@@ -3377,6 +3377,25 @@ async def clear_test_data(current_user: dict = Depends(get_current_user)):
         "deleted": deleted
     }
 
+# ==================== APP CONFIGURATION ====================
+# Include the router in the main app (after all routes are defined)
+app.include_router(api_router)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_credentials=True,
+    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 @app.on_event("startup")
 async def startup_db_client():
     """Initialize database indexes on startup"""
