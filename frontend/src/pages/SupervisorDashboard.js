@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Badge } from "../components/ui/badge";
-import { Package, Plus, LogOut, FileText, Clock, CheckCircle, XCircle, RefreshCw, Download, Eye, Edit, Trash2, X, Truck, PackageCheck, Building, KeyRound } from "lucide-react";
+import { Package, Plus, LogOut, FileText, Clock, CheckCircle, XCircle, RefreshCw, Download, Eye, Edit, Trash2, X, Truck, PackageCheck, Building, KeyRound, Loader2 } from "lucide-react";
 import { exportRequestToPDF, exportRequestsTableToPDF } from "../utils/pdfExport";
 import ChangePasswordDialog from "../components/ChangePasswordDialog";
 
