@@ -23,25 +23,30 @@ db = client[os.environ['DB_NAME']]
 
 # Create database indexes for better performance with high load
 async def create_indexes():
-    """Create indexes for optimized queries with 500+ daily operations"""
+    """Create indexes for optimized queries with 500+ daily operations and 20+ concurrent users"""
     try:
         # Users collection indexes
         await db.users.create_index("id", unique=True)
         await db.users.create_index("email", unique=True)
         await db.users.create_index("role")
         await db.users.create_index("supervisor_prefix")
+        await db.users.create_index([("role", 1), ("created_at", -1)])  # For role-based listings
         
-        # Material requests indexes
+        # Material requests indexes - optimized for high volume
         await db.material_requests.create_index("id", unique=True)
         await db.material_requests.create_index("supervisor_id")
         await db.material_requests.create_index("engineer_id")
         await db.material_requests.create_index("status")
         await db.material_requests.create_index("created_at")
         await db.material_requests.create_index("request_number")
+        await db.material_requests.create_index("project_id")
         await db.material_requests.create_index([("supervisor_id", 1), ("request_seq", -1)])
         await db.material_requests.create_index([("status", 1), ("created_at", -1)])
+        await db.material_requests.create_index([("project_id", 1), ("status", 1), ("created_at", -1)])  # Project filtering
+        await db.material_requests.create_index([("engineer_id", 1), ("status", 1)])  # Engineer dashboard
+        await db.material_requests.create_index("$**", name="text_search_idx")  # Text search
         
-        # Purchase orders indexes
+        # Purchase orders indexes - optimized for manager dashboard and reports
         await db.purchase_orders.create_index("id", unique=True)
         await db.purchase_orders.create_index("request_id")
         await db.purchase_orders.create_index("manager_id")
@@ -50,22 +55,31 @@ async def create_indexes():
         await db.purchase_orders.create_index("supplier_id")
         await db.purchase_orders.create_index("supplier_name")
         await db.purchase_orders.create_index("project_name")
+        await db.purchase_orders.create_index("category_id")
+        await db.purchase_orders.create_index("supplier_receipt_number")
         await db.purchase_orders.create_index([("status", 1), ("created_at", -1)])
         await db.purchase_orders.create_index([("manager_id", 1), ("status", 1)])
+        await db.purchase_orders.create_index([("project_name", 1), ("created_at", -1)])  # Project reports
+        await db.purchase_orders.create_index([("supplier_id", 1), ("created_at", -1)])  # Supplier reports
+        await db.purchase_orders.create_index([("category_id", 1), ("total_amount", 1)])  # Budget tracking
         
         # Suppliers indexes
         await db.suppliers.create_index("id", unique=True)
         await db.suppliers.create_index("name")
+        await db.suppliers.create_index([("name", 1), ("created_at", -1)])
         
-        # Delivery records indexes
+        # Delivery records indexes - optimized for tracking
         await db.delivery_records.create_index("id", unique=True)
         await db.delivery_records.create_index("order_id")
         await db.delivery_records.create_index("delivery_date")
+        await db.delivery_records.create_index([("order_id", 1), ("delivery_date", -1)])
+        await db.delivery_records.create_index("delivered_by")
         
         # Budget categories indexes
         await db.budget_categories.create_index("id", unique=True)
         await db.budget_categories.create_index("project_id")
         await db.budget_categories.create_index("created_by")
+        await db.budget_categories.create_index([("project_id", 1), ("name", 1)])  # Budget reports
         
         # Default budget categories indexes (global templates)
         await db.default_budget_categories.create_index("id", unique=True)
@@ -75,18 +89,21 @@ async def create_indexes():
         await db.projects.create_index("id", unique=True)
         await db.projects.create_index("status")
         await db.projects.create_index("created_by")
+        await db.projects.create_index("name")
+        await db.projects.create_index([("status", 1), ("created_at", -1)])
         
-        # Audit logs indexes
+        # Audit logs indexes - optimized for compliance queries
         await db.audit_logs.create_index("id", unique=True)
         await db.audit_logs.create_index([("entity_type", 1), ("entity_id", 1)])
         await db.audit_logs.create_index("timestamp")
         await db.audit_logs.create_index("user_id")
+        await db.audit_logs.create_index([("entity_type", 1), ("timestamp", -1)])  # Audit reports
         
         # Attachments indexes
         await db.attachments.create_index("id", unique=True)
         await db.attachments.create_index([("entity_type", 1), ("entity_id", 1)])
         
-        print("✅ Database indexes created successfully")
+        print("✅ Database indexes created successfully for high-performance operations")
     except Exception as e:
         print(f"⚠️ Index creation warning: {e}")
 
