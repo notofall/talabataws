@@ -3098,6 +3098,158 @@ async def global_search(
     
     return results
 
+# ==================== BACKUP & RESTORE SYSTEM ====================
+# نظام النسخ الاحتياطي والاستعادة - لمدير المشتريات فقط
+
+@api_router.get("/backup/export")
+async def export_backup(current_user: dict = Depends(get_current_user)):
+    """
+    تصدير نسخة احتياطية كاملة من النظام
+    مدير المشتريات فقط
+    """
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه تصدير النسخة الاحتياطية")
+    
+    now = datetime.now(timezone.utc).isoformat()
+    
+    backup_data = {
+        "backup_info": {
+            "created_at": now,
+            "created_by": current_user["name"],
+            "created_by_id": current_user["id"],
+            "version": "2.0"
+        },
+        "users": await db.users.find({}, {"_id": 0}).to_list(None),
+        "projects": await db.projects.find({}, {"_id": 0}).to_list(None),
+        "material_requests": await db.material_requests.find({}, {"_id": 0}).to_list(None),
+        "purchase_orders": await db.purchase_orders.find({}, {"_id": 0}).to_list(None),
+        "suppliers": await db.suppliers.find({}, {"_id": 0}).to_list(None),
+        "budget_categories": await db.budget_categories.find({}, {"_id": 0}).to_list(None),
+        "default_budget_categories": await db.default_budget_categories.find({}, {"_id": 0}).to_list(None),
+        "delivery_records": await db.delivery_records.find({}, {"_id": 0}).to_list(None),
+        "audit_logs": await db.audit_logs.find({}, {"_id": 0}).to_list(None),
+    }
+    
+    # Log audit
+    await log_audit(
+        entity_type="backup",
+        entity_id="export",
+        action="export",
+        user=current_user,
+        description=f"تصدير نسخة احتياطية كاملة"
+    )
+    
+    return backup_data
+
+@api_router.post("/backup/import")
+async def import_backup(
+    backup_data: dict,
+    clear_existing: bool = False,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    استيراد نسخة احتياطية
+    مدير المشتريات فقط
+    clear_existing: إذا كان True سيحذف البيانات الموجودة قبل الاستيراد
+    """
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه استيراد النسخة الاحتياطية")
+    
+    if "backup_info" not in backup_data:
+        raise HTTPException(status_code=400, detail="ملف النسخة الاحتياطية غير صالح")
+    
+    import_stats = {
+        "users": 0,
+        "projects": 0,
+        "material_requests": 0,
+        "purchase_orders": 0,
+        "suppliers": 0,
+        "budget_categories": 0,
+        "default_budget_categories": 0,
+        "delivery_records": 0,
+        "skipped": 0,
+        "errors": []
+    }
+    
+    # Clear existing data if requested
+    if clear_existing:
+        await db.projects.delete_many({})
+        await db.material_requests.delete_many({})
+        await db.purchase_orders.delete_many({})
+        await db.suppliers.delete_many({})
+        await db.budget_categories.delete_many({})
+        await db.default_budget_categories.delete_many({})
+        await db.delivery_records.delete_many({})
+    
+    # Import collections
+    collections_to_import = [
+        ("users", db.users, ["id", "email"]),
+        ("projects", db.projects, ["id"]),
+        ("material_requests", db.material_requests, ["id"]),
+        ("purchase_orders", db.purchase_orders, ["id"]),
+        ("suppliers", db.suppliers, ["id"]),
+        ("budget_categories", db.budget_categories, ["id"]),
+        ("default_budget_categories", db.default_budget_categories, ["id"]),
+        ("delivery_records", db.delivery_records, ["id"]),
+    ]
+    
+    for collection_name, collection, unique_fields in collections_to_import:
+        if collection_name in backup_data:
+            for doc in backup_data[collection_name]:
+                try:
+                    # Check if document already exists
+                    query = {field: doc.get(field) for field in unique_fields if doc.get(field)}
+                    if query:
+                        existing = await collection.find_one(query)
+                        if existing:
+                            import_stats["skipped"] += 1
+                            continue
+                    
+                    await collection.insert_one(doc)
+                    import_stats[collection_name] += 1
+                except Exception as e:
+                    import_stats["errors"].append(f"{collection_name}: {str(e)[:50]}")
+    
+    # Log audit
+    await log_audit(
+        entity_type="backup",
+        entity_id="import",
+        action="import",
+        user=current_user,
+        description=f"استيراد نسخة احتياطية - {sum([import_stats[k] for k in import_stats if isinstance(import_stats[k], int)])} سجل"
+    )
+    
+    return {
+        "message": "تم استيراد النسخة الاحتياطية بنجاح",
+        "stats": import_stats,
+        "backup_info": backup_data.get("backup_info", {})
+    }
+
+@api_router.get("/backup/stats")
+async def get_backup_stats(current_user: dict = Depends(get_current_user)):
+    """
+    إحصائيات البيانات الحالية
+    مدير المشتريات فقط
+    """
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه عرض إحصائيات النسخ الاحتياطي")
+    
+    stats = {
+        "users": await db.users.count_documents({}),
+        "projects": await db.projects.count_documents({}),
+        "material_requests": await db.material_requests.count_documents({}),
+        "purchase_orders": await db.purchase_orders.count_documents({}),
+        "suppliers": await db.suppliers.count_documents({}),
+        "budget_categories": await db.budget_categories.count_documents({}),
+        "default_budget_categories": await db.default_budget_categories.count_documents({}),
+        "delivery_records": await db.delivery_records.count_documents({}),
+        "audit_logs": await db.audit_logs.count_documents({}),
+    }
+    
+    stats["total_records"] = sum(stats.values())
+    
+    return stats
+
 # Health check
 @api_router.get("/health")
 async def health_check():
