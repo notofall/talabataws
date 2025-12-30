@@ -469,7 +469,7 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Pagination Feature for Procurement Dashboard"
+    - "V2 High-Performance APIs and Concurrent Load Testing"
   stuck_tasks: 
     - "Purchase Order Edit Functionality"
   test_all: false
