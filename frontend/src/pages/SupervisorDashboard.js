@@ -24,6 +24,7 @@ const SupervisorDashboard = () => {
   const [pendingDeliveries, setPendingDeliveries] = useState([]);
   const [stats, setStats] = useState({});
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -35,6 +36,11 @@ const SupervisorDashboard = () => {
   const [submitting, setSubmitting] = useState(false);
   const [deliveryItems, setDeliveryItems] = useState([]);
   const [deliveryNotes, setDeliveryNotes] = useState("");
+  
+  // Filter state - نظام الفلاتر المحسن
+  const [filterMode, setFilterMode] = useState("all"); // all, pending_engineer, approved, ordered, delivered
+  const [requestsPage, setRequestsPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   // Form state
   const [items, setItems] = useState([]);
