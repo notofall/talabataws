@@ -4448,6 +4448,51 @@ async def gm_reject_order(
     
     return {"message": "تم رفض أمر الشراء"}
 
+@api_router.get("/gm/all-orders")
+async def gm_get_all_orders(
+    status: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 10,
+    current_user: dict = Depends(get_current_user)
+):
+    """الحصول على جميع أوامر الشراء للمدير العام - المعتمدة والمعلقة"""
+    if current_user["role"] != UserRole.GENERAL_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط المدير العام يمكنه الوصول")
+    
+    # Build query filter
+    query = {}
+    if status:
+        if status == "pending":
+            query["status"] = PurchaseOrderStatus.PENDING_GM_APPROVAL
+        elif status == "approved":
+            query["status"] = {"$in": [PurchaseOrderStatus.APPROVED, PurchaseOrderStatus.DELIVERED, PurchaseOrderStatus.PARTIALLY_DELIVERED]}
+        elif status == "rejected":
+            query["status"] = "rejected_by_gm"
+    
+    # Get total count
+    total = await db.purchase_orders.count_documents(query)
+    total_pages = (total + page_size - 1) // page_size
+    
+    # Get orders with pagination
+    orders = await db.purchase_orders.find(query, {"_id": 0}).sort("created_at", -1).skip((page - 1) * page_size).limit(page_size).to_list(page_size)
+    
+    # Enrich with project and supplier names
+    for order in orders:
+        if order.get("project_id"):
+            project = await db.projects.find_one({"id": order["project_id"]}, {"_id": 0, "name": 1})
+            order["project_name"] = project["name"] if project else "غير محدد"
+        if order.get("supplier_id"):
+            supplier = await db.suppliers.find_one({"id": order["supplier_id"]}, {"_id": 0, "name": 1})
+            order["supplier_name"] = supplier["name"] if supplier else order.get("supplier_name", "غير محدد")
+    
+    return {
+        "items": orders,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": total_pages
+    }
+
 # ==================== CATALOG IMPORT/EXPORT ROUTES ====================
 
 @api_router.get("/price-catalog/export/excel")
