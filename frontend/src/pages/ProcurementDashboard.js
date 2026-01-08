@@ -626,34 +626,8 @@ const ProcurementDashboard = () => {
     }
   };
 
-  const handleUpdateDefaultCategory = async () => {
-    if (!editingDefaultCategory) return;
-    try {
-      await axios.put(`${API_URL}/default-budget-categories/${editingDefaultCategory.id}`, {
-        name: editingDefaultCategory.name,
-        default_budget: parseFloat(editingDefaultCategory.default_budget) || 0
-      }, getAuthHeaders());
-      toast.success("تم تحديث التصنيف بنجاح");
-      setEditingDefaultCategory(null);
-      fetchData();
-    } catch (error) {
-      toast.error(error.response?.data?.detail || "فشل في تحديث التصنيف");
-    }
-  };
-
-  const handleDeleteDefaultCategory = async (categoryId) => {
-    if (!window.confirm("هل أنت متأكد من حذف هذا التصنيف الافتراضي؟")) return;
-    try {
-      await axios.delete(`${API_URL}/default-budget-categories/${categoryId}`, getAuthHeaders());
-      toast.success("تم حذف التصنيف الافتراضي بنجاح");
-      fetchData();
-    } catch (error) {
-      toast.error(error.response?.data?.detail || "فشل في حذف التصنيف");
-    }
-  };
-
   const handleApplyDefaultCategoriesToProject = async (projectId) => {
-    try {
+    try:
       const res = await axios.post(`${API_URL}/default-budget-categories/apply-to-project/${projectId}`, {}, getAuthHeaders());
       toast.success(res.data.message);
       fetchData();
