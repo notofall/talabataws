@@ -567,16 +567,73 @@ const SupervisorDashboard = () => {
                     </div>
                   )}
                   
-                  {/* Add Item Input - inline */}
+                  {/* Add Item Input - inline with catalog suggestions */}
                   <div className="bg-orange-50 border-2 border-dashed border-orange-300 rounded-xl p-4">
                     <p className="text-sm font-medium text-orange-800 mb-3 text-center">إضافة صنف جديد</p>
                     <div className="space-y-3">
-                      <Input 
-                        placeholder="اسم المادة (مثال: حديد تسليح)" 
-                        value={newItemName} 
-                        onChange={(e) => setNewItemName(e.target.value)} 
-                        className="h-11 text-center bg-white"
-                      />
+                      <div className="relative">
+                        <Input 
+                          placeholder="اسم المادة (مثال: حديد تسليح)" 
+                          value={newItemName} 
+                          onChange={(e) => {
+                            setNewItemName(e.target.value);
+                            setSelectedCatalogItem(null);
+                          }} 
+                          onFocus={() => newItemName.length >= 2 && setShowSuggestions(true)}
+                          className="h-11 text-center bg-white"
+                        />
+                        {/* Catalog Suggestions Dropdown */}
+                        {showSuggestions && (catalogSuggestions.length > 0 || suggestionsLoading) && (
+                          <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                            {suggestionsLoading ? (
+                              <div className="p-3 text-center text-slate-500">
+                                <Loader2 className="w-4 h-4 animate-spin inline ml-2" />
+                                جاري البحث...
+                              </div>
+                            ) : (
+                              <>
+                                <div className="p-2 bg-green-50 text-xs text-green-700 border-b">
+                                  💡 اختر من الكتالوج للحصول على السعر المعتمد
+                                </div>
+                                {catalogSuggestions.map((item, idx) => (
+                                  <div 
+                                    key={item.id || idx}
+                                    onClick={() => selectCatalogItem(item)}
+                                    className="p-3 hover:bg-orange-50 cursor-pointer border-b last:border-0 transition-colors"
+                                  >
+                                    <div className="flex justify-between items-center">
+                                      <div>
+                                        <span className="font-medium text-slate-800">{item.name}</span>
+                                        {item.match_type === 'alias' && (
+                                          <Badge variant="secondary" className="mr-2 text-xs">مطابقة</Badge>
+                                        )}
+                                      </div>
+                                      <span className="text-green-600 font-bold text-sm">
+                                        {item.price?.toLocaleString()} ريال
+                                      </span>
+                                    </div>
+                                    <div className="text-xs text-slate-500 mt-1">
+                                      {item.unit} {item.supplier_name && `• ${item.supplier_name}`}
+                                    </div>
+                                  </div>
+                                ))}
+                                <div 
+                                  onClick={() => setShowSuggestions(false)}
+                                  className="p-2 text-center text-xs text-slate-500 hover:bg-slate-50 cursor-pointer"
+                                >
+                                  استخدام "{newItemName}" كصنف جديد
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        )}
+                        {selectedCatalogItem && (
+                          <div className="mt-1 text-xs text-green-600 flex items-center gap-1">
+                            <CheckCircle className="w-3 h-3" />
+                            صنف من الكتالوج - المورد: {selectedCatalogItem.supplier_name || 'غير محدد'}
+                          </div>
+                        )}
+                      </div>
                       <div className="flex gap-2">
                         <Input 
                           type="number" 
@@ -598,10 +655,10 @@ const SupervisorDashboard = () => {
                         type="number" 
                         min="0" 
                         step="0.01"
-                        placeholder="السعر التقديري (اختياري)" 
+                        placeholder={selectedCatalogItem ? `السعر من الكتالوج: ${selectedCatalogItem.price?.toLocaleString()} ريال` : "السعر التقديري (اختياري)"} 
                         value={newItemEstPrice} 
                         onChange={(e) => setNewItemEstPrice(e.target.value)} 
-                        className="h-11 text-center bg-white"
+                        className={`h-11 text-center ${selectedCatalogItem ? 'bg-green-50 border-green-300' : 'bg-white'}`}
                       />
                       <Button 
                         type="button" 
