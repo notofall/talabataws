@@ -1864,12 +1864,18 @@ async def create_purchase_order(
         if category:
             category_name = category.get("name")
     
+    # التحقق من حد الموافقة - هل يحتاج موافقة المدير العام؟
+    approval_limit = await get_approval_limit()
+    needs_gm_approval = total_amount > approval_limit
+    initial_status = PurchaseOrderStatus.PENDING_GM_APPROVAL if needs_gm_approval else PurchaseOrderStatus.PENDING_APPROVAL
+    
     order_doc = {
         "id": order_id,
         "request_id": order_data.request_id,
         "request_number": request.get("request_number"),  # رقم الطلب المتسلسل
         "items": selected_items,
         "project_name": request["project_name"],
+        "project_id": request.get("project_id"),
         "supplier_id": order_data.supplier_id,
         "supplier_name": order_data.supplier_name,
         "category_id": order_data.category_id,  # تصنيف الميزانية
@@ -1880,11 +1886,15 @@ async def create_purchase_order(
         "manager_name": current_user["name"],
         "supervisor_name": request.get("supervisor_name", ""),
         "engineer_name": request.get("engineer_name", ""),
-        "status": PurchaseOrderStatus.PENDING_APPROVAL,
+        "status": initial_status,
+        "needs_gm_approval": needs_gm_approval,  # علامة تحديد إذا كان يحتاج موافقة المدير العام
         "total_amount": total_amount,
         "expected_delivery_date": order_data.expected_delivery_date,
         "created_at": now,
         "approved_at": None,
+        "gm_approved_at": None,
+        "gm_approved_by": None,
+        "gm_approved_by_name": None,
         "printed_at": None,
         "shipped_at": None,
         "delivered_at": None,
