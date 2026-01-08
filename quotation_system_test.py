@@ -564,7 +564,8 @@ class QuotationSystemTester:
         # Test only procurement manager can manage catalog
         if catalog_item_id:
             self.test_unauthorized_access(self.supervisor_token, f"price-catalog/{catalog_item_id}", "DELETE", 403)
-            self.test_unauthorized_access(self.engineer_token, f"price-catalog/{catalog_item_id}", "PUT", 403)
+            update_data = {"price": 100}
+            self.test_unauthorized_access(self.engineer_token, f"price-catalog/{catalog_item_id}", "PUT", 403, update_data)
 
         # 9. Cleanup - Delete test items
         print("\n🧹 Cleaning up test data...")
