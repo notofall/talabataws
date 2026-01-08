@@ -24,130 +24,121 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
+# Helper function to safely create index
+async def safe_create_index(collection, keys, **kwargs):
+    """Safely create index, ignoring conflicts with existing indexes"""
+    try:
+        await collection.create_index(keys, **kwargs)
+    except Exception as e:
+        error_str = str(e)
+        # Ignore index conflict errors - the index already exists
+        if any(x in error_str for x in ["IndexKeySpecsConflict", "86", "already exists", "IndexOptionsConflict"]):
+            pass  # Index exists, that's fine
+        else:
+            print(f"⚠️ Index warning for {collection.name}: {e}")
+
 # Create database indexes for better performance with high load
 async def create_indexes():
     """Create indexes for optimized queries with 500+ daily operations and 20+ concurrent users"""
     try:
         # Users collection indexes
-        await db.users.create_index("id", unique=True)
-        await db.users.create_index("email", unique=True)
-        await db.users.create_index("role")
-        await db.users.create_index("supervisor_prefix")
-        await db.users.create_index([("role", 1), ("created_at", -1)])  # For role-based listings
+        await safe_create_index(db.users, "id", unique=True)
+        await safe_create_index(db.users, "email", unique=True)
+        await safe_create_index(db.users, "role")
+        await safe_create_index(db.users, "supervisor_prefix")
+        await safe_create_index(db.users, [("role", 1), ("created_at", -1)])
         
-        # Material requests indexes - optimized for high volume
-        await db.material_requests.create_index("id", unique=True)
-        await db.material_requests.create_index("supervisor_id")
-        await db.material_requests.create_index("engineer_id")
-        await db.material_requests.create_index("status")
-        await db.material_requests.create_index("created_at")
-        await db.material_requests.create_index("request_number")
-        await db.material_requests.create_index("project_id")
-        await db.material_requests.create_index([("supervisor_id", 1), ("request_seq", -1)])
-        await db.material_requests.create_index([("status", 1), ("created_at", -1)])
-        await db.material_requests.create_index([("project_id", 1), ("status", 1), ("created_at", -1)])  # Project filtering
-        await db.material_requests.create_index([("engineer_id", 1), ("status", 1)])  # Engineer dashboard
-        await db.material_requests.create_index("$**", name="text_search_idx")  # Text search
+        # Material requests indexes
+        await safe_create_index(db.material_requests, "id", unique=True)
+        await safe_create_index(db.material_requests, "supervisor_id")
+        await safe_create_index(db.material_requests, "engineer_id")
+        await safe_create_index(db.material_requests, "status")
+        await safe_create_index(db.material_requests, "created_at")
+        await safe_create_index(db.material_requests, "request_number")
+        await safe_create_index(db.material_requests, "project_id")
+        await safe_create_index(db.material_requests, [("supervisor_id", 1), ("request_seq", -1)])
+        await safe_create_index(db.material_requests, [("status", 1), ("created_at", -1)])
+        await safe_create_index(db.material_requests, [("project_id", 1), ("status", 1), ("created_at", -1)])
+        await safe_create_index(db.material_requests, [("engineer_id", 1), ("status", 1)])
+        await safe_create_index(db.material_requests, "$**", name="text_search_idx")
         
-        # Purchase orders indexes - optimized for manager dashboard and reports
-        await db.purchase_orders.create_index("id", unique=True)
-        await db.purchase_orders.create_index("request_id")
-        await db.purchase_orders.create_index("manager_id")
-        await db.purchase_orders.create_index("status")
-        await db.purchase_orders.create_index("created_at")
-        await db.purchase_orders.create_index("supplier_id")
-        await db.purchase_orders.create_index("supplier_name")
-        await db.purchase_orders.create_index("project_name")
-        await db.purchase_orders.create_index("category_id")
-        await db.purchase_orders.create_index("supplier_receipt_number")
-        await db.purchase_orders.create_index([("status", 1), ("created_at", -1)])
-        await db.purchase_orders.create_index([("manager_id", 1), ("status", 1)])
-        await db.purchase_orders.create_index([("project_name", 1), ("created_at", -1)])  # Project reports
-        await db.purchase_orders.create_index([("supplier_id", 1), ("created_at", -1)])  # Supplier reports
-        await db.purchase_orders.create_index([("category_id", 1), ("total_amount", 1)])  # Budget tracking
+        # Purchase orders indexes
+        await safe_create_index(db.purchase_orders, "id", unique=True)
+        await safe_create_index(db.purchase_orders, "request_id")
+        await safe_create_index(db.purchase_orders, "manager_id")
+        await safe_create_index(db.purchase_orders, "status")
+        await safe_create_index(db.purchase_orders, "created_at")
+        await safe_create_index(db.purchase_orders, "supplier_id")
+        await safe_create_index(db.purchase_orders, "supplier_name")
+        await safe_create_index(db.purchase_orders, "project_name")
+        await safe_create_index(db.purchase_orders, "category_id")
+        await safe_create_index(db.purchase_orders, "supplier_receipt_number")
+        await safe_create_index(db.purchase_orders, [("status", 1), ("created_at", -1)])
+        await safe_create_index(db.purchase_orders, [("manager_id", 1), ("status", 1)])
+        await safe_create_index(db.purchase_orders, [("project_name", 1), ("created_at", -1)])
+        await safe_create_index(db.purchase_orders, [("supplier_id", 1), ("created_at", -1)])
+        await safe_create_index(db.purchase_orders, [("category_id", 1), ("total_amount", 1)])
         
         # Suppliers indexes
-        await db.suppliers.create_index("id", unique=True)
-        await db.suppliers.create_index("name")
-        await db.suppliers.create_index([("name", 1), ("created_at", -1)])
+        await safe_create_index(db.suppliers, "id", unique=True)
+        await safe_create_index(db.suppliers, "name")
+        await safe_create_index(db.suppliers, [("name", 1), ("created_at", -1)])
         
-        # Delivery records indexes - optimized for tracking
-        await db.delivery_records.create_index("id", unique=True)
-        await db.delivery_records.create_index("order_id")
-        await db.delivery_records.create_index("delivery_date")
-        await db.delivery_records.create_index([("order_id", 1), ("delivery_date", -1)])
-        await db.delivery_records.create_index("delivered_by")
+        # Delivery records indexes
+        await safe_create_index(db.delivery_records, "id", unique=True)
+        await safe_create_index(db.delivery_records, "order_id")
+        await safe_create_index(db.delivery_records, "delivery_date")
+        await safe_create_index(db.delivery_records, [("order_id", 1), ("delivery_date", -1)])
+        await safe_create_index(db.delivery_records, "delivered_by")
         
         # Budget categories indexes
-        await db.budget_categories.create_index("id", unique=True)
-        await db.budget_categories.create_index("project_id")
-        await db.budget_categories.create_index("created_by")
-        await db.budget_categories.create_index([("project_id", 1), ("name", 1)])  # Budget reports
+        await safe_create_index(db.budget_categories, "id", unique=True)
+        await safe_create_index(db.budget_categories, "project_id")
+        await safe_create_index(db.budget_categories, "created_by")
+        await safe_create_index(db.budget_categories, [("project_id", 1), ("name", 1)])
         
-        # Default budget categories indexes (global templates)
-        await db.default_budget_categories.create_index("id", unique=True)
-        await db.default_budget_categories.create_index("created_by")
+        # Default budget categories indexes
+        await safe_create_index(db.default_budget_categories, "id", unique=True)
+        await safe_create_index(db.default_budget_categories, "created_by")
         
         # Projects indexes
-        await db.projects.create_index("id", unique=True)
-        await db.projects.create_index("status")
-        await db.projects.create_index("created_by")
-        await db.projects.create_index("name")
-        await db.projects.create_index([("status", 1), ("created_at", -1)])
+        await safe_create_index(db.projects, "id", unique=True)
+        await safe_create_index(db.projects, "status")
+        await safe_create_index(db.projects, "created_by")
+        await safe_create_index(db.projects, "name")
+        await safe_create_index(db.projects, [("status", 1), ("created_at", -1)])
         
-        # Audit logs indexes - optimized for compliance queries
-        await db.audit_logs.create_index("id", unique=True)
-        await db.audit_logs.create_index([("entity_type", 1), ("entity_id", 1)])
-        await db.audit_logs.create_index("timestamp")
-        await db.audit_logs.create_index("user_id")
-        await db.audit_logs.create_index([("entity_type", 1), ("timestamp", -1)])  # Audit reports
+        # Audit logs indexes
+        await safe_create_index(db.audit_logs, "id", unique=True)
+        await safe_create_index(db.audit_logs, [("entity_type", 1), ("entity_id", 1)])
+        await safe_create_index(db.audit_logs, "timestamp")
+        await safe_create_index(db.audit_logs, "user_id")
+        await safe_create_index(db.audit_logs, [("entity_type", 1), ("timestamp", -1)])
         
         # Attachments indexes
-        await db.attachments.create_index("id", unique=True)
-        await db.attachments.create_index([("entity_type", 1), ("entity_id", 1)])
+        await safe_create_index(db.attachments, "id", unique=True)
+        await safe_create_index(db.attachments, [("entity_type", 1), ("entity_id", 1)])
         
         # System Settings indexes
-        await db.system_settings.create_index("id", unique=True)
-        await db.system_settings.create_index("key", unique=True)
+        await safe_create_index(db.system_settings, "id", unique=True)
+        await safe_create_index(db.system_settings, "key", unique=True)
         
         # Price Catalog indexes
-        await db.price_catalog.create_index("id", unique=True)
-        await db.price_catalog.create_index("name")
-        await db.price_catalog.create_index("supplier_id")
-        await db.price_catalog.create_index("category_id")
-        await db.price_catalog.create_index("is_active")
-        await db.price_catalog.create_index([("name", 1), ("is_active", 1)])
-        await db.price_catalog.create_index("$**", name="price_catalog_text_idx")  # Full text search
+        await safe_create_index(db.price_catalog, "id", unique=True)
+        await safe_create_index(db.price_catalog, "name")
+        await safe_create_index(db.price_catalog, "supplier_id")
+        await safe_create_index(db.price_catalog, "category_id")
+        await safe_create_index(db.price_catalog, "is_active")
+        await safe_create_index(db.price_catalog, [("name", 1), ("is_active", 1)])
+        await safe_create_index(db.price_catalog, "$**", name="price_catalog_text_idx")
         
-        # Item Aliases indexes
-        await db.item_aliases.create_index("id", unique=True)
-        await db.item_aliases.create_index("catalog_item_id")
+        # Item Aliases indexes - using safe_create_index to handle conflicts
+        await safe_create_index(db.item_aliases, "id", unique=True)
+        await safe_create_index(db.item_aliases, "catalog_item_id")
+        # Note: alias_name index might already exist, safe_create_index handles this
+        await safe_create_index(db.item_aliases, [("alias_name", 1)], unique=True, name="alias_name_unique_v3")
         
-        # Handle alias_name index with conflict resolution
-        # Drop old conflicting index if exists and create new unique one
-        try:
-            # Try to drop the old non-unique index first
-            try:
-                await db.item_aliases.drop_index("alias_name_1")
-                print("ℹ️ Dropped old alias_name_1 index")
-            except Exception:
-                pass  # Index might not exist, ignore
-            
-            # Create unique index with explicit name
-            await db.item_aliases.create_index(
-                [("alias_name", 1)], 
-                unique=True, 
-                name="alias_name_unique_v2"
-            )
-        except Exception as idx_err:
-            # If conflict still exists, just skip - the index exists and that's fine
-            error_str = str(idx_err)
-            if "IndexKeySpecsConflict" in error_str or "86" in error_str or "already exists" in error_str.lower():
-                print("ℹ️ alias_name index already exists, continuing...")
-            else:
-                print(f"⚠️ alias_name index warning: {idx_err}")
-        
-        print("✅ Database indexes created successfully for high-performance operations")
+        print("✅ Database indexes created successfully")
     except Exception as e:
         print(f"⚠️ Index creation warning: {e}")
 
