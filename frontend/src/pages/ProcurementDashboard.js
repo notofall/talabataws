@@ -90,6 +90,7 @@ const ProcurementDashboard = () => {
   const [selectedProjectReport, setSelectedProjectReport] = useState(null);
   const [budgetReportProjectFilter, setBudgetReportProjectFilter] = useState("");  // فلتر المشروع في تقرير الميزانية
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [userManagementOpen, setUserManagementOpen] = useState(false);  // نافذة إدارة المستخدمين
   
   // Catalog item linking for PO - ربط الأصناف بالكتالوج
   const [catalogPrices, setCatalogPrices] = useState({});  // {itemIndex: {catalog_item_id, price, name}}
