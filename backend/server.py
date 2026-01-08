@@ -3514,6 +3514,552 @@ async def clear_test_data(current_user: dict = Depends(get_current_user)):
         "deleted": deleted
     }
 
+# ==================== SYSTEM SETTINGS ROUTES ====================
+
+@api_router.get("/system-settings")
+async def get_all_system_settings(current_user: dict = Depends(get_current_user)):
+    """الحصول على جميع إعدادات النظام"""
+    # فقط مدير المشتريات والمدير العام يمكنهم رؤية الإعدادات
+    if current_user["role"] not in [UserRole.PROCUREMENT_MANAGER, UserRole.GENERAL_MANAGER]:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    
+    # تهيئة الإعدادات الافتراضية إذا لم تكن موجودة
+    await init_system_settings()
+    
+    settings = await db.system_settings.find({}, {"_id": 0}).to_list(100)
+    return settings
+
+@api_router.get("/system-settings/{key}")
+async def get_system_setting_by_key(
+    key: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """الحصول على إعداد معين"""
+    setting = await db.system_settings.find_one({"key": key}, {"_id": 0})
+    if not setting:
+        raise HTTPException(status_code=404, detail="الإعداد غير موجود")
+    return setting
+
+@api_router.put("/system-settings/{key}")
+async def update_system_setting(
+    key: str,
+    update_data: SystemSettingUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """تحديث إعداد - فقط مدير المشتريات أو المدير العام"""
+    if current_user["role"] not in [UserRole.PROCUREMENT_MANAGER, UserRole.GENERAL_MANAGER]:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    
+    setting = await db.system_settings.find_one({"key": key}, {"_id": 0})
+    if not setting:
+        raise HTTPException(status_code=404, detail="الإعداد غير موجود")
+    
+    old_value = setting.get("value")
+    now = datetime.now(timezone.utc).isoformat()
+    
+    await db.system_settings.update_one(
+        {"key": key},
+        {"$set": {
+            "value": update_data.value,
+            "updated_by": current_user["id"],
+            "updated_by_name": current_user["name"],
+            "updated_at": now
+        }}
+    )
+    
+    await log_audit(
+        entity_type="system_setting",
+        entity_id=setting["id"],
+        action="update",
+        user=current_user,
+        description=f"تحديث إعداد النظام: {key}",
+        changes={"value": {"old": old_value, "new": update_data.value}}
+    )
+    
+    return {"message": "تم تحديث الإعداد بنجاح"}
+
+# ==================== PRICE CATALOG ROUTES ====================
+
+@api_router.get("/price-catalog")
+async def get_price_catalog(
+    search: Optional[str] = None,
+    category_id: Optional[str] = None,
+    supplier_id: Optional[str] = None,
+    is_active: Optional[bool] = True,
+    page: int = 1,
+    page_size: int = 50,
+    current_user: dict = Depends(get_current_user)
+):
+    """الحصول على كتالوج الأسعار مع البحث والفلترة"""
+    query = {}
+    
+    if is_active is not None:
+        query["is_active"] = is_active
+    
+    if category_id:
+        query["category_id"] = category_id
+    
+    if supplier_id:
+        query["supplier_id"] = supplier_id
+    
+    if search:
+        query["$or"] = [
+            {"name": {"$regex": search, "$options": "i"}},
+            {"description": {"$regex": search, "$options": "i"}}
+        ]
+    
+    total = await db.price_catalog.count_documents(query)
+    skip = (page - 1) * page_size
+    
+    items = await db.price_catalog.find(query, {"_id": 0}).sort("name", 1).skip(skip).limit(page_size).to_list(page_size)
+    
+    # إضافة اسم التصنيف
+    for item in items:
+        if item.get("category_id"):
+            category = await db.budget_categories.find_one({"id": item["category_id"]}, {"_id": 0, "name": 1})
+            if not category:
+                # Try default categories
+                category = await db.default_budget_categories.find_one({"id": item["category_id"]}, {"_id": 0, "name": 1})
+            item["category_name"] = category["name"] if category else None
+    
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": (total + page_size - 1) // page_size
+    }
+
+@api_router.get("/price-catalog/{item_id}")
+async def get_price_catalog_item(
+    item_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """الحصول على تفاصيل صنف في الكتالوج"""
+    item = await db.price_catalog.find_one({"id": item_id}, {"_id": 0})
+    if not item:
+        raise HTTPException(status_code=404, detail="الصنف غير موجود")
+    
+    # إضافة اسم التصنيف
+    if item.get("category_id"):
+        category = await db.budget_categories.find_one({"id": item["category_id"]}, {"_id": 0, "name": 1})
+        if not category:
+            category = await db.default_budget_categories.find_one({"id": item["category_id"]}, {"_id": 0, "name": 1})
+        item["category_name"] = category["name"] if category else None
+    
+    return item
+
+@api_router.post("/price-catalog")
+async def create_price_catalog_item(
+    item_data: PriceCatalogCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """إضافة صنف جديد للكتالوج - مدير المشتريات فقط"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه إدارة الكتالوج")
+    
+    # التحقق من عدم تكرار الاسم
+    existing = await db.price_catalog.find_one({"name": item_data.name, "is_active": True})
+    if existing:
+        raise HTTPException(status_code=400, detail="يوجد صنف بنفس الاسم في الكتالوج")
+    
+    item_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    
+    item_doc = {
+        "id": item_id,
+        "name": item_data.name,
+        "description": item_data.description,
+        "unit": item_data.unit,
+        "supplier_id": item_data.supplier_id,
+        "supplier_name": item_data.supplier_name,
+        "price": item_data.price,
+        "currency": item_data.currency,
+        "validity_until": item_data.validity_until,
+        "category_id": item_data.category_id,
+        "is_active": True,
+        "created_by": current_user["id"],
+        "created_by_name": current_user["name"],
+        "created_at": now
+    }
+    
+    await db.price_catalog.insert_one(item_doc)
+    
+    await log_audit(
+        entity_type="price_catalog",
+        entity_id=item_id,
+        action="create",
+        user=current_user,
+        description=f"إضافة صنف للكتالوج: {item_data.name}"
+    )
+    
+    return {k: v for k, v in item_doc.items() if k != "_id"}
+
+@api_router.put("/price-catalog/{item_id}")
+async def update_price_catalog_item(
+    item_id: str,
+    update_data: PriceCatalogUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """تحديث صنف في الكتالوج - مدير المشتريات فقط"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه تعديل الكتالوج")
+    
+    item = await db.price_catalog.find_one({"id": item_id}, {"_id": 0})
+    if not item:
+        raise HTTPException(status_code=404, detail="الصنف غير موجود")
+    
+    update_fields = {}
+    changes = {}
+    
+    for field in ["name", "description", "unit", "supplier_id", "supplier_name", "price", "currency", "validity_until", "category_id", "is_active"]:
+        new_value = getattr(update_data, field, None)
+        if new_value is not None and item.get(field) != new_value:
+            changes[field] = {"old": item.get(field), "new": new_value}
+            update_fields[field] = new_value
+    
+    if update_fields:
+        update_fields["updated_at"] = datetime.now(timezone.utc).isoformat()
+        await db.price_catalog.update_one({"id": item_id}, {"$set": update_fields})
+        
+        await log_audit(
+            entity_type="price_catalog",
+            entity_id=item_id,
+            action="update",
+            user=current_user,
+            description=f"تحديث صنف في الكتالوج: {item['name']}",
+            changes=changes
+        )
+    
+    return {"message": "تم تحديث الصنف بنجاح"}
+
+@api_router.delete("/price-catalog/{item_id}")
+async def delete_price_catalog_item(
+    item_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """حذف صنف من الكتالوج (تعطيل) - مدير المشتريات فقط"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه حذف من الكتالوج")
+    
+    item = await db.price_catalog.find_one({"id": item_id}, {"_id": 0})
+    if not item:
+        raise HTTPException(status_code=404, detail="الصنف غير موجود")
+    
+    # تعطيل بدلاً من الحذف للحفاظ على السجلات
+    await db.price_catalog.update_one(
+        {"id": item_id},
+        {"$set": {"is_active": False, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    await log_audit(
+        entity_type="price_catalog",
+        entity_id=item_id,
+        action="delete",
+        user=current_user,
+        description=f"تعطيل صنف في الكتالوج: {item['name']}"
+    )
+    
+    return {"message": "تم تعطيل الصنف بنجاح"}
+
+# ==================== ITEM ALIASES ROUTES ====================
+
+@api_router.get("/item-aliases")
+async def get_item_aliases(
+    search: Optional[str] = None,
+    catalog_item_id: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 50,
+    current_user: dict = Depends(get_current_user)
+):
+    """الحصول على قائمة الأسماء البديلة"""
+    query = {}
+    
+    if catalog_item_id:
+        query["catalog_item_id"] = catalog_item_id
+    
+    if search:
+        query["alias_name"] = {"$regex": search, "$options": "i"}
+    
+    total = await db.item_aliases.count_documents(query)
+    skip = (page - 1) * page_size
+    
+    items = await db.item_aliases.find(query, {"_id": 0}).sort("usage_count", -1).skip(skip).limit(page_size).to_list(page_size)
+    
+    # إضافة اسم الصنف الرسمي
+    for item in items:
+        catalog_item = await db.price_catalog.find_one({"id": item["catalog_item_id"]}, {"_id": 0, "name": 1})
+        item["catalog_item_name"] = catalog_item["name"] if catalog_item else None
+    
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": (total + page_size - 1) // page_size
+    }
+
+@api_router.post("/item-aliases")
+async def create_item_alias(
+    alias_data: ItemAliasCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """إنشاء ربط بين اسم بديل وصنف في الكتالوج - مدير المشتريات فقط"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه إدارة الأسماء البديلة")
+    
+    # التحقق من وجود الصنف في الكتالوج
+    catalog_item = await db.price_catalog.find_one({"id": alias_data.catalog_item_id, "is_active": True}, {"_id": 0})
+    if not catalog_item:
+        raise HTTPException(status_code=404, detail="الصنف غير موجود في الكتالوج")
+    
+    # التحقق من عدم تكرار الاسم البديل
+    existing = await db.item_aliases.find_one({"alias_name": alias_data.alias_name})
+    if existing:
+        raise HTTPException(status_code=400, detail="هذا الاسم البديل مربوط بصنف آخر بالفعل")
+    
+    alias_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    
+    alias_doc = {
+        "id": alias_id,
+        "alias_name": alias_data.alias_name,
+        "catalog_item_id": alias_data.catalog_item_id,
+        "usage_count": 0,
+        "created_by": current_user["id"],
+        "created_by_name": current_user["name"],
+        "created_at": now
+    }
+    
+    await db.item_aliases.insert_one(alias_doc)
+    
+    await log_audit(
+        entity_type="item_alias",
+        entity_id=alias_id,
+        action="create",
+        user=current_user,
+        description=f"ربط الاسم '{alias_data.alias_name}' بالصنف '{catalog_item['name']}'"
+    )
+    
+    return {
+        **{k: v for k, v in alias_doc.items() if k != "_id"},
+        "catalog_item_name": catalog_item["name"]
+    }
+
+@api_router.delete("/item-aliases/{alias_id}")
+async def delete_item_alias(
+    alias_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """حذف ربط اسم بديل - مدير المشتريات فقط"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه حذف الأسماء البديلة")
+    
+    alias = await db.item_aliases.find_one({"id": alias_id}, {"_id": 0})
+    if not alias:
+        raise HTTPException(status_code=404, detail="الربط غير موجود")
+    
+    await db.item_aliases.delete_one({"id": alias_id})
+    
+    await log_audit(
+        entity_type="item_alias",
+        entity_id=alias_id,
+        action="delete",
+        user=current_user,
+        description=f"حذف الربط للاسم البديل: {alias['alias_name']}"
+    )
+    
+    return {"message": "تم حذف الربط بنجاح"}
+
+@api_router.get("/item-aliases/suggest/{item_name}")
+async def suggest_catalog_item(
+    item_name: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """البحث عن صنف مطابق في الكتالوج أو الأسماء البديلة"""
+    # البحث أولاً في الأسماء البديلة
+    alias = await db.item_aliases.find_one({"alias_name": item_name}, {"_id": 0})
+    if alias:
+        catalog_item = await db.price_catalog.find_one({"id": alias["catalog_item_id"], "is_active": True}, {"_id": 0})
+        if catalog_item:
+            # زيادة عداد الاستخدام
+            await db.item_aliases.update_one(
+                {"id": alias["id"]},
+                {"$inc": {"usage_count": 1}}
+            )
+            return {
+                "found": True,
+                "match_type": "alias",
+                "catalog_item": catalog_item
+            }
+    
+    # البحث في الكتالوج مباشرة (تطابق كامل)
+    catalog_item = await db.price_catalog.find_one({"name": item_name, "is_active": True}, {"_id": 0})
+    if catalog_item:
+        return {
+            "found": True,
+            "match_type": "exact",
+            "catalog_item": catalog_item
+        }
+    
+    # البحث الجزئي في الكتالوج
+    similar_items = await db.price_catalog.find(
+        {"name": {"$regex": item_name, "$options": "i"}, "is_active": True},
+        {"_id": 0}
+    ).limit(5).to_list(5)
+    
+    if similar_items:
+        return {
+            "found": False,
+            "suggestions": similar_items
+        }
+    
+    return {
+        "found": False,
+        "suggestions": [],
+        "message": "لم يتم العثور على صنف مطابق - يحتاج عرض سعر جديد"
+    }
+
+# ==================== GENERAL MANAGER ROUTES ====================
+
+@api_router.get("/gm/pending-approvals")
+async def get_gm_pending_approvals(
+    page: int = 1,
+    page_size: int = 20,
+    current_user: dict = Depends(get_current_user)
+):
+    """الحصول على أوامر الشراء بانتظار موافقة المدير العام"""
+    if current_user["role"] != UserRole.GENERAL_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط المدير العام يمكنه الوصول لهذه الصفحة")
+    
+    query = {"status": PurchaseOrderStatus.PENDING_GM_APPROVAL}
+    
+    total = await db.purchase_orders.count_documents(query)
+    skip = (page - 1) * page_size
+    
+    orders = await db.purchase_orders.find(query, {"_id": 0}).sort("created_at", -1).skip(skip).limit(page_size).to_list(page_size)
+    
+    return {
+        "items": orders,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": (total + page_size - 1) // page_size
+    }
+
+@api_router.get("/gm/stats")
+async def get_gm_stats(current_user: dict = Depends(get_current_user)):
+    """إحصائيات المدير العام"""
+    if current_user["role"] != UserRole.GENERAL_MANAGER:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    
+    pending_approval = await db.purchase_orders.count_documents({"status": PurchaseOrderStatus.PENDING_GM_APPROVAL})
+    
+    # الطلبات المعتمدة هذا الشهر
+    from datetime import date
+    first_day = date.today().replace(day=1).isoformat()
+    approved_this_month = await db.purchase_orders.count_documents({
+        "gm_approved_at": {"$gte": first_day},
+        "gm_approved_by": current_user["id"]
+    })
+    
+    # إجمالي المبالغ المعتمدة
+    pipeline = [
+        {"$match": {"gm_approved_by": current_user["id"]}},
+        {"$group": {"_id": None, "total": {"$sum": "$total_amount"}}}
+    ]
+    total_approved = await db.purchase_orders.aggregate(pipeline).to_list(1)
+    
+    # حد الموافقة الحالي
+    approval_limit = await get_approval_limit()
+    
+    return {
+        "pending_approval": pending_approval,
+        "approved_this_month": approved_this_month,
+        "total_approved_amount": total_approved[0]["total"] if total_approved else 0,
+        "approval_limit": approval_limit
+    }
+
+@api_router.put("/gm/approve/{order_id}")
+async def gm_approve_order(
+    order_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """موافقة المدير العام على أمر شراء"""
+    if current_user["role"] != UserRole.GENERAL_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط المدير العام يمكنه الموافقة")
+    
+    order = await db.purchase_orders.find_one({"id": order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="أمر الشراء غير موجود")
+    
+    if order["status"] != PurchaseOrderStatus.PENDING_GM_APPROVAL:
+        raise HTTPException(status_code=400, detail="أمر الشراء ليس بانتظار موافقة المدير العام")
+    
+    now = datetime.now(timezone.utc).isoformat()
+    
+    await db.purchase_orders.update_one(
+        {"id": order_id},
+        {"$set": {
+            "status": PurchaseOrderStatus.APPROVED,
+            "gm_approved_by": current_user["id"],
+            "gm_approved_by_name": current_user["name"],
+            "gm_approved_at": now,
+            "updated_at": now
+        }}
+    )
+    
+    await log_audit(
+        entity_type="purchase_order",
+        entity_id=order_id,
+        action="gm_approve",
+        user=current_user,
+        description=f"موافقة المدير العام على أمر شراء بمبلغ {order['total_amount']}"
+    )
+    
+    return {"message": "تم اعتماد أمر الشراء بنجاح"}
+
+@api_router.put("/gm/reject/{order_id}")
+async def gm_reject_order(
+    order_id: str,
+    rejection_reason: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """رفض المدير العام لأمر شراء"""
+    if current_user["role"] != UserRole.GENERAL_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط المدير العام يمكنه الرفض")
+    
+    order = await db.purchase_orders.find_one({"id": order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="أمر الشراء غير موجود")
+    
+    if order["status"] != PurchaseOrderStatus.PENDING_GM_APPROVAL:
+        raise HTTPException(status_code=400, detail="أمر الشراء ليس بانتظار موافقة المدير العام")
+    
+    now = datetime.now(timezone.utc).isoformat()
+    
+    await db.purchase_orders.update_one(
+        {"id": order_id},
+        {"$set": {
+            "status": "rejected_by_gm",
+            "gm_rejected_by": current_user["id"],
+            "gm_rejected_by_name": current_user["name"],
+            "gm_rejection_reason": rejection_reason,
+            "gm_rejected_at": now,
+            "updated_at": now
+        }}
+    )
+    
+    await log_audit(
+        entity_type="purchase_order",
+        entity_id=order_id,
+        action="gm_reject",
+        user=current_user,
+        description=f"رفض المدير العام لأمر شراء: {rejection_reason or 'بدون سبب'}"
+    )
+    
+    return {"message": "تم رفض أمر الشراء"}
+
 # ==================== APP CONFIGURATION ====================
 # Include the router in the main app (after all routes are defined)
 app.include_router(api_router)
