@@ -288,7 +288,7 @@ class QuotationSystemTester:
         """Create a high-value PO that requires GM approval"""
         headers = {'Authorization': f'Bearer {token}'}
         
-        # First create a project
+        # First create a project as supervisor (only supervisors can create projects)
         project_data = {
             "name": "مشروع اختبار الموافقة العليا",
             "owner_name": "مالك المشروع",
@@ -302,7 +302,7 @@ class QuotationSystemTester:
             "projects",
             200,
             data=project_data,
-            headers=headers
+            headers={'Authorization': f'Bearer {self.supervisor_token}'}
         )
         
         if not success:
