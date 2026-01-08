@@ -886,6 +886,331 @@ async def get_all_users(current_user: dict = Depends(get_current_user)):
     users = await db.users.find({}, {"_id": 0, "password": 0}).to_list(100)
     return [UserResponse(**u) for u in users]
 
+# ==================== USER MANAGEMENT (ADMIN) ROUTES ====================
+
+@api_router.get("/setup/check")
+async def check_setup_required():
+    """التحقق مما إذا كان النظام يحتاج إعداد أولي"""
+    manager_count = await db.users.count_documents({"role": UserRole.PROCUREMENT_MANAGER})
+    return {"setup_required": manager_count == 0}
+
+@api_router.post("/setup/first-admin")
+async def create_first_admin(admin_data: SetupFirstAdmin):
+    """إنشاء أول مدير مشتريات - متاح فقط إذا لم يوجد مدير"""
+    # Check if any manager exists
+    manager_count = await db.users.count_documents({"role": UserRole.PROCUREMENT_MANAGER})
+    if manager_count > 0:
+        raise HTTPException(status_code=400, detail="تم إعداد النظام مسبقاً")
+    
+    # Validate email
+    existing = await db.users.find_one({"email": admin_data.email})
+    if existing:
+        raise HTTPException(status_code=400, detail="البريد الإلكتروني مسجل مسبقاً")
+    
+    # Validate password
+    if len(admin_data.password) < 6:
+        raise HTTPException(status_code=400, detail="كلمة المرور يجب أن تكون 6 أحرف على الأقل")
+    
+    # Create admin user
+    user_id = str(uuid.uuid4())
+    hashed_password = get_password_hash(admin_data.password)
+    now = datetime.now(timezone.utc).isoformat()
+    
+    user_doc = {
+        "id": user_id,
+        "name": admin_data.name,
+        "email": admin_data.email,
+        "password": hashed_password,
+        "role": UserRole.PROCUREMENT_MANAGER,
+        "is_active": True,
+        "assigned_projects": [],
+        "assigned_engineers": [],
+        "created_at": now
+    }
+    
+    await db.users.insert_one(user_doc)
+    
+    access_token = create_access_token({"sub": user_id})
+    
+    return TokenResponse(
+        access_token=access_token,
+        user=UserResponse(
+            id=user_id,
+            name=admin_data.name,
+            email=admin_data.email,
+            role=UserRole.PROCUREMENT_MANAGER
+        )
+    )
+
+@api_router.get("/admin/users")
+async def get_all_users_admin(current_user: dict = Depends(get_current_user)):
+    """الحصول على جميع المستخدمين - مدير المشتريات فقط"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    
+    users = await db.users.find({}, {"_id": 0, "password": 0}).to_list(500)
+    
+    # Enrich with project and engineer names
+    projects = await db.projects.find({}, {"_id": 0, "id": 1, "name": 1}).to_list(500)
+    projects_map = {p["id"]: p["name"] for p in projects}
+    
+    engineers = await db.users.find({"role": UserRole.ENGINEER}, {"_id": 0, "id": 1, "name": 1}).to_list(100)
+    engineers_map = {e["id"]: e["name"] for e in engineers}
+    
+    result = []
+    for u in users:
+        user_data = {
+            "id": u.get("id"),
+            "name": u.get("name"),
+            "email": u.get("email"),
+            "role": u.get("role"),
+            "is_active": u.get("is_active", True),
+            "supervisor_prefix": u.get("supervisor_prefix"),
+            "assigned_projects": u.get("assigned_projects", []),
+            "assigned_engineers": u.get("assigned_engineers", []),
+            "created_at": u.get("created_at"),
+            "assigned_project_names": [projects_map.get(pid, "") for pid in u.get("assigned_projects", [])],
+            "assigned_engineer_names": [engineers_map.get(eid, "") for eid in u.get("assigned_engineers", [])]
+        }
+        result.append(user_data)
+    
+    return result
+
+@api_router.post("/admin/users")
+async def create_user_by_admin(
+    user_data: UserCreateByAdmin,
+    current_user: dict = Depends(get_current_user)
+):
+    """إنشاء مستخدم جديد - مدير المشتريات فقط"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    
+    # Check if email exists
+    existing = await db.users.find_one({"email": user_data.email})
+    if existing:
+        raise HTTPException(status_code=400, detail="البريد الإلكتروني مسجل مسبقاً")
+    
+    # Validate role
+    valid_roles = [UserRole.SUPERVISOR, UserRole.ENGINEER, UserRole.PROCUREMENT_MANAGER, 
+                   UserRole.PRINTER, UserRole.DELIVERY_TRACKER, UserRole.GENERAL_MANAGER]
+    if user_data.role not in valid_roles:
+        raise HTTPException(status_code=400, detail="الدور غير صالح")
+    
+    # Validate password
+    if len(user_data.password) < 6:
+        raise HTTPException(status_code=400, detail="كلمة المرور يجب أن تكون 6 أحرف على الأقل")
+    
+    # Create user
+    user_id = str(uuid.uuid4())
+    hashed_password = get_password_hash(user_data.password)
+    now = datetime.now(timezone.utc).isoformat()
+    
+    user_doc = {
+        "id": user_id,
+        "name": user_data.name,
+        "email": user_data.email,
+        "password": hashed_password,
+        "role": user_data.role,
+        "is_active": True,
+        "assigned_projects": user_data.assigned_projects or [],
+        "assigned_engineers": user_data.assigned_engineers or [],
+        "created_at": now
+    }
+    
+    # Assign supervisor prefix if supervisor
+    if user_data.role == UserRole.SUPERVISOR:
+        existing_prefixes = await db.users.distinct("supervisor_prefix", {
+            "role": UserRole.SUPERVISOR, 
+            "supervisor_prefix": {"$exists": True, "$ne": None}
+        })
+        available_prefixes = [chr(i) for i in range(65, 91)]  # A-Z
+        for prefix in existing_prefixes:
+            if prefix in available_prefixes:
+                available_prefixes.remove(prefix)
+        if available_prefixes:
+            user_doc["supervisor_prefix"] = available_prefixes[0]
+    
+    await db.users.insert_one(user_doc)
+    
+    # Log audit
+    await log_audit(
+        entity_type="user",
+        entity_id=user_id,
+        action="create_user",
+        user=current_user,
+        description=f"تم إنشاء مستخدم جديد: {user_data.name} ({user_data.role})"
+    )
+    
+    return {
+        "message": "تم إنشاء المستخدم بنجاح",
+        "user": {
+            "id": user_id,
+            "name": user_data.name,
+            "email": user_data.email,
+            "role": user_data.role
+        }
+    }
+
+@api_router.put("/admin/users/{user_id}")
+async def update_user_by_admin(
+    user_id: str,
+    user_data: UserUpdateByAdmin,
+    current_user: dict = Depends(get_current_user)
+):
+    """تحديث مستخدم - مدير المشتريات فقط"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    
+    # Find user
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="المستخدم غير موجود")
+    
+    # Build update dict
+    update_data = {}
+    
+    if user_data.name is not None:
+        update_data["name"] = user_data.name
+    
+    if user_data.email is not None and user_data.email != user["email"]:
+        existing = await db.users.find_one({"email": user_data.email})
+        if existing:
+            raise HTTPException(status_code=400, detail="البريد الإلكتروني مسجل مسبقاً")
+        update_data["email"] = user_data.email
+    
+    if user_data.role is not None:
+        valid_roles = [UserRole.SUPERVISOR, UserRole.ENGINEER, UserRole.PROCUREMENT_MANAGER, 
+                       UserRole.PRINTER, UserRole.DELIVERY_TRACKER, UserRole.GENERAL_MANAGER]
+        if user_data.role not in valid_roles:
+            raise HTTPException(status_code=400, detail="الدور غير صالح")
+        update_data["role"] = user_data.role
+    
+    if user_data.is_active is not None:
+        update_data["is_active"] = user_data.is_active
+    
+    if user_data.assigned_projects is not None:
+        update_data["assigned_projects"] = user_data.assigned_projects
+    
+    if user_data.assigned_engineers is not None:
+        update_data["assigned_engineers"] = user_data.assigned_engineers
+    
+    if update_data:
+        await db.users.update_one({"id": user_id}, {"$set": update_data})
+        
+        # Log audit
+        await log_audit(
+            entity_type="user",
+            entity_id=user_id,
+            action="update_user",
+            user=current_user,
+            description=f"تم تحديث المستخدم: {user['name']}"
+        )
+    
+    return {"message": "تم تحديث المستخدم بنجاح"}
+
+@api_router.post("/admin/users/{user_id}/reset-password")
+async def admin_reset_user_password(
+    user_id: str,
+    password_data: AdminResetPassword,
+    current_user: dict = Depends(get_current_user)
+):
+    """إعادة تعيين كلمة مرور مستخدم - مدير المشتريات فقط"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    
+    # Find user
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="المستخدم غير موجود")
+    
+    # Validate password
+    if len(password_data.new_password) < 6:
+        raise HTTPException(status_code=400, detail="كلمة المرور يجب أن تكون 6 أحرف على الأقل")
+    
+    # Update password
+    hashed_password = get_password_hash(password_data.new_password)
+    await db.users.update_one({"id": user_id}, {"$set": {"password": hashed_password}})
+    
+    # Log audit
+    await log_audit(
+        entity_type="user",
+        entity_id=user_id,
+        action="admin_reset_password",
+        user=current_user,
+        description=f"تم إعادة تعيين كلمة مرور المستخدم: {user['name']}"
+    )
+    
+    return {"message": "تم إعادة تعيين كلمة المرور بنجاح"}
+
+@api_router.put("/admin/users/{user_id}/toggle-active")
+async def toggle_user_active(
+    user_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """تفعيل/تعطيل حساب مستخدم - مدير المشتريات فقط"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    
+    # Find user
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="المستخدم غير موجود")
+    
+    # Prevent disabling self
+    if user_id == current_user["id"]:
+        raise HTTPException(status_code=400, detail="لا يمكنك تعطيل حسابك")
+    
+    # Toggle active status
+    new_status = not user.get("is_active", True)
+    await db.users.update_one({"id": user_id}, {"$set": {"is_active": new_status}})
+    
+    # Log audit
+    action_desc = "تم تفعيل حساب" if new_status else "تم تعطيل حساب"
+    await log_audit(
+        entity_type="user",
+        entity_id=user_id,
+        action="toggle_user_active",
+        user=current_user,
+        description=f"{action_desc} المستخدم: {user['name']}"
+    )
+    
+    return {
+        "message": f"تم {'تفعيل' if new_status else 'تعطيل'} الحساب بنجاح",
+        "is_active": new_status
+    }
+
+@api_router.delete("/admin/users/{user_id}")
+async def delete_user_by_admin(
+    user_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """حذف مستخدم - مدير المشتريات فقط"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    
+    # Find user
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="المستخدم غير موجود")
+    
+    # Prevent deleting self
+    if user_id == current_user["id"]:
+        raise HTTPException(status_code=400, detail="لا يمكنك حذف حسابك")
+    
+    # Delete user
+    await db.users.delete_one({"id": user_id})
+    
+    # Log audit
+    await log_audit(
+        entity_type="user",
+        entity_id=user_id,
+        action="delete_user",
+        user=current_user,
+        description=f"تم حذف المستخدم: {user['name']}"
+    )
+    
+    return {"message": "تم حذف المستخدم بنجاح"}
+
 # ==================== PROJECTS ROUTES ====================
 
 @api_router.post("/projects")
