@@ -10,7 +10,7 @@ import json
 from datetime import datetime
 
 class UserManagementAPITester:
-    def __init__(self, base_url="https://approval-hub-22.preview.emergentagent.com"):
+    def __init__(self, base_url="https://order-central-11.preview.emergentagent.com"):
         self.base_url = base_url
         self.manager_token = None
         self.supervisor_token = None
