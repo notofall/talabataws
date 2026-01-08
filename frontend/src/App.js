@@ -101,6 +101,10 @@ function App() {
               }
             />
             <Route
+              path="/setup"
+              element={<SetupPage />}
+            />
+            <Route
               path="/supervisor"
               element={
                 <ProtectedRoute allowedRoles={["supervisor"]}>
