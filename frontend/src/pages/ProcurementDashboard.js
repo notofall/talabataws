@@ -89,6 +89,9 @@ const ProcurementDashboard = () => {
   const [budgetReportProjectFilter, setBudgetReportProjectFilter] = useState("");  // فلتر المشروع في تقرير الميزانية
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   
+  // Catalog item linking for PO - ربط الأصناف بالكتالوج
+  const [catalogPrices, setCatalogPrices] = useState({});  // {itemIndex: {catalog_item_id, price, name}}
+  
   // Default Budget Categories - التصنيفات الافتراضية
   const [defaultCategories, setDefaultCategories] = useState([]);
   const [newDefaultCategory, setNewDefaultCategory] = useState({ name: "", default_budget: "" });
