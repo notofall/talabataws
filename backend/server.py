@@ -121,9 +121,15 @@ async def create_indexes():
         
         # Item Aliases indexes
         await db.item_aliases.create_index("id", unique=True)
-        await db.item_aliases.create_index("alias_name")
         await db.item_aliases.create_index("catalog_item_id")
-        await db.item_aliases.create_index([("alias_name", 1)], unique=True)  # Unique alias names
+        # Use explicit name to avoid conflicts with existing indexes
+        try:
+            await db.item_aliases.create_index([("alias_name", 1)], unique=True, name="alias_name_unique_idx")
+        except Exception as idx_err:
+            if "IndexKeySpecsConflict" in str(idx_err) or "86" in str(idx_err):
+                print("ℹ️ alias_name index already exists, skipping...")
+            else:
+                raise idx_err
         
         print("✅ Database indexes created successfully for high-performance operations")
     except Exception as e:
