@@ -2413,7 +2413,7 @@ async def update_purchase_order(
         entity_id=order_id,
         action="update",
         user=current_user,
-        description=f"تم تعديل أمر الشراء"
+        description="تم تعديل أمر الشراء"
     )
     
     updated_order = await db.purchase_orders.find_one({"id": order_id}, {"_id": 0})
@@ -3076,7 +3076,6 @@ async def get_entity_audit_logs(
 
 import os
 import shutil
-from fastapi import UploadFile, File
 
 UPLOAD_DIR = "/app/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -3825,7 +3824,7 @@ async def export_backup(current_user: dict = Depends(get_current_user)):
         entity_id="export",
         action="export",
         user=current_user,
-        description=f"تصدير نسخة احتياطية كاملة"
+        description="تصدير نسخة احتياطية كاملة"
     )
     
     return backup_data
