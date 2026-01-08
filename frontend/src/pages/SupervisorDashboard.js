@@ -255,12 +255,16 @@ const SupervisorDashboard = () => {
     if (!newItemName.trim()) { toast.error("أدخل اسم المادة"); return; }
     if (!newItemQty || parseInt(newItemQty) <= 0) { toast.error("أدخل الكمية"); return; }
     
-    setItems([...items, { 
+    const newItem = { 
       name: newItemName.trim(), 
       quantity: newItemQty, 
       unit: newItemUnit,
-      estimated_price: newItemEstPrice ? parseFloat(newItemEstPrice) : null
-    }]);
+      estimated_price: newItemEstPrice ? parseFloat(newItemEstPrice) : (selectedCatalogItem?.price || null),
+      catalog_item_id: selectedCatalogItem?.id || null,
+      from_catalog: !!selectedCatalogItem
+    };
+    
+    setItems([...items, newItem]);
     setNewItemName("");
     setNewItemQty("");
     setNewItemUnit("قطعة");
