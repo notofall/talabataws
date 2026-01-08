@@ -441,6 +441,17 @@ export default function GeneralManagerDashboard() {
                             >
                               <Eye className="w-4 h-4" />
                             </Button>
+                            {activeTab === 'approved' && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => exportPurchaseOrderToPDF(order)}
+                                className="text-green-600 border-green-200 hover:bg-green-50"
+                              >
+                                <Download className="w-4 h-4 ml-1" />
+                                PDF
+                              </Button>
+                            )}
                             {activeTab === 'pending' && (
                               <>
                                 <Button
