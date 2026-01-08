@@ -128,6 +128,22 @@ const ProcurementDashboard = () => {
     item_prices: {}
   });
 
+  // Price Catalog & Item Aliases - كتالوج الأسعار والأسماء البديلة
+  const [catalogDialogOpen, setCatalogDialogOpen] = useState(false);
+  const [catalogItems, setCatalogItems] = useState([]);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const [catalogSearch, setCatalogSearch] = useState("");
+  const [newCatalogItem, setNewCatalogItem] = useState({
+    name: "", description: "", unit: "قطعة", price: "", supplier_name: "", category_id: ""
+  });
+  const [editingCatalogItem, setEditingCatalogItem] = useState(null);
+  const [catalogViewMode, setCatalogViewMode] = useState("catalog"); // "catalog" or "aliases"
+  const [itemAliases, setItemAliases] = useState([]);
+  const [aliasSearch, setAliasSearch] = useState("");
+  const [newAlias, setNewAlias] = useState({ alias_name: "", catalog_item_id: "" });
+  const [catalogPage, setCatalogPage] = useState(1);
+  const [catalogTotalPages, setCatalogTotalPages] = useState(1);
+
   const fetchData = async () => {
     try {
       // Use optimized V2 APIs for better performance with high data volumes
