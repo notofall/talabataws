@@ -360,6 +360,53 @@ const ProcurementDashboard = () => {
     window.open(`${API_URL}/price-catalog/template`, '_blank');
   };
 
+  // Add default category - إضافة تصنيف افتراضي
+  const handleAddDefaultCategory = async () => {
+    if (!newDefaultCategory.name.trim()) {
+      toast.error("الرجاء إدخال اسم التصنيف");
+      return;
+    }
+    try {
+      await axios.post(`${API_URL}/default-budget-categories`, {
+        name: newDefaultCategory.name,
+        default_budget: parseFloat(newDefaultCategory.default_budget) || 0
+      }, getAuthHeaders());
+      toast.success("تم إضافة التصنيف بنجاح");
+      setNewDefaultCategory({ name: "", default_budget: "" });
+      fetchData(); // Refresh default categories
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "فشل في إضافة التصنيف");
+    }
+  };
+
+  // Update default category - تحديث تصنيف افتراضي
+  const handleUpdateDefaultCategory = async () => {
+    if (!editingDefaultCategory) return;
+    try {
+      await axios.put(`${API_URL}/default-budget-categories/${editingDefaultCategory.id}`, {
+        name: editingDefaultCategory.name,
+        default_budget: parseFloat(editingDefaultCategory.default_budget) || 0
+      }, getAuthHeaders());
+      toast.success("تم تحديث التصنيف بنجاح");
+      setEditingDefaultCategory(null);
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "فشل في تحديث التصنيف");
+    }
+  };
+
+  // Delete default category - حذف تصنيف افتراضي
+  const handleDeleteDefaultCategory = async (categoryId) => {
+    if (!window.confirm("هل تريد حذف هذا التصنيف؟")) return;
+    try {
+      await axios.delete(`${API_URL}/default-budget-categories/${categoryId}`, getAuthHeaders());
+      toast.success("تم حذف التصنيف بنجاح");
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "فشل في حذف التصنيف");
+    }
+  };
+
   // Memoized filtered requests for performance
   const filteredRequests = useMemo(() => {
     let result = [...requests];
