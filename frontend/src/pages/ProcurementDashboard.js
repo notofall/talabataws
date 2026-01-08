@@ -2559,6 +2559,12 @@ const ProcurementDashboard = () => {
         token={localStorage.getItem("token")}
       />
 
+      {/* User Management Dialog */}
+      <UserManagement 
+        open={userManagementOpen} 
+        onOpenChange={setUserManagementOpen}
+      />
+
       {/* Backup Dialog - نافذة النسخ الاحتياطي */}
       <Dialog open={backupDialogOpen} onOpenChange={setBackupDialogOpen}>
         <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto p-4" dir="rtl">
