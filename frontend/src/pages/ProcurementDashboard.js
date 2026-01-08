@@ -1667,30 +1667,51 @@ const ProcurementDashboard = () => {
                     })()}
                   </div>
 
-                  {/* Item Prices */}
+                  {/* Item Prices with Catalog Suggestions */}
                   {selectedItemIndices.length > 0 && (
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">أسعار الأصناف المختارة</Label>
-                      <div className="space-y-2 bg-slate-50 p-3 rounded-lg max-h-40 overflow-y-auto">
+                      <div className="space-y-2 bg-slate-50 p-3 rounded-lg max-h-60 overflow-y-auto">
                         {selectedItemIndices.map(idx => {
                           const item = remainingItems.find(i => i.index === idx);
                           if (!item) return null;
+                          const catalogInfo = catalogPrices[idx];
                           return (
-                            <div key={idx} className="flex items-center gap-2 bg-white p-2 rounded border">
-                              <div className="flex-1">
-                                <p className="text-sm font-medium">{item.name}</p>
-                                <p className="text-xs text-slate-500">{item.quantity} {item.unit}</p>
+                            <div key={idx} className={`p-2 rounded border ${catalogInfo ? 'bg-green-50 border-green-200' : 'bg-white'}`}>
+                              <div className="flex items-center gap-2">
+                                <div className="flex-1">
+                                  <p className="text-sm font-medium">{item.name}</p>
+                                  <p className="text-xs text-slate-500">{item.quantity} {item.unit}</p>
+                                </div>
+                                <Input 
+                                  type="number" 
+                                  min="0" 
+                                  step="0.01"
+                                  placeholder="السعر"
+                                  value={itemPrices[idx] || ""}
+                                  onChange={(e) => setItemPrices({...itemPrices, [idx]: e.target.value})}
+                                  className={`w-24 h-8 text-sm text-center ${catalogInfo ? 'border-green-300' : ''}`}
+                                />
+                                <span className="text-xs text-slate-500">ر.س</span>
+                                {!catalogInfo && (
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm"
+                                    onClick={() => searchCatalogPrice(item.name, idx)}
+                                    className="text-blue-600 h-8 px-2"
+                                    title="بحث في الكتالوج"
+                                  >
+                                    <Search className="w-4 h-4" />
+                                  </Button>
+                                )}
                               </div>
-                              <Input 
-                                type="number" 
-                                min="0" 
-                                step="0.01"
-                                placeholder="السعر"
-                                value={itemPrices[idx] || ""}
-                                onChange={(e) => setItemPrices({...itemPrices, [idx]: e.target.value})}
-                                className="w-24 h-8 text-sm text-center"
-                              />
-                              <span className="text-xs text-slate-500">ر.س</span>
+                              {catalogInfo && (
+                                <div className="mt-1 flex items-center gap-2 text-xs text-green-700">
+                                  <CheckCircle className="w-3 h-3" />
+                                  <span>من الكتالوج: {catalogInfo.name} - {catalogInfo.price?.toLocaleString()} ر.س</span>
+                                  {catalogInfo.supplier_name && <span className="text-slate-500">({catalogInfo.supplier_name})</span>}
+                                </div>
+                              )}
                             </div>
                           );
                         })}
