@@ -1665,21 +1665,21 @@ const ProcurementDashboard = () => {
                   {/* Budget Category Selection */}
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">تصنيف الميزانية</Label>
-                    <select 
+                    <SearchableSelect
+                      options={budgetCategories.filter(c => c.project_id === selectedRequest?.project_id || c.project_name === selectedRequest?.project_name)}
                       value={selectedCategoryId}
-                      onChange={(e) => setSelectedCategoryId(e.target.value)}
-                      className="w-full h-10 border rounded-lg bg-white px-3 text-sm"
-                    >
-                      <option value="">-- اختر التصنيف (اختياري) --</option>
-                      {budgetCategories
-                        .filter(c => c.project_id === selectedRequest?.project_id || c.project_name === selectedRequest?.project_name)
-                        .map(c => (
-                          <option key={c.id} value={c.id}>
-                            {c.name} - متبقي: {(c.remaining || 0).toLocaleString('ar-SA')} ر.س
-                          </option>
-                        ))
-                      }
-                    </select>
+                      onChange={(value) => setSelectedCategoryId(value)}
+                      placeholder="-- اختر التصنيف (اختياري) --"
+                      searchPlaceholder="ابحث في التصنيفات..."
+                      displayKey="name"
+                      valueKey="id"
+                      renderOption={(c) => (
+                        <div className="flex justify-between items-center">
+                          <span>{c.name}</span>
+                          <span className="text-xs text-green-600">متبقي: {(c.remaining || 0).toLocaleString('ar-SA')} ر.س</span>
+                        </div>
+                      )}
+                    />
                     {selectedCategoryId && (() => {
                       const cat = budgetCategories.find(c => c.id === selectedCategoryId);
                       if (!cat) return null;
