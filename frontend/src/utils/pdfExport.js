@@ -407,6 +407,35 @@ export const exportPurchaseOrderToPDF = (order) => {
       </div>
     ` : ''}
     
+    ${order.gm_approved_by_name ? `
+      <div style="position: relative; margin: 20px 0; padding: 15px; border: 3px solid #059669; border-radius: 12px; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);">
+        <div style="position: absolute; top: -12px; right: 20px; background: #059669; color: white; padding: 4px 12px; border-radius: 20px; font-size: 10px; font-weight: bold;">
+          ✓ معتمد من المدير العام
+        </div>
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px;">
+          <div style="flex: 1;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="width: 60px; height: 60px; border: 3px solid #059669; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: white;">
+                <span style="font-size: 24px; color: #059669;">✓</span>
+              </div>
+              <div>
+                <p style="font-size: 14px; font-weight: bold; color: #065f46; margin: 0;">تم الاعتماد</p>
+                <p style="font-size: 12px; color: #047857; margin: 4px 0 0 0;">${order.gm_approved_by_name}</p>
+                <p style="font-size: 10px; color: #6b7280; margin: 2px 0 0 0;">المدير العام</p>
+              </div>
+            </div>
+          </div>
+          <div style="text-align: left; border-right: 2px solid #059669; padding-right: 15px;">
+            <p style="font-size: 10px; color: #6b7280; margin: 0;">تاريخ الاعتماد</p>
+            <p style="font-size: 12px; font-weight: bold; color: #065f46; margin: 2px 0 0 0;">${order.gm_approved_at ? formatDateShort(order.gm_approved_at) : '-'}</p>
+          </div>
+        </div>
+        <div style="margin-top: 12px; padding-top: 10px; border-top: 1px dashed #059669; text-align: center;">
+          <p style="font-size: 9px; color: #047857; margin: 0;">هذا الأمر معتمد رسمياً ومصرح للتنفيذ</p>
+        </div>
+      </div>
+    ` : ''}
+    
     <div class="signature-area">
       <div class="signature-box">
         <div class="signature-line">توقيع المورد</div>
@@ -416,6 +445,13 @@ export const exportPurchaseOrderToPDF = (order) => {
         <div class="signature-line">توقيع مدير المشتريات</div>
         <p style="font-size: 8px; color: #9ca3af; margin-top: 3px;">التاريخ: ___________</p>
       </div>
+      ${order.gm_approved_by_name ? `
+      <div class="signature-box" style="border-color: #059669; background: #f0fdf4;">
+        <div class="signature-line" style="border-color: #059669;">توقيع المدير العام</div>
+        <p style="font-size: 9px; color: #059669; margin-top: 3px; font-weight: bold;">${order.gm_approved_by_name}</p>
+        <p style="font-size: 8px; color: #6b7280; margin-top: 2px;">${order.gm_approved_at ? formatDateShort(order.gm_approved_at) : ''}</p>
+      </div>
+      ` : ''}
     </div>
     
     <div class="footer">
