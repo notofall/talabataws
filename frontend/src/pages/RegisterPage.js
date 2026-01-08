@@ -29,6 +29,7 @@ const RegisterPage = () => {
     { value: "procurement_manager", label: "مدير مشتريات", icon: "📋" },
     { value: "printer", label: "موظف طباعة", icon: "🖨️" },
     { value: "delivery_tracker", label: "متتبع التوريد", icon: "🚚" },
+    { value: "general_manager", label: "المدير العام", icon: "👔" },
   ];
 
   const handleSubmit = async (e) => {
