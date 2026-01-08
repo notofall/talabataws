@@ -102,6 +102,68 @@ const SupervisorDashboard = () => {
     toast.success("تم تحديث البيانات");
   };
 
+  // Catalog suggestion function - اقتراح أصناف من الكتالوج
+  const searchCatalog = async (searchTerm) => {
+    if (!searchTerm || searchTerm.length < 2) {
+      setCatalogSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    
+    setSuggestionsLoading(true);
+    try {
+      // First try to find by alias/exact match
+      const suggestRes = await axios.get(
+        `${API_URL}/item-aliases/suggest/${encodeURIComponent(searchTerm)}`,
+        getAuthHeaders()
+      );
+      
+      if (suggestRes.data.found && suggestRes.data.catalog_item) {
+        // Found exact match
+        setCatalogSuggestions([{
+          ...suggestRes.data.catalog_item,
+          match_type: suggestRes.data.match_type
+        }]);
+      } else if (suggestRes.data.suggestions?.length > 0) {
+        // Found partial matches
+        setCatalogSuggestions(suggestRes.data.suggestions);
+      } else {
+        // Search catalog directly
+        const catalogRes = await axios.get(
+          `${API_URL}/price-catalog?search=${encodeURIComponent(searchTerm)}`,
+          getAuthHeaders()
+        );
+        setCatalogSuggestions(catalogRes.data.items || []);
+      }
+      setShowSuggestions(true);
+    } catch (error) {
+      console.log("Catalog search error:", error);
+      setCatalogSuggestions([]);
+    } finally {
+      setSuggestionsLoading(false);
+    }
+  };
+
+  // Handle selecting a catalog item
+  const selectCatalogItem = (item) => {
+    setSelectedCatalogItem(item);
+    setNewItemName(item.name);
+    setNewItemUnit(item.unit || "قطعة");
+    setNewItemEstPrice(item.price?.toString() || "");
+    setShowSuggestions(false);
+    toast.success(`تم اختيار "${item.name}" من الكتالوج - السعر: ${item.price?.toLocaleString()} ريال`);
+  };
+
+  // Debounced search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (newItemName && dialogOpen) {
+        searchCatalog(newItemName);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [newItemName, dialogOpen]);
+
   useEffect(() => { fetchData(); }, []);
   
   // Filtered requests based on filter mode
