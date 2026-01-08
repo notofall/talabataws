@@ -294,6 +294,64 @@ const ProcurementDashboard = () => {
 
   useEffect(() => { fetchData(); }, []);
 
+  // Fetch Reports - تحميل التقارير
+  const fetchReports = async () => {
+    setReportsLoading(true);
+    try {
+      const [savingsRes, usageRes, suppliersRes] = await Promise.all([
+        axios.get(`${API_URL}/reports/cost-savings`, getAuthHeaders()),
+        axios.get(`${API_URL}/reports/catalog-usage`, getAuthHeaders()),
+        axios.get(`${API_URL}/reports/supplier-performance`, getAuthHeaders())
+      ]);
+      setReportsData({
+        savings: savingsRes.data,
+        usage: usageRes.data,
+        suppliers: suppliersRes.data
+      });
+    } catch (error) {
+      toast.error("فشل في تحميل التقارير");
+    } finally {
+      setReportsLoading(false);
+    }
+  };
+
+  // Import Catalog from file
+  const handleImportCatalog = async () => {
+    if (!importFile) {
+      toast.error("اختر ملف للاستيراد");
+      return;
+    }
+    
+    setImportLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', importFile);
+      
+      const res = await axios.post(`${API_URL}/price-catalog/import`, formData, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      
+      toast.success(`تم الاستيراد: ${res.data.imported} جديد، ${res.data.updated} تحديث`);
+      if (res.data.errors?.length > 0) {
+        toast.warning(`${res.data.errors.length} أخطاء`);
+      }
+      setImportFile(null);
+      fetchCatalog(catalogSearch, 1);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "فشل في الاستيراد");
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  // Download template
+  const downloadTemplate = () => {
+    window.open(`${API_URL}/price-catalog/template`, '_blank');
+  };
+
   // Memoized filtered requests for performance
   const filteredRequests = useMemo(() => {
     let result = [...requests];
