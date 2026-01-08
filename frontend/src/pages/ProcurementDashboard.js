@@ -179,6 +179,113 @@ const ProcurementDashboard = () => {
     toast.success("تم تحديث البيانات");
   };
 
+  // Fetch Price Catalog
+  const fetchCatalog = async (search = "", page = 1) => {
+    setCatalogLoading(true);
+    try {
+      const params = new URLSearchParams({ page, page_size: 20 });
+      if (search) params.append("search", search);
+      const res = await axios.get(`${API_URL}/price-catalog?${params}`, getAuthHeaders());
+      setCatalogItems(res.data.items || []);
+      setCatalogTotalPages(res.data.total_pages || 1);
+    } catch (error) {
+      toast.error("فشل في تحميل الكتالوج");
+    } finally {
+      setCatalogLoading(false);
+    }
+  };
+
+  // Fetch Item Aliases
+  const fetchAliases = async (search = "") => {
+    try {
+      const params = new URLSearchParams({ page: 1, page_size: 100 });
+      if (search) params.append("search", search);
+      const res = await axios.get(`${API_URL}/item-aliases?${params}`, getAuthHeaders());
+      setItemAliases(res.data.items || []);
+    } catch (error) {
+      toast.error("فشل في تحميل الأسماء البديلة");
+    }
+  };
+
+  // Create Catalog Item
+  const handleCreateCatalogItem = async () => {
+    if (!newCatalogItem.name || !newCatalogItem.price) {
+      toast.error("الرجاء إدخال اسم الصنف والسعر");
+      return;
+    }
+    try {
+      await axios.post(`${API_URL}/price-catalog`, {
+        ...newCatalogItem,
+        price: parseFloat(newCatalogItem.price)
+      }, getAuthHeaders());
+      toast.success("تم إضافة الصنف بنجاح");
+      setNewCatalogItem({ name: "", description: "", unit: "قطعة", price: "", supplier_name: "", category_id: "" });
+      fetchCatalog(catalogSearch, catalogPage);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "فشل في إضافة الصنف");
+    }
+  };
+
+  // Update Catalog Item
+  const handleUpdateCatalogItem = async () => {
+    if (!editingCatalogItem) return;
+    try {
+      await axios.put(`${API_URL}/price-catalog/${editingCatalogItem.id}`, editingCatalogItem, getAuthHeaders());
+      toast.success("تم تحديث الصنف بنجاح");
+      setEditingCatalogItem(null);
+      fetchCatalog(catalogSearch, catalogPage);
+    } catch (error) {
+      toast.error("فشل في تحديث الصنف");
+    }
+  };
+
+  // Delete Catalog Item
+  const handleDeleteCatalogItem = async (itemId) => {
+    if (!window.confirm("هل تريد تعطيل هذا الصنف؟")) return;
+    try {
+      await axios.delete(`${API_URL}/price-catalog/${itemId}`, getAuthHeaders());
+      toast.success("تم تعطيل الصنف");
+      fetchCatalog(catalogSearch, catalogPage);
+    } catch (error) {
+      toast.error("فشل في تعطيل الصنف");
+    }
+  };
+
+  // Create Item Alias
+  const handleCreateAlias = async () => {
+    if (!newAlias.alias_name || !newAlias.catalog_item_id) {
+      toast.error("الرجاء إدخال الاسم البديل واختيار الصنف");
+      return;
+    }
+    try {
+      await axios.post(`${API_URL}/item-aliases`, newAlias, getAuthHeaders());
+      toast.success("تم إضافة الربط بنجاح");
+      setNewAlias({ alias_name: "", catalog_item_id: "" });
+      fetchAliases(aliasSearch);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "فشل في إضافة الربط");
+    }
+  };
+
+  // Delete Item Alias
+  const handleDeleteAlias = async (aliasId) => {
+    if (!window.confirm("هل تريد حذف هذا الربط؟")) return;
+    try {
+      await axios.delete(`${API_URL}/item-aliases/${aliasId}`, getAuthHeaders());
+      toast.success("تم حذف الربط");
+      fetchAliases(aliasSearch);
+    } catch (error) {
+      toast.error("فشل في حذف الربط");
+    }
+  };
+
+  // Open Catalog Dialog
+  const openCatalogDialog = () => {
+    setCatalogDialogOpen(true);
+    fetchCatalog();
+    fetchAliases();
+  };
+
   useEffect(() => { fetchData(); }, []);
 
   // Memoized filtered requests for performance
