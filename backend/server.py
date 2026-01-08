@@ -135,8 +135,8 @@ async def create_indexes():
         # Item Aliases indexes - using safe_create_index to handle conflicts
         await safe_create_index(db.item_aliases, "id", unique=True)
         await safe_create_index(db.item_aliases, "catalog_item_id")
-        # Note: alias_name index might already exist, safe_create_index handles this
-        await safe_create_index(db.item_aliases, [("alias_name", 1)], unique=True, name="alias_name_unique_v3")
+        # Skip alias_name index - it already exists in production database
+        # The existing index (alias_name_1) will be used for queries
         
         print("✅ Database indexes created successfully")
     except Exception as e:
