@@ -4073,6 +4073,481 @@ async def gm_reject_order(
     
     return {"message": "تم رفض أمر الشراء"}
 
+# ==================== CATALOG IMPORT/EXPORT ROUTES ====================
+
+@api_router.get("/price-catalog/export/excel")
+async def export_catalog_to_excel(current_user: dict = Depends(get_current_user)):
+    """تصدير الكتالوج إلى ملف Excel"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه تصدير الكتالوج")
+    
+    # Get all active catalog items
+    items = await db.price_catalog.find({"is_active": True}, {"_id": 0}).to_list(10000)
+    
+    if not items:
+        raise HTTPException(status_code=404, detail="لا توجد أصناف في الكتالوج")
+    
+    # Create DataFrame
+    df = pd.DataFrame(items)
+    
+    # Select and rename columns for export
+    export_columns = {
+        'name': 'اسم الصنف',
+        'description': 'الوصف',
+        'unit': 'الوحدة',
+        'price': 'السعر',
+        'currency': 'العملة',
+        'supplier_name': 'المورد',
+        'category_name': 'التصنيف',
+        'validity_until': 'صالح حتى'
+    }
+    
+    # Keep only existing columns
+    available_columns = [col for col in export_columns.keys() if col in df.columns]
+    df = df[available_columns]
+    df = df.rename(columns={k: v for k, v in export_columns.items() if k in available_columns})
+    
+    # Create Excel file in memory
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, sheet_name='كتالوج الأسعار', index=False)
+    
+    output.seek(0)
+    
+    filename = f"price_catalog_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+@api_router.get("/price-catalog/export/csv")
+async def export_catalog_to_csv(current_user: dict = Depends(get_current_user)):
+    """تصدير الكتالوج إلى ملف CSV"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه تصدير الكتالوج")
+    
+    items = await db.price_catalog.find({"is_active": True}, {"_id": 0}).to_list(10000)
+    
+    if not items:
+        raise HTTPException(status_code=404, detail="لا توجد أصناف في الكتالوج")
+    
+    df = pd.DataFrame(items)
+    
+    export_columns = {
+        'name': 'اسم الصنف',
+        'description': 'الوصف',
+        'unit': 'الوحدة',
+        'price': 'السعر',
+        'currency': 'العملة',
+        'supplier_name': 'المورد'
+    }
+    
+    available_columns = [col for col in export_columns.keys() if col in df.columns]
+    df = df[available_columns]
+    df = df.rename(columns={k: v for k, v in export_columns.items() if k in available_columns})
+    
+    output = io.StringIO()
+    df.to_csv(output, index=False, encoding='utf-8-sig')
+    output.seek(0)
+    
+    filename = f"price_catalog_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv; charset=utf-8-sig",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+@api_router.post("/price-catalog/import")
+async def import_catalog_from_file(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user)
+):
+    """استيراد أصناف للكتالوج من ملف Excel أو CSV"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه استيراد الكتالوج")
+    
+    # Check file type
+    filename = file.filename.lower()
+    if not (filename.endswith('.xlsx') or filename.endswith('.csv')):
+        raise HTTPException(status_code=400, detail="يجب أن يكون الملف بصيغة Excel (.xlsx) أو CSV (.csv)")
+    
+    try:
+        contents = await file.read()
+        
+        if filename.endswith('.xlsx'):
+            df = pd.read_excel(io.BytesIO(contents), engine='openpyxl')
+        else:
+            # Try different encodings for CSV
+            try:
+                df = pd.read_csv(io.BytesIO(contents), encoding='utf-8-sig')
+            except:
+                df = pd.read_csv(io.BytesIO(contents), encoding='utf-8')
+        
+        # Map Arabic column names to English
+        column_mapping = {
+            'اسم الصنف': 'name',
+            'الوصف': 'description',
+            'الوحدة': 'unit',
+            'السعر': 'price',
+            'العملة': 'currency',
+            'المورد': 'supplier_name',
+            'التصنيف': 'category_name',
+            'صالح حتى': 'validity_until',
+            # English fallback
+            'name': 'name',
+            'description': 'description',
+            'unit': 'unit',
+            'price': 'price',
+            'supplier': 'supplier_name',
+            'supplier_name': 'supplier_name'
+        }
+        
+        df = df.rename(columns=column_mapping)
+        
+        # Validate required columns
+        if 'name' not in df.columns or 'price' not in df.columns:
+            raise HTTPException(status_code=400, detail="الملف يجب أن يحتوي على أعمدة: اسم الصنف، السعر")
+        
+        # Remove rows with missing required fields
+        df = df.dropna(subset=['name', 'price'])
+        
+        if len(df) == 0:
+            raise HTTPException(status_code=400, detail="لا توجد بيانات صالحة في الملف")
+        
+        now = datetime.now(timezone.utc).isoformat()
+        imported_count = 0
+        updated_count = 0
+        errors = []
+        
+        for idx, row in df.iterrows():
+            try:
+                item_name = str(row['name']).strip()
+                item_price = float(row['price'])
+                
+                if not item_name or item_price <= 0:
+                    errors.append(f"صف {idx + 2}: اسم أو سعر غير صالح")
+                    continue
+                
+                # Check if item already exists
+                existing = await db.price_catalog.find_one({"name": item_name, "is_active": True})
+                
+                item_doc = {
+                    "name": item_name,
+                    "description": str(row.get('description', '')) if pd.notna(row.get('description')) else None,
+                    "unit": str(row.get('unit', 'قطعة')) if pd.notna(row.get('unit')) else "قطعة",
+                    "price": item_price,
+                    "currency": str(row.get('currency', 'SAR')) if pd.notna(row.get('currency')) else "SAR",
+                    "supplier_name": str(row.get('supplier_name', '')) if pd.notna(row.get('supplier_name')) else None,
+                    "updated_at": now
+                }
+                
+                if existing:
+                    # Update existing item
+                    await db.price_catalog.update_one(
+                        {"id": existing["id"]},
+                        {"$set": item_doc}
+                    )
+                    updated_count += 1
+                else:
+                    # Create new item
+                    item_doc["id"] = str(uuid.uuid4())
+                    item_doc["is_active"] = True
+                    item_doc["created_by"] = current_user["id"]
+                    item_doc["created_by_name"] = current_user["name"]
+                    item_doc["created_at"] = now
+                    await db.price_catalog.insert_one(item_doc)
+                    imported_count += 1
+                    
+            except Exception as e:
+                errors.append(f"صف {idx + 2}: {str(e)}")
+        
+        await log_audit(
+            entity_type="price_catalog",
+            entity_id="bulk_import",
+            action="import",
+            user=current_user,
+            description=f"استيراد كتالوج: {imported_count} جديد، {updated_count} تحديث"
+        )
+        
+        return {
+            "message": "تم الاستيراد بنجاح",
+            "imported": imported_count,
+            "updated": updated_count,
+            "errors": errors[:10] if errors else []  # Return first 10 errors only
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"خطأ في معالجة الملف: {str(e)}")
+
+@api_router.get("/price-catalog/template")
+async def get_catalog_import_template(current_user: dict = Depends(get_current_user)):
+    """تحميل قالب استيراد الكتالوج"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="غير مصرح لك")
+    
+    # Create template DataFrame
+    template_data = {
+        'اسم الصنف': ['حديد تسليح 12مم', 'اسمنت بورتلاندي', 'رمل ناعم'],
+        'الوصف': ['حديد تسليح قطر 12 مم', 'اسمنت بورتلاندي عادي', 'رمل ناعم للبناء'],
+        'الوحدة': ['طن', 'كيس', 'متر مكعب'],
+        'السعر': [2500, 25, 150],
+        'العملة': ['SAR', 'SAR', 'SAR'],
+        'المورد': ['مصنع الحديد', 'شركة الاسمنت', 'مورد الرمل']
+    }
+    
+    df = pd.DataFrame(template_data)
+    
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, sheet_name='قالب الكتالوج', index=False)
+    
+    output.seek(0)
+    
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=catalog_template.xlsx"}
+    )
+
+# ==================== COST SAVINGS REPORTS ====================
+
+@api_router.get("/reports/cost-savings")
+async def get_cost_savings_report(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    project_id: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """تقرير توفير التكاليف - مقارنة الأسعار التقديرية بأسعار الكتالوج"""
+    if current_user["role"] not in [UserRole.PROCUREMENT_MANAGER, UserRole.GENERAL_MANAGER]:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا التقرير")
+    
+    # Build query
+    query = {}
+    if start_date:
+        query["created_at"] = {"$gte": start_date}
+    if end_date:
+        if "created_at" in query:
+            query["created_at"]["$lte"] = end_date
+        else:
+            query["created_at"] = {"$lte": end_date}
+    if project_id:
+        query["project_id"] = project_id
+    
+    # Get all purchase orders
+    orders = await db.purchase_orders.find(query, {"_id": 0}).to_list(10000)
+    
+    total_estimated = 0
+    total_catalog = 0
+    total_actual = 0
+    items_from_catalog = 0
+    items_not_in_catalog = 0
+    savings_by_item = []
+    savings_by_project = {}
+    
+    for order in orders:
+        project_name = order.get("project_name", "غير محدد")
+        if project_name not in savings_by_project:
+            savings_by_project[project_name] = {
+                "estimated": 0,
+                "actual": 0,
+                "orders_count": 0
+            }
+        
+        savings_by_project[project_name]["orders_count"] += 1
+        
+        for item in order.get("items", []):
+            qty = float(item.get("quantity", 0))
+            unit_price = float(item.get("unit_price", 0))
+            estimated_price = float(item.get("estimated_price", 0)) if item.get("estimated_price") else None
+            catalog_item_id = item.get("catalog_item_id")
+            
+            item_total = unit_price * qty
+            total_actual += item_total
+            savings_by_project[project_name]["actual"] += item_total
+            
+            if catalog_item_id:
+                items_from_catalog += 1
+                # Get catalog price
+                catalog_item = await db.price_catalog.find_one({"id": catalog_item_id}, {"_id": 0})
+                if catalog_item:
+                    catalog_price = float(catalog_item.get("price", 0)) * qty
+                    total_catalog += catalog_price
+            else:
+                items_not_in_catalog += 1
+            
+            if estimated_price:
+                estimated_total = estimated_price * qty
+                total_estimated += estimated_total
+                savings_by_project[project_name]["estimated"] += estimated_total
+                
+                saving = estimated_total - item_total
+                if saving != 0:
+                    savings_by_item.append({
+                        "item_name": item.get("name"),
+                        "quantity": qty,
+                        "estimated_total": estimated_total,
+                        "actual_total": item_total,
+                        "saving": saving,
+                        "saving_percent": round((saving / estimated_total) * 100, 1) if estimated_total > 0 else 0,
+                        "project": project_name
+                    })
+    
+    # Sort by savings amount
+    savings_by_item.sort(key=lambda x: x["saving"], reverse=True)
+    
+    # Calculate project savings
+    project_savings = []
+    for project, data in savings_by_project.items():
+        saving = data["estimated"] - data["actual"]
+        project_savings.append({
+            "project": project,
+            "estimated": data["estimated"],
+            "actual": data["actual"],
+            "saving": saving,
+            "saving_percent": round((saving / data["estimated"]) * 100, 1) if data["estimated"] > 0 else 0,
+            "orders_count": data["orders_count"]
+        })
+    
+    project_savings.sort(key=lambda x: x["saving"], reverse=True)
+    
+    total_saving = total_estimated - total_actual
+    
+    return {
+        "summary": {
+            "total_estimated": total_estimated,
+            "total_actual": total_actual,
+            "total_saving": total_saving,
+            "saving_percent": round((total_saving / total_estimated) * 100, 1) if total_estimated > 0 else 0,
+            "items_from_catalog": items_from_catalog,
+            "items_not_in_catalog": items_not_in_catalog,
+            "catalog_usage_percent": round((items_from_catalog / (items_from_catalog + items_not_in_catalog)) * 100, 1) if (items_from_catalog + items_not_in_catalog) > 0 else 0,
+            "orders_count": len(orders)
+        },
+        "by_project": project_savings[:20],  # Top 20 projects
+        "top_savings_items": savings_by_item[:20],  # Top 20 items
+        "top_losses_items": list(reversed(savings_by_item[-20:]))  # Top 20 losses
+    }
+
+@api_router.get("/reports/catalog-usage")
+async def get_catalog_usage_report(current_user: dict = Depends(get_current_user)):
+    """تقرير استخدام الكتالوج"""
+    if current_user["role"] not in [UserRole.PROCUREMENT_MANAGER, UserRole.GENERAL_MANAGER]:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا التقرير")
+    
+    # Get all catalog items with usage stats
+    catalog_items = await db.price_catalog.find({"is_active": True}, {"_id": 0}).to_list(10000)
+    
+    # Get all aliases with usage count
+    aliases = await db.item_aliases.find({}, {"_id": 0}).to_list(10000)
+    
+    # Count items usage in purchase orders
+    pipeline = [
+        {"$unwind": "$items"},
+        {"$match": {"items.catalog_item_id": {"$ne": None}}},
+        {"$group": {
+            "_id": "$items.catalog_item_id",
+            "usage_count": {"$sum": 1},
+            "total_quantity": {"$sum": {"$toDouble": "$items.quantity"}},
+            "total_value": {"$sum": "$items.total_price"}
+        }}
+    ]
+    
+    usage_stats = await db.purchase_orders.aggregate(pipeline).to_list(10000)
+    usage_map = {item["_id"]: item for item in usage_stats}
+    
+    # Combine catalog items with usage stats
+    catalog_usage = []
+    for item in catalog_items:
+        usage = usage_map.get(item["id"], {})
+        catalog_usage.append({
+            "id": item["id"],
+            "name": item["name"],
+            "price": item.get("price", 0),
+            "unit": item.get("unit", ""),
+            "supplier_name": item.get("supplier_name", ""),
+            "usage_count": usage.get("usage_count", 0),
+            "total_quantity": usage.get("total_quantity", 0),
+            "total_value": usage.get("total_value", 0)
+        })
+    
+    # Sort by usage
+    catalog_usage.sort(key=lambda x: x["usage_count"], reverse=True)
+    
+    # Get unused items
+    unused_items = [item for item in catalog_usage if item["usage_count"] == 0]
+    most_used = catalog_usage[:10]
+    
+    # Alias stats
+    total_alias_usage = sum(a.get("usage_count", 0) for a in aliases)
+    
+    return {
+        "summary": {
+            "total_catalog_items": len(catalog_items),
+            "items_with_usage": len([i for i in catalog_usage if i["usage_count"] > 0]),
+            "unused_items": len(unused_items),
+            "total_aliases": len(aliases),
+            "total_alias_usage": total_alias_usage
+        },
+        "most_used_items": most_used,
+        "unused_items": unused_items[:20],
+        "aliases": aliases[:20]
+    }
+
+@api_router.get("/reports/supplier-performance")
+async def get_supplier_performance_report(current_user: dict = Depends(get_current_user)):
+    """تقرير أداء الموردين"""
+    if current_user["role"] not in [UserRole.PROCUREMENT_MANAGER, UserRole.GENERAL_MANAGER]:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا التقرير")
+    
+    # Aggregate orders by supplier
+    pipeline = [
+        {"$match": {"supplier_name": {"$ne": None}}},
+        {"$group": {
+            "_id": "$supplier_name",
+            "orders_count": {"$sum": 1},
+            "total_value": {"$sum": "$total_amount"},
+            "delivered_count": {"$sum": {"$cond": [{"$eq": ["$status", "delivered"]}, 1, 0]}},
+            "on_time_count": {"$sum": {"$cond": [
+                {"$and": [
+                    {"$eq": ["$status", "delivered"]},
+                    {"$lte": ["$delivered_at", "$expected_delivery_date"]}
+                ]}, 1, 0
+            ]}}
+        }},
+        {"$sort": {"total_value": -1}}
+    ]
+    
+    supplier_stats = await db.purchase_orders.aggregate(pipeline).to_list(100)
+    
+    suppliers_report = []
+    for stat in supplier_stats:
+        on_time_rate = (stat["on_time_count"] / stat["delivered_count"] * 100) if stat["delivered_count"] > 0 else 0
+        delivery_rate = (stat["delivered_count"] / stat["orders_count"] * 100) if stat["orders_count"] > 0 else 0
+        
+        suppliers_report.append({
+            "supplier_name": stat["_id"],
+            "orders_count": stat["orders_count"],
+            "total_value": stat["total_value"],
+            "delivered_count": stat["delivered_count"],
+            "delivery_rate": round(delivery_rate, 1),
+            "on_time_rate": round(on_time_rate, 1)
+        })
+    
+    return {
+        "suppliers": suppliers_report,
+        "summary": {
+            "total_suppliers": len(suppliers_report),
+            "total_orders": sum(s["orders_count"] for s in suppliers_report),
+            "total_value": sum(s["total_value"] for s in suppliers_report)
+        }
+    }
+
 # ==================== APP CONFIGURATION ====================
 # Include the router in the main app (after all routes are defined)
 app.include_router(api_router)
