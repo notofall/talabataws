@@ -16,9 +16,11 @@ import {
   AlertTriangle,
   KeyRound,
   FileText,
-  Truck
+  Truck,
+  Download
 } from 'lucide-react';
 import ChangePasswordDialog from '../components/ChangePasswordDialog';
+import { exportPurchaseOrderToPDF } from '../utils/pdfExport';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
