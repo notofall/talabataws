@@ -758,14 +758,61 @@ const ProcurementDashboard = () => {
     setSelectedItemIndices([]);
   };
 
+  // Search catalog for item price - البحث في الكتالوج عن سعر الصنف
+  const searchCatalogPrice = async (itemName, itemIndex) => {
+    try {
+      const res = await axios.get(
+        `${API_URL}/item-aliases/suggest/${encodeURIComponent(itemName)}`,
+        getAuthHeaders()
+      );
+      
+      if (res.data.found && res.data.catalog_item) {
+        const catalogItem = res.data.catalog_item;
+        setCatalogPrices(prev => ({
+          ...prev,
+          [itemIndex]: {
+            catalog_item_id: catalogItem.id,
+            price: catalogItem.price,
+            name: catalogItem.name,
+            supplier_name: catalogItem.supplier_name
+          }
+        }));
+        // Auto-fill the price
+        setItemPrices(prev => ({
+          ...prev,
+          [itemIndex]: catalogItem.price.toString()
+        }));
+        return catalogItem;
+      }
+      return null;
+    } catch (error) {
+      console.log("Catalog search error:", error);
+      return null;
+    }
+  };
+
+  // Use catalog price for item
+  const useCatalogPrice = (itemIndex, catalogInfo) => {
+    setItemPrices(prev => ({
+      ...prev,
+      [itemIndex]: catalogInfo.price.toString()
+    }));
+    setCatalogPrices(prev => ({
+      ...prev,
+      [itemIndex]: catalogInfo
+    }));
+    toast.success(`تم استخدام سعر الكتالوج: ${catalogInfo.price.toLocaleString()} ر.س`);
+  };
+
   const handleCreateOrder = async () => {
     if (!supplierName.trim()) { toast.error("الرجاء إدخال اسم المورد"); return; }
     if (selectedItemIndices.length === 0) { toast.error("الرجاء اختيار صنف واحد على الأقل"); return; }
     
-    // Build item prices array
+    // Build item prices array with catalog item linking
     const pricesArray = selectedItemIndices.map(idx => ({
       index: idx,
-      unit_price: parseFloat(itemPrices[idx]) || 0
+      unit_price: parseFloat(itemPrices[idx]) || 0,
+      catalog_item_id: catalogPrices[idx]?.catalog_item_id || null
     }));
     
     setSubmitting(true);
