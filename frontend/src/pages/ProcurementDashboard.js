@@ -859,6 +859,9 @@ const ProcurementDashboard = () => {
               <Button variant="ghost" size="sm" onClick={openBackupDialog} className="text-slate-300 hover:text-white h-8 px-2" title="النسخ الاحتياطي">
                 <Database className="w-4 h-4 ml-1" /><span className="hidden sm:inline">نسخ احتياطي</span>
               </Button>
+              <Button variant="ghost" size="sm" onClick={openCatalogDialog} className="text-slate-300 hover:text-white h-8 px-2" title="كتالوج الأسعار">
+                <Package className="w-4 h-4 ml-1" /><span className="hidden sm:inline">الكتالوج</span>
+              </Button>
               <Button 
                 variant="ghost" 
                 size="sm" 
