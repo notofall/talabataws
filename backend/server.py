@@ -527,6 +527,49 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     except JWTError:
         raise HTTPException(status_code=401, detail="رمز الدخول غير صالح")
 
+# System Settings Helper Functions
+async def init_system_settings():
+    """تهيئة إعدادات النظام الافتراضية"""
+    default_settings = [
+        {
+            "key": "approval_limit",
+            "value": "20000",
+            "description": "حد الموافقة - الطلبات فوق هذا المبلغ تحتاج موافقة المدير العام (ريال سعودي)"
+        },
+        {
+            "key": "currency",
+            "value": "SAR",
+            "description": "العملة الافتراضية"
+        },
+        {
+            "key": "auto_learn_aliases",
+            "value": "true",
+            "description": "التعلم التلقائي للأسماء البديلة عند الربط"
+        }
+    ]
+    
+    for setting in default_settings:
+        existing = await db.system_settings.find_one({"key": setting["key"]})
+        if not existing:
+            setting["id"] = str(uuid.uuid4())
+            setting["created_at"] = datetime.now(timezone.utc).isoformat()
+            await db.system_settings.insert_one(setting)
+
+async def get_system_setting(key: str, default: str = None) -> str:
+    """الحصول على قيمة إعداد من إعدادات النظام"""
+    setting = await db.system_settings.find_one({"key": key}, {"_id": 0})
+    if setting:
+        return setting.get("value", default)
+    return default
+
+async def get_approval_limit() -> float:
+    """الحصول على حد الموافقة"""
+    limit_str = await get_system_setting("approval_limit", "20000")
+    try:
+        return float(limit_str)
+    except ValueError:
+        return 20000.0
+
 # Audit Trail Helper Function
 async def log_audit(
     entity_type: str,
