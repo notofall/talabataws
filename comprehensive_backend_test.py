@@ -291,8 +291,7 @@ class ComprehensiveAPITester:
         # 5.3 الموافقة على الطلب (كمهندس)
         if request_id:
             print("\n5.3 الموافقة على الطلب:")
-            success, response = self.make_request('PUT', f'requests/{request_id}/status', 200, 
-                data={"status": "approved"}, role='engineer')
+            success, response = self.make_request('PUT', f'requests/{request_id}/approve', 200, role='engineer')
             self.log_test("الموافقة على الطلب", success, str(response) if not success else "Request approved")
 
     # ==================== 6. أوامر الشراء (Purchase Orders) ====================
