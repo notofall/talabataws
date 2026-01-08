@@ -147,8 +147,7 @@ const ProcurementDashboard = () => {
   // Reports state - التقارير
   const [reportsData, setReportsData] = useState(null);
   const [reportsLoading, setReportsLoading] = useState(false);
-  const [importFile, setImportFile] = useState(null);
-  const [importLoading, setImportLoading] = useState(false);
+  const [catalogImportLoading, setCatalogImportLoading] = useState(false);
 
   const fetchData = async () => {
     try {
