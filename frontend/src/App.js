@@ -7,6 +7,7 @@ import EngineerDashboard from "./pages/EngineerDashboard";
 import ProcurementDashboard from "./pages/ProcurementDashboard";
 import PrinterDashboard from "./pages/PrinterDashboard";
 import DeliveryTrackerDashboard from "./pages/DeliveryTrackerDashboard";
+import GeneralManagerDashboard from "./pages/GeneralManagerDashboard";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import "./App.css";
 
@@ -35,6 +36,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     if (user.role === "procurement_manager") return <Navigate to="/procurement" replace />;
     if (user.role === "printer") return <Navigate to="/printer" replace />;
     if (user.role === "delivery_tracker") return <Navigate to="/delivery-tracker" replace />;
+    if (user.role === "general_manager") return <Navigate to="/general-manager" replace />;
     return <Navigate to="/login" replace />;
   }
 
@@ -58,6 +60,7 @@ const PublicRoute = ({ children }) => {
     if (user.role === "procurement_manager") return <Navigate to="/procurement" replace />;
     if (user.role === "printer") return <Navigate to="/printer" replace />;
     if (user.role === "delivery_tracker") return <Navigate to="/delivery-tracker" replace />;
+    if (user.role === "general_manager") return <Navigate to="/general-manager" replace />;
   }
 
   return children;
