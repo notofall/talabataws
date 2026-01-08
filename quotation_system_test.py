@@ -479,8 +479,12 @@ class QuotationSystemTester:
                 print("   ✅ Successfully updated catalog item")
         
         # Test unauthorized access to catalog management
-        self.test_unauthorized_access(self.supervisor_token, "price-catalog", "POST", 403)
-        self.test_unauthorized_access(self.engineer_token, "price-catalog", "PUT", 403)
+        dummy_data = {"name": "test", "price": 100, "unit": "قطعة", "supplier_name": "test"}
+        self.test_unauthorized_access(self.supervisor_token, "price-catalog", "POST", 403, dummy_data)
+        
+        if catalog_item_id:
+            update_data = {"price": 100}
+            self.test_unauthorized_access(self.engineer_token, f"price-catalog/{catalog_item_id}", "PUT", 403, update_data)
 
         # 6. Test Item Aliases APIs
         print("\n🔗 Testing Item Aliases APIs...")
