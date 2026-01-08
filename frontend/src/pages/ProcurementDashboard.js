@@ -993,6 +993,9 @@ const ProcurementDashboard = () => {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setUserManagementOpen(true)} className="text-slate-300 hover:text-white h-8 px-2" title="إدارة المستخدمين">
+                <UserCog className="w-4 h-4 ml-1" /><span className="hidden sm:inline">المستخدمين</span>
+              </Button>
               <Button variant="ghost" size="sm" onClick={() => setBudgetDialogOpen(true)} className="text-slate-300 hover:text-white h-8 px-2">
                 <DollarSign className="w-4 h-4 ml-1" /><span className="hidden sm:inline">الميزانيات</span>
               </Button>
