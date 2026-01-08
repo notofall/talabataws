@@ -103,6 +103,25 @@ async def create_indexes():
         await db.attachments.create_index("id", unique=True)
         await db.attachments.create_index([("entity_type", 1), ("entity_id", 1)])
         
+        # System Settings indexes
+        await db.system_settings.create_index("id", unique=True)
+        await db.system_settings.create_index("key", unique=True)
+        
+        # Price Catalog indexes
+        await db.price_catalog.create_index("id", unique=True)
+        await db.price_catalog.create_index("name")
+        await db.price_catalog.create_index("supplier_id")
+        await db.price_catalog.create_index("category_id")
+        await db.price_catalog.create_index("is_active")
+        await db.price_catalog.create_index([("name", 1), ("is_active", 1)])
+        await db.price_catalog.create_index("$**", name="price_catalog_text_idx")  # Full text search
+        
+        # Item Aliases indexes
+        await db.item_aliases.create_index("id", unique=True)
+        await db.item_aliases.create_index("alias_name")
+        await db.item_aliases.create_index("catalog_item_id")
+        await db.item_aliases.create_index([("alias_name", 1)], unique=True)  # Unique alias names
+        
         print("✅ Database indexes created successfully for high-performance operations")
     except Exception as e:
         print(f"⚠️ Index creation warning: {e}")
