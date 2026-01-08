@@ -2751,6 +2751,65 @@ const ProcurementDashboard = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Clean Data Dialog - نافذة تنظيف البيانات */}
+      <Dialog open={cleanDataDialogOpen} onOpenChange={setCleanDataDialogOpen}>
+        <DialogContent className="w-[95vw] max-w-md p-4" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <Trash2 className="w-5 h-5" />
+              تنظيف جميع البيانات
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4 mt-4">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+              <p className="text-sm text-red-700 font-medium mb-2">⚠️ تحذير مهم:</p>
+              <ul className="text-xs text-red-600 space-y-1 list-disc mr-4">
+                <li>سيتم حذف جميع الطلبات وأوامر الشراء</li>
+                <li>سيتم حذف جميع المشاريع والموردين</li>
+                <li>سيتم حذف جميع المستخدمين ما عدا المستخدم المحدد</li>
+                <li>سيتم حذف جميع التصنيفات والكتالوج</li>
+                <li>هذا الإجراء لا يمكن التراجع عنه!</li>
+              </ul>
+            </div>
+            
+            <div>
+              <Label className="text-sm">البريد الإلكتروني للمستخدم المراد الاحتفاظ به:</Label>
+              <Input 
+                type="email"
+                value={keepUserEmail}
+                onChange={(e) => setKeepUserEmail(e.target.value)}
+                placeholder="example@email.com"
+                className="mt-1"
+                dir="ltr"
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                سيتم الاحتفاظ بهذا المستخدم فقط وحذف جميع المستخدمين الآخرين
+              </p>
+            </div>
+            
+            <div className="flex gap-2 pt-2">
+              <Button 
+                onClick={() => setCleanDataDialogOpen(false)} 
+                variant="outline" 
+                className="flex-1"
+              >
+                إلغاء
+              </Button>
+              <Button 
+                onClick={handleCleanAllData} 
+                disabled={cleanDataLoading || !keepUserEmail.trim()}
+                variant="destructive"
+                className="flex-1"
+              >
+                {cleanDataLoading ? <Loader2 className="w-4 h-4 animate-spin ml-2" /> : <Trash2 className="w-4 h-4 ml-2" />}
+                تنظيف نهائي
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Price Catalog & Aliases Dialog */}
       <Dialog open={catalogDialogOpen} onOpenChange={setCatalogDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
