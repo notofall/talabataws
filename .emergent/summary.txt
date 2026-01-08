@@ -1,72 +1,68 @@
 <analysis>**original_problem_statement:**
-The user initially requested a web application for a purchasing manager to manage material procurement. This evolved into Version 2.0, requiring an enhanced workflow with distinct user roles (Supervisor, Engineer, Purchasing Manager, Printer, and a new Delivery Tracker), project-based budget management, supplier price comparison, advanced reporting with PDF exports, an audit trail, file attachments, and mobile responsiveness.
+The user's initial goal was a procurement management application. This has evolved significantly to include multiple user roles (Supervisor, Engineer, Purchasing Manager, Printer, Delivery Tracker), project-based budgeting, and advanced UI features.
 
-Recent user requests have focused on:
-1.  Improving the UI/UX of the Procurement Manager dashboard with advanced filtering, searching, and pagination.
-2.  Adding password management features (change and reset).
-3.  Allowing Purchase Orders to be edited after creation, with item prices being optional.
-4.  Fixing a bug preventing Supervisors from editing pending material requests.
-5.  Providing a mechanism to clear test data from the production database.
-6.  Redesigning the PDF export templates for a cleaner, more compact layout.
+The latest user requests from the current session included:
+1.  **Global Budget Categories**: The user wanted budget categories to be defined once by the manager and then automatically applied to all new projects.
+2.  **Performance and Scalability**: The user expressed concerns about the system's ability to handle high load (20+ concurrent users) and large datasets, requesting performance optimizations.
+3.  **UI Consistency**: The user asked for the advanced filtering and pagination UI, previously built for the Procurement Manager, to be implemented on the Supervisor and Engineer dashboards as well.
+4.  **Data Management**: The user requested a manual backup/restore system and a method to clear all transactional data without deleting user accounts.
+5.  **New Feature Ideation**: The user wants to add a comprehensive quotation and approval system. The key requirements discussed are:
+    *   A **Price Catalog** to store approved prices for items, avoiding repetitive quotation requests.
+    *   An **Alias System** allowing site supervisors to enter item names freely, with the procurement manager linking these free-text entries to official catalog items. The system should learn these links.
+    *   A new **General Manager role** for an approval workflow.
+    *   An **Approval Threshold** (e.g., 20,000 SAR) for orders, which must be configurable.
+
+The user has approved the plan for this new feature but has currently asked the agent to pause before starting implementation.
 
 **User's preferred language**: Arabic (العربية)
 
 **what currently exists?**
-The application is a mature full-stack solution (FastAPI/React/MongoDB). Most of the core features requested by the user have been implemented.
--   **Role-Based Access**: All defined roles, including the new Delivery Tracker, are functional with dedicated dashboards.
--   **Procurement Workflow**: The full lifecycle from request creation, approval, PO generation, and delivery tracking is implemented.
--   **Password Management**: Users can change their password from their dashboard, and a Forgot Password flow is available on the login page (email sending is mocked).
--   **Dynamic Dashboards**: The Procurement Manager's dashboard has been significantly enhanced with stateful filter buttons (e.g., Approved, Delivered), a comprehensive search bar, and pagination to handle large datasets effectively.
--   **Data Management**: POs can be edited by the manager, and item prices are optional. Admin-only API endpoints have been created to clear test data or completely reset the database.
--   **PDF Exports**: All major documents (POs, Material Requests, Budget Reports) have redesigned, professional-looking PDF export templates.
--   **Bug Fixes**: A critical bug preventing supervisors from editing requests has been resolved and verified.
+The application is a robust, full-stack solution with a FastAPI backend, React frontend, and MongoDB database.
+-   **Role-Based Access Control (RBAC)** is implemented for all roles.
+-   **Advanced Dashboards**: The Procurement Manager, Supervisor, and Engineer dashboards all feature dynamic UI with server-side pagination, status filters, and search capabilities.
+-   **Performance Optimization**: The backend has been refactored with new high-performance  API endpoints that use server-side pagination and optimized database queries. The frontend has been updated to consume these APIs, and the system has been load-tested to handle concurrent users efficiently.
+-   **Global Budget Categories**: A system is in place for creating Default Budget Categories that are automatically copied to any newly created project.
+-   **Deployment Fixes**: Critical deployment blockers related to a / version conflict and a missing root  endpoint have been resolved.
+-   **Data Management Tools**: The Procurement Manager has access to a UI for manual backup and restore. There is also a secure API endpoint () to purge all transactional data while preserving users and default settings.
 
 **Last working item**:
-The agent was implementing pagination on the Procurement Manager's dashboard to address the user's concern about long lists being unusable, especially on mobile devices.
+The agent and user were in the final stages of planning a major new feature: a quotation, price catalog, and approval workflow system. A detailed, multi-phase plan was proposed by the agent and verbally approved by the user.
 
--   **Last item agent was working:** Adding pagination controls and the corresponding state management logic to the Material Requests and Purchase Orders tables within .
--   **Status**: IN PROGRESS
--   **Agent Testing Done**: N
--   **Which testing method agent to use?**: Frontend testing agent. The agent should be instructed to:
-    1.  Log in as the Procurement Manager ().
-    2.  Verify that both the Material Requests and Purchase Orders tables display pagination controls (e.g., Previous, Next, page numbers).
-    3.  Confirm that each table shows a limited number of items per page.
-    4.  Test the Next and Previous buttons to ensure correct page navigation.
-    5.  Apply a filter (e.g., Delivered) and then use the search bar, and verify that the pagination still works correctly with the filtered/searched results.
--   **User Testing Done**: N
+-   **Last item agent was working**: Finalizing the plan for the new quotation and approval system and seeking the user's final go-ahead to begin implementation.
+-   **Status**: BLOCKED
+-   **Reasoning**: The user's last explicit instruction was لا تبدا انتظر (Don't start, wait). The agent must wait for the user's signal to proceed.
+-   **Agent Testing Done**: N/A
+-   **Which testing method agent to use?**: both (Once development begins, this large feature will require both backend and frontend testing agents).
+-   **User Testing Done**: N/A
 
 **All Pending/In progress Issue list**:
-None.
+None. All previously active tasks and issues have been resolved.
 
 **In progress Task List**:
--   **Task 1**: Build, test, and finalize the pagination feature on the Procurement Manager Dashboard (P0)
-
-**Task Detail**:
--   **Task 1: Build, test, and finalize the pagination feature**
-    -   **Where to resume**: The agent has already modified  to include the state logic (, ) and the JSX for the pagination controls. The immediate next step is to build the frontend, restart the services, and thoroughly test the implementation.
-    -   **What will be achieved with this?**: This will resolve the user's final UI/UX concern, making the application scalable and easy to use even with thousands of entries.
-    -   **Status**: IN PROGRESS
-    -   **Should Test frontend/backend/both after fix?**: Frontend
-    -   **Blocked on something**: No.
+None.
 
 **Upcoming and Future Tasks**
+
 -   **Upcoming Tasks**:
-    -   **P0: User Verification & DB Cleanup Confirmation**: After verifying the pagination feature, confirm with the user that all recent UI changes meet their expectations. Then, ask the user if they want to execute one of the newly created database cleanup endpoints ( or ) before deploying.
-    -   **P1: Implement Audit Trail**: The backend foundation ( function) is ready. The next step is to integrate calls to this function into key business logic endpoints (e.g., creating/approving requests, creating/shipping POs) and then build a frontend interface to view the audit logs.
-    -   **P2: Implement File Attachments**: The backend models and API endpoints are ready. A frontend implementation is required to allow users to upload and associate files with Material Requests and Purchase Orders.
+    -   **P0: Implement the Quotation & Approval System**: This is the next major task, pending user confirmation. The implementation is planned in phases:
+        -   **Phase 1 (Backend Foundation)**: Add a new General Manager role, create a  collection for the configurable approval limit, and establish new database collections for the  and .
+        -   **Phase 2 (Backend Logic)**: Develop APIs for managing the price catalog, create the approval workflow for the General Manager, and update the purchase order creation logic to check against the catalog and the approval threshold.
+        -   **Phase 3 (Frontend UI)**: Build the new General Manager dashboard, a UI for managing the price catalog and aliases, and update existing dashboards to reflect the new statuses (e.g., Pending GM Approval).
+
 -   **Future Tasks**:
-    -   **P3: Advanced Reporting & Analytics**: Clarify specific requirements with the user (e.g., reports on spending by supplier, average approval time) and then implement a more advanced analytics dashboard.
-    -   **P4: Enable Email Notifications**: This is blocked pending user input for the  and .
+    -   **P1: Implement Audit Trail**: Integrate the existing  function into the new workflows.
+    -   **P2: Implement File Attachments**: Build the frontend for file uploads, which can be used for quotation documents.
+    -   **P3: Advanced Reporting & Analytics**: Create reports on supplier performance and cost savings.
+    -   **P4: Enable Email Notifications**: This is blocked on the user providing a SendGrid API key.
 
 **Completed work in this session**
--   **Procurement Manager Dashboard Overhaul**: Completely redesigned the dashboard UI with filter buttons for requests and POs, a powerful search bar for POs, and re-ordered the filters as per user feedback.
--   **Password Management**: Implemented Change Password and Forgot Password features.
--   **Purchase Order Editing**: Enabled editing of existing POs and made item pricing optional.
--   **PDF Export Redesign**: Updated all PDF templates (, , ) with a more compact and professional design.
--   **Bug Fix (Supervisor Request Edit)**: Resolved a critical bug that prevented supervisors from editing pending requests.
--   **Delivery Tracker Role Completion**: Finished the implementation and testing of the new Delivery Tracker role and dashboard.
--   **Database Cleanup Endpoints**: Created secure admin endpoints to manage test data in the database.
--   **Show All Requests to Manager**: Modified the backend logic to allow the Procurement Manager to view all material requests, not just approved ones.
+-   **Performance & Scalability Overhaul**: Implemented server-side pagination, optimized database indexing, created new high-performance  APIs, and updated all dashboards to use them. The system was successfully load-tested.
+-   **Global Budget Categories**: Implemented a feature for creating default budget categories that automatically apply to new projects.
+-   **UI Parity for All Roles**: Replicated the advanced filter and pagination UI from the Procurement Manager's dashboard to the Supervisor and Engineer dashboards.
+-   **Backup & Restore System**: Created a full-featured manual backup and restore system (export/import) for the Procurement Manager.
+-   **Data Cleanup Feature**: Developed an API endpoint to clear all transactional data while preserving user accounts.
+-   **Deployment Fixes**: Resolved a  versioning issue and added a root  endpoint to ensure successful deployment.
+-   **Pagination Feature**: Completed and tested the initial pagination implementation on the Procurement Manager's dashboard.
 
 **Earlier issues found/mentioned but not fixed**
 None.
@@ -74,71 +70,76 @@ None.
 **Known issue recurrence from previous fork**
 -   **Issue**: Blank PDF exports.
 -   **Recurrence count**: High.
--   **Status**: **RESOLVED**. The agent has implemented multiple robust PDF export features and tested them, including after the recent redesign.
+-   **Status**: RESOLVED. The PDF generation was stable in the last session, but this is a known historical sensitivity.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
 -   **Backend**: FastAPI, MongoDB (), Pydantic, JWT.
--   **Frontend**: React, Hooks (, ), Context API (), , TailwindCSS, Shadcn UI.
--   **UI Logic**: Extensive use of client-side state for filtering (), searching (), and pagination () to create a dynamic and responsive user interface.
+-   **Frontend**: React, Hooks (, , ), Context API, , TailwindCSS.
+-   **Performance**: Server-side pagination and filtering, database indexing, client-side memoization ().
 
 **key DB schema**
--   **users**: Added optional  and  fields.
--   **purchase_orders**: Added optional  and  fields.
+-   **Modified Collections**:
+    -   :  version pinned to .
+-   **New Collections (from this session)**:
+    -   : {name, default_budget}
+-   **New Collections (Planned)**:
+    -   : {key, value} (e.g., )
+    -   : {name, description, supplier_id, price, currency, validity_until}
+    -   : {alias_name, catalog_item_id}
 
 **changes in tech stack**
-None.
+-   The  library version was pinned to  in  to ensure compatibility with .
 
 **All files of reference**
--   : Heavily modified to add password management, PO updates, bug fixes, and admin cleanup endpoints.
--   : The most significantly changed file. It has been completely refactored to support a modern, filter-driven UI with search and pagination.
--   : Updated to add the Forgot Password flow.
--   : A new, reusable component for the password change modal.
--   : All PDF generation functions were updated with new, cleaner HTML templates.
+-   : Major changes to add performance APIs (), backup/restore endpoints, data cleanup logic, default category management, and deployment fixes.
+-   : Updated  version.
+-   : Refactored to use new V2 APIs and  for performance, and added the UI for the backup/restore feature.
+-   : Completely refactored to implement the new standardized filter/pagination UI.
+-   : Completely refactored to implement the new standardized filter/pagination UI.
 
 **Areas that need refactoring**:
--   The  component is now extremely large and complex due to the addition of filtering, searching, and pagination logic. It is a prime candidate for being broken down into smaller, reusable components (e.g., , , ) and custom hooks to manage its complex state.
--    continues to grow and should be modularized into a proper FastAPI project structure (e.g., with , ,  directories).
+-    is now extremely large. Modularizing it into a standard FastAPI project structure (routes, services, models) is highly recommended before adding more features.
+-   The dashboard components (, etc.), despite being refactored, remain complex and could benefit from being broken down into smaller, more specialized components and custom hooks.
 
 **key api endpoints**
--   **Password**: , , 
--   **PO Update**: 
--   **Request Edit**:  (Logic fixed).
--   **Admin**: , 
+-   **Performance APIs**: , , 
+-   **Backup & Admin APIs**: , , 
+-   **Root Health Check**: 
 
 **Critical Info for New Agent**
 -   **Language**: You MUST respond to the user in **Arabic (العربية)**.
--   **Immediate Task**: Your first and only priority is to **build and thoroughly test the new pagination feature** on the  page. The code has been written but is unverified.
--   **Next Steps**: After pagination is confirmed to be working, present the completed UI to the user for final approval. Then, inquire if they wish to clean the database using the new admin endpoints before you move on to the next set of features (Audit Trail, Attachments).
+-   **CRITICAL BLOCKER**: The user's last instruction was لا تبدا انتظر (Don't start, wait). **DO NOT** begin implementation. Your first action must be to use the  tool to confirm with the user that they are ready to proceed with the planned quotation and approval system.
+-   **The Plan**: Once you get the user's go-ahead, you have a comprehensive, user-approved plan. Propose implementing it in the agreed-upon phases: 1) Backend setup (new role, settings), 2) Logic (catalog, approvals), 3) Frontend UI.
 
 **documents and test reports created in this job**
--    was updated and used successfully to test the Delivery Tracker role and the PDF redesigns.
+-    was updated for testing the enhanced Supervisor and Engineer dashboards.
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **User**: Fix supervisor edit bug. (Completed)
-2.  **User**: Change logic so manager sees all requests, not just approved ones. (Completed)
-3.  **User**: Update Delivery Tracker dashboard to show delivered orders and allow export. (Completed)
-4.  **User**: Overhaul Procurement Manager dashboard with filter buttons. (Completed)
-5.  **User**: Uploaded an image showing the desired UI. (Implemented)
-6.  **User**: Asks to reorder filter buttons and add a comprehensive search bar to the PO section. (Completed)
-7.  **User**: Found an error in the new code. (Fixed)
-8.  **User**: Tested the search and confirmed it works. (Acknowledged)
-9.  **User**: Reports that long lists are a problem on mobile. (In Progress - pagination)
-10. **User**: Uploaded an image showing the issue with long lists on mobile. (In Progress - pagination)
+1.  **User**: Okay, but what if a supervisor wants to request an item that is not in the catalog?
+2.  **Agent**: Explains the flow for new items, where they are flagged for the procurement manager to request quotes.
+3.  **User**: I like the idea. And I also need approval from the General Manager for orders over 20,000 riyals.
+4.  **Agent**: Confirms understanding and asks if the limit should be configurable and if the GM is a new role.
+5.  **User**: The limit is configurable, and the manager is a new user with a new role.
+6.  **Agent**: Summarizes the complete plan for the new system (catalog, aliases, GM role, configurable limit) and asks for final confirmation to start.
+7.  **User**: **لا تبدا انتظر (Don't start, wait).**
+8.  **Agent**: Acknowledges and confirms it will wait.
+9.  **User**: Think with me... [describes the problem of non-tech-savvy supervisors and large item lists].
+10. **Agent**: Proposes the Aliases system where the manager links free-text entries to official catalog items, and asks if this solution works.
 
 **Project Health Check:**
 -   **Broken**: None.
--   **Mocked**: SendGrid email notifications for password reset.
+-   **Mocked**: SendGrid email notifications.
 
 **3rd Party Integrations**
--   **SendGrid**: Integrated in the backend but inactive. Requires user to provide  and .
+-   **SendGrid**: Integrated but inactive, requires user-provided API keys.
 
 **Testing status**
--   **Testing agent used after significant changes**: YES, for major features and bug fixes.
--   **Troubleshoot agent used after agent stuck in loop**: NO
--   **Test files created**: Scenarios were added to .
+-   **Testing agent used after significant changes**: YES, the frontend testing agent was used to validate the UI/pagination enhancements on the Supervisor and Engineer dashboards.
+-   **Troubleshoot agent used after agent stuck in loop**: NO.
+-   **Test files created**: Test scenarios were added to .
 -   **Known regressions**: None.
 
 **Credentials to test flow:**
@@ -149,8 +150,6 @@ None.
 | Purchasing Manager |  |  |
 | Printer |  |  |
 | Delivery Tracker |  |  |
-| User for Reset Test |  |  (temp) |
 
 **What agent forgot to execute**
--   The agent wrote the code for pagination in  but did not execute yarn run v1.22.22
-info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command. or restart the services to test if the implementation works correctly. This is the critical next step.</analysis>
+-   Nothing. The agent has successfully completed all tasks requested in this session and has correctly paused implementation of the next feature based on the user's direct instruction.</analysis>

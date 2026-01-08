@@ -13,7 +13,7 @@ import json
 from datetime import datetime
 
 class DeliveryTrackerTester:
-    def __init__(self, base_url="https://purchase-system-8.preview.emergentagent.com"):
+    def __init__(self, base_url="https://ordermanager-18.preview.emergentagent.com"):
         self.base_url = base_url
         self.tracker_token = None
         self.manager_token = None
