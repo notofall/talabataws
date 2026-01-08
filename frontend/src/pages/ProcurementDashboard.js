@@ -2464,7 +2464,7 @@ const ProcurementDashboard = () => {
           </DialogHeader>
 
           {/* Tabs */}
-          <div className="flex gap-2 mb-4">
+          <div className="flex flex-wrap gap-2 mb-4">
             <Button 
               variant={catalogViewMode === "catalog" ? "default" : "outline"} 
               size="sm"
@@ -2480,6 +2480,24 @@ const ProcurementDashboard = () => {
             >
               <FileText className="w-4 h-4 ml-1" />
               الأسماء البديلة
+            </Button>
+            <Button 
+              variant={catalogViewMode === "reports" ? "default" : "outline"} 
+              size="sm"
+              onClick={() => { setCatalogViewMode("reports"); fetchReports(); }}
+            >
+              <BarChart3 className="w-4 h-4 ml-1" />
+              التقارير
+            </Button>
+            <div className="flex-1"></div>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => window.open(`${API_URL}/price-catalog/export/excel`, '_blank')}
+              className="text-green-600 border-green-300 hover:bg-green-50"
+            >
+              <Download className="w-4 h-4 ml-1" />
+              تصدير Excel
             </Button>
           </div>
 
