@@ -766,6 +766,10 @@ async def login(credentials: UserLogin):
     if not user or not verify_password(credentials.password, user["password"]):
         raise HTTPException(status_code=401, detail="البريد الإلكتروني أو كلمة المرور غير صحيحة")
     
+    # Check if user is active
+    if not user.get("is_active", True):
+        raise HTTPException(status_code=403, detail="تم تعطيل حسابك. تواصل مع مدير النظام")
+    
     access_token = create_access_token({"sub": user["id"]})
     
     return TokenResponse(
