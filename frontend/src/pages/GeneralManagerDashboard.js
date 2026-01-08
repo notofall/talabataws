@@ -179,52 +179,52 @@ export default function GeneralManagerDashboard() {
       </header>
 
       {/* Stats Cards */}
-      <div className="container mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-xl shadow-sm p-4 border border-slate-100">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center">
-                <Clock className="w-6 h-6 text-amber-600" />
+      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
+          <div className="bg-white rounded-xl shadow-sm p-3 sm:p-4 border border-slate-100">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-amber-100 rounded-lg flex items-center justify-center shrink-0">
+                <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-amber-600" />
               </div>
-              <div>
-                <p className="text-slate-500 text-sm">بانتظار الموافقة</p>
-                <p className="text-2xl font-bold text-slate-800">{stats.pending_approval}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm p-4 border border-slate-100">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <CheckCircle className="w-6 h-6 text-green-600" />
-              </div>
-              <div>
-                <p className="text-slate-500 text-sm">معتمد هذا الشهر</p>
-                <p className="text-2xl font-bold text-slate-800">{stats.approved_this_month}</p>
+              <div className="min-w-0">
+                <p className="text-slate-500 text-xs sm:text-sm truncate">بانتظار الموافقة</p>
+                <p className="text-xl sm:text-2xl font-bold text-slate-800">{stats.pending_approval}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm p-4 border border-slate-100">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <DollarSign className="w-6 h-6 text-blue-600" />
+          <div className="bg-white rounded-xl shadow-sm p-3 sm:p-4 border border-slate-100">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-100 rounded-lg flex items-center justify-center shrink-0">
+                <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
               </div>
-              <div>
-                <p className="text-slate-500 text-sm">إجمالي المعتمد</p>
-                <p className="text-xl font-bold text-slate-800">{formatCurrency(stats.total_approved_amount)}</p>
+              <div className="min-w-0">
+                <p className="text-slate-500 text-xs sm:text-sm truncate">معتمد هذا الشهر</p>
+                <p className="text-xl sm:text-2xl font-bold text-slate-800">{stats.approved_this_month}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm p-4 border border-slate-100">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <AlertTriangle className="w-6 h-6 text-purple-600" />
+          <div className="bg-white rounded-xl shadow-sm p-3 sm:p-4 border border-slate-100">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-lg flex items-center justify-center shrink-0">
+                <DollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
               </div>
-              <div>
-                <p className="text-slate-500 text-sm">حد الموافقة</p>
-                <p className="text-xl font-bold text-slate-800">{formatCurrency(stats.approval_limit)}</p>
+              <div className="min-w-0">
+                <p className="text-slate-500 text-xs sm:text-sm truncate">إجمالي المعتمد</p>
+                <p className="text-lg sm:text-xl font-bold text-slate-800">{formatCurrency(stats.total_approved_amount)}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm p-3 sm:p-4 border border-slate-100">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-100 rounded-lg flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-slate-500 text-xs sm:text-sm truncate">حد الموافقة</p>
+                <p className="text-lg sm:text-xl font-bold text-slate-800">{formatCurrency(stats.approval_limit)}</p>
               </div>
             </div>
           </div>
@@ -232,9 +232,9 @@ export default function GeneralManagerDashboard() {
 
         {/* Pending Orders Table */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-100">
-          <div className="p-4 border-b border-slate-100">
-            <h2 className="text-lg font-bold text-slate-800">أوامر الشراء بانتظار الموافقة</h2>
-            <p className="text-sm text-slate-500">أوامر شراء تتجاوز {formatCurrency(stats.approval_limit)}</p>
+          <div className="p-3 sm:p-4 border-b border-slate-100">
+            <h2 className="text-base sm:text-lg font-bold text-slate-800">أوامر الشراء بانتظار الموافقة</h2>
+            <p className="text-xs sm:text-sm text-slate-500">أوامر شراء تتجاوز {formatCurrency(stats.approval_limit)}</p>
           </div>
 
           {loading ? (
