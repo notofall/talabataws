@@ -151,10 +151,6 @@ const ProcurementDashboard = () => {
   const [reportsData, setReportsData] = useState(null);
   const [reportsLoading, setReportsLoading] = useState(false);
   const [catalogImportLoading, setCatalogImportLoading] = useState(false);
-  
-  // Category management - إدارة التصنيفات
-  const [newDefaultCategory, setNewDefaultCategory] = useState({ name: "", default_budget: "" });
-  const [editingDefaultCategory, setEditingDefaultCategory] = useState(null);
 
   const fetchData = async () => {
     try {
