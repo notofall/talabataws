@@ -385,19 +385,18 @@ export default function GeneralManagerDashboard() {
 
       {/* Order Details Dialog */}
       {showDetailsDialog && selectedOrder && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-4 border-b border-slate-100 flex justify-between items-center">
-              <h3 className="text-lg font-bold">تفاصيل أمر الشراء</h3>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[95vh] overflow-y-auto">
+            <div className="p-3 sm:p-4 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white">
+              <h3 className="text-base sm:text-lg font-bold">تفاصيل أمر الشراء</h3>
               <Button variant="ghost" size="sm" onClick={() => setShowDetailsDialog(false)}>×</Button>
             </div>
-            <div className="p-4 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
+              <div className="grid grid-cols-2 gap-2 sm:gap-4 text-sm">
                 <div>
-                  <p className="text-sm text-slate-500">رقم الطلب</p>
+                  <p className="text-xs sm:text-sm text-slate-500">رقم الطلب</p>
                   <p className="font-medium">{selectedOrder.request_number || selectedOrder.id.slice(0, 8)}</p>
                 </div>
-                <div>
                   <p className="text-sm text-slate-500">المشروع</p>
                   <p className="font-medium">{selectedOrder.project_name}</p>
                 </div>
