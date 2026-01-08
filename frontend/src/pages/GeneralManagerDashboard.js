@@ -591,6 +591,19 @@ export default function GeneralManagerDashboard() {
                   </p>
                 </div>
               )}
+
+              {/* Export PDF Button */}
+              {selectedOrder.status !== 'pending_gm_approval' && (
+                <div className="pt-2 border-t">
+                  <Button 
+                    onClick={() => exportPurchaseOrderToPDF(selectedOrder)}
+                    className="w-full bg-green-600 hover:bg-green-700"
+                  >
+                    <Download className="w-4 h-4 ml-2" />
+                    تصدير أمر الشراء PDF
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </div>
