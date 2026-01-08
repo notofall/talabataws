@@ -2618,6 +2618,14 @@ const ProcurementDashboard = () => {
               الأسماء البديلة
             </Button>
             <Button 
+              variant={catalogViewMode === "categories" ? "default" : "outline"} 
+              size="sm"
+              onClick={() => setCatalogViewMode("categories")}
+            >
+              <Filter className="w-4 h-4 ml-1" />
+              التصنيفات
+            </Button>
+            <Button 
               variant={catalogViewMode === "reports" ? "default" : "outline"} 
               size="sm"
               onClick={() => { setCatalogViewMode("reports"); fetchReports(); }}
