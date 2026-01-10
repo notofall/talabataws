@@ -292,47 +292,66 @@ export default function GeneralManagerDashboard() {
         {/* Orders Section with Tabs */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-100">
           {/* Tabs */}
-          <div className="border-b border-slate-100">
-            <div className="flex">
+          <div className="border-b border-slate-100 overflow-x-auto">
+            <div className="flex min-w-max">
               <button
                 onClick={() => setActiveTab('pending')}
-                className={`flex-1 sm:flex-none px-4 sm:px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+                className={`flex-1 sm:flex-none px-3 sm:px-5 py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === 'pending'
-                    ? 'border-purple-600 text-purple-600 bg-purple-50'
+                    ? 'border-amber-600 text-amber-600 bg-amber-50'
                     : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
                 }`}
               >
                 <Clock className="w-4 h-4 inline-block ml-1" />
-                بانتظار الموافقة
+                بانتظار موافقتي
                 {pendingOrders.length > 0 && (
-                  <span className="mr-2 px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs">
+                  <span className="mr-1 px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs">
                     {pendingOrders.length}
                   </span>
                 )}
               </button>
               <button
-                onClick={() => setActiveTab('approved')}
-                className={`flex-1 sm:flex-none px-4 sm:px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === 'approved'
+                onClick={() => setActiveTab('gm_approved')}
+                className={`flex-1 sm:flex-none px-3 sm:px-5 py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === 'gm_approved'
                     ? 'border-purple-600 text-purple-600 bg-purple-50'
                     : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
                 }`}
               >
                 <CheckCircle className="w-4 h-4 inline-block ml-1" />
-                الأوامر المعتمدة
+                معتمدة من المدير العام
+                <span className="mr-1 px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs">
+                  {gmApprovedOrders.length}
+                </span>
+              </button>
+              <button
+                onClick={() => setActiveTab('procurement_approved')}
+                className={`flex-1 sm:flex-none px-3 sm:px-5 py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === 'procurement_approved'
+                    ? 'border-green-600 text-green-600 bg-green-50'
+                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <FileText className="w-4 h-4 inline-block ml-1" />
+                معتمدة من المشتريات
+                <span className="mr-1 px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full text-xs">
+                  {procurementApprovedOrders.length}
+                </span>
               </button>
             </div>
           </div>
 
-          {/* Content */}
+          {/* Content Header */}
           <div className="p-3 sm:p-4 border-b border-slate-100">
             <h2 className="text-base sm:text-lg font-bold text-slate-800">
-              {activeTab === 'pending' ? 'أوامر الشراء بانتظار الموافقة' : 'أوامر الشراء المعتمدة'}
+              {activeTab === 'pending' && 'أوامر شراء بانتظار موافقتي'}
+              {activeTab === 'gm_approved' && 'أوامر شراء اعتمدتها'}
+              {activeTab === 'procurement_approved' && 'أوامر شراء معتمدة من المشتريات'}
             </h2>
             <p className="text-xs sm:text-sm text-slate-500">
-              {activeTab === 'pending' 
-                ? `أوامر شراء تتجاوز ${formatCurrency(stats.approval_limit)}`
-                : 'جميع أوامر الشراء التي تمت الموافقة عليها'}
+              {activeTab === 'pending' && `أوامر شراء تتجاوز ${formatCurrency(stats.approval_limit)} وتحتاج موافقتك`}
+              {activeTab === 'gm_approved' && 'أوامر الشراء التي وافقت عليها (تجاوزت حد الموافقة)'}
+              {activeTab === 'procurement_approved' && 'أوامر شراء اعتمدها مدير المشتريات مباشرة (ضمن صلاحيته)'}
             </p>
           </div>
 
