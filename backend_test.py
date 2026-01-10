@@ -714,18 +714,25 @@ class MaterialRequestAPITester:
             self.log_test(test_name, False, f"Exception: {str(e)}")
             return False, {}
 
-    def test_create_user(self, token, user_data, expected_status=200, test_name="Create User"):
-        """Test creating a user"""
+    def try_create_user(self, token, user_data, test_name="Try Create User"):
+        """Try to create a user, don't fail if already exists"""
         headers = {'Authorization': f'Bearer {token}'}
-        success, response = self.run_test(
-            test_name,
-            "POST",
-            "admin/users",
-            expected_status,
-            data=user_data,
-            headers=headers
-        )
-        return success, response if success else {}
+        url = f"{self.base_url}/api/admin/users"
+        
+        try:
+            response = requests.post(url, json=user_data, headers=headers)
+            if response.status_code == 200:
+                print(f"✅ {test_name} - CREATED")
+                return True, response.json()
+            elif response.status_code == 400 and "مسجل مسبقاً" in response.text:
+                print(f"ℹ️ {test_name} - ALREADY EXISTS")
+                return True, {}
+            else:
+                print(f"❌ {test_name} - FAILED: Status {response.status_code}")
+                return False, {}
+        except Exception as e:
+            print(f"❌ {test_name} - EXCEPTION: {str(e)}")
+            return False, {}
 
     def run_delete_apis_test(self):
         """Test DELETE APIs for purchase orders, requests, and clean-all-data"""
@@ -754,10 +761,7 @@ class MaterialRequestAPITester:
             "password": "123456",
             "role": "supervisor"
         }
-        success, _ = self.test_create_user(self.manager_token, supervisor_data, 200, "Create Test Supervisor (if not exists)")
-        if not success:
-            print("   Supervisor already exists, trying to login...")
-        
+        self.try_create_user(self.manager_token, supervisor_data, "Create Test Supervisor")
         self.supervisor_token = self.test_login("supervisor_test@test.com", "123456", "Test Supervisor")
         
         # Try to create engineer, if exists just login
@@ -767,10 +771,7 @@ class MaterialRequestAPITester:
             "password": "123456",
             "role": "engineer"
         }
-        success, _ = self.test_create_user(self.manager_token, engineer_data, 200, "Create Test Engineer (if not exists)")
-        if not success:
-            print("   Engineer already exists, trying to login...")
-        
+        self.try_create_user(self.manager_token, engineer_data, "Create Test Engineer")
         self.engineer_token = self.test_login("engineer_test@test.com", "123456", "Test Engineer")
 
         # 4. Create test data (request and purchase order)
