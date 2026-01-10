@@ -881,8 +881,12 @@ const ProcurementDashboard = () => {
 
   const handleApproveOrder = async (orderId) => {
     try {
-      await axios.put(`${API_URL}/purchase-orders/${orderId}/approve`, {}, getAuthHeaders());
-      toast.success("تم اعتماد أمر الشراء");
+      const res = await axios.put(`${API_URL}/purchase-orders/${orderId}/approve`, {}, getAuthHeaders());
+      if (res.data.requires_gm_approval) {
+        toast.info(res.data.message, { duration: 6000 });
+      } else {
+        toast.success("تم اعتماد أمر الشراء");
+      }
       fetchData();
     } catch (error) {
       toast.error(error.response?.data?.detail || "فشل في اعتماد أمر الشراء");
