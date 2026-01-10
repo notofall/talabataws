@@ -637,6 +637,274 @@ class MaterialRequestAPITester:
         print("\n🎉 New features test completed!")
         return True
 
+    def test_delete_purchase_order(self, token, order_id, expected_status=200, test_name="Delete Purchase Order"):
+        """Test deleting a purchase order"""
+        headers = {'Authorization': f'Bearer {token}'}
+        url = f"{self.base_url}/api/purchase-orders/{order_id}"
+        
+        try:
+            response = requests.delete(url, headers=headers)
+            success = response.status_code == expected_status
+            details = f"Status: {response.status_code}, Expected: {expected_status}"
+            
+            if not success:
+                try:
+                    error_detail = response.json().get('detail', 'No detail')
+                    details += f", Error: {error_detail}"
+                except:
+                    details += f", Response: {response.text[:100]}"
+
+            self.log_test(test_name, success, details)
+            return success, response.json() if success and response.content else {}
+
+        except Exception as e:
+            self.log_test(test_name, False, f"Exception: {str(e)}")
+            return False, {}
+
+    def test_delete_material_request(self, token, request_id, expected_status=200, test_name="Delete Material Request"):
+        """Test deleting a material request"""
+        headers = {'Authorization': f'Bearer {token}'}
+        url = f"{self.base_url}/api/requests/{request_id}"
+        
+        try:
+            response = requests.delete(url, headers=headers)
+            success = response.status_code == expected_status
+            details = f"Status: {response.status_code}, Expected: {expected_status}"
+            
+            if not success:
+                try:
+                    error_detail = response.json().get('detail', 'No detail')
+                    details += f", Error: {error_detail}"
+                except:
+                    details += f", Response: {response.text[:100]}"
+
+            self.log_test(test_name, success, details)
+            return success, response.json() if success and response.content else {}
+
+        except Exception as e:
+            self.log_test(test_name, False, f"Exception: {str(e)}")
+            return False, {}
+
+    def test_clean_all_data(self, token, keep_user_email, expected_status=200, test_name="Clean All Data"):
+        """Test cleaning all data except specified user"""
+        headers = {'Authorization': f'Bearer {token}'}
+        url = f"{self.base_url}/api/admin/clean-all-data?keep_user_email={keep_user_email}"
+        
+        try:
+            response = requests.delete(url, headers=headers)
+            success = response.status_code == expected_status
+            details = f"Status: {response.status_code}, Expected: {expected_status}"
+            
+            if not success:
+                try:
+                    error_detail = response.json().get('detail', 'No detail')
+                    details += f", Error: {error_detail}"
+                except:
+                    details += f", Response: {response.text[:100]}"
+
+            self.log_test(test_name, success, details)
+            return success, response.json() if success and response.content else {}
+
+        except Exception as e:
+            self.log_test(test_name, False, f"Exception: {str(e)}")
+            return False, {}
+
+    def run_delete_apis_test(self):
+        """Test DELETE APIs for purchase orders, requests, and clean-all-data"""
+        print("\n🗑️ Starting DELETE APIs Test...")
+        
+        # 1. Health check
+        if not self.test_health_check():
+            print("❌ Health check failed, stopping tests")
+            return False
+
+        # 2. Login users - using the provided credentials
+        print("\n📝 Testing Authentication...")
+        self.manager_token = self.test_login("notofall@gmail.com", "123456", "Procurement Manager")
+        
+        # Create a supervisor for testing unauthorized access
+        self.supervisor_token = self.test_login("supervisor1@test.com", "123456", "Supervisor")
+        self.engineer_token = self.test_login("engineer1@test.com", "123456", "Engineer")
+
+        if not self.manager_token:
+            print("❌ Authentication failed for procurement manager")
+            return False
+
+        # 3. Create test data first (request and purchase order)
+        print("\n📋 Creating Test Data...")
+        
+        # Get engineers list
+        success, engineers = self.test_get_engineers(self.manager_token)
+        if not success or not engineers:
+            print("❌ Failed to get engineers list")
+            return False
+
+        engineer_id = engineers[0].get('id') if engineers else None
+        if not engineer_id:
+            print("❌ No engineer ID found")
+            return False
+
+        # Create material request
+        success, request_id = self.test_create_material_request(self.manager_token, engineer_id)
+        if not success or not request_id:
+            print("❌ Failed to create material request for testing")
+            return False
+
+        # Approve request (need engineer token for this)
+        if self.engineer_token:
+            self.test_approve_request(self.engineer_token, request_id)
+        else:
+            # If no engineer token, approve with manager (might work in some systems)
+            self.test_approve_request(self.manager_token, request_id)
+
+        # Create purchase order
+        success, order_id = self.test_create_purchase_order_with_selected_items(
+            self.manager_token, request_id, [0, 1]
+        )
+        if not success or not order_id:
+            print("❌ Failed to create purchase order for testing")
+            return False
+
+        # 4. Test DELETE /api/purchase-orders/{order_id} - Authorized (PROCUREMENT_MANAGER)
+        print("\n🗑️ Testing DELETE Purchase Order - Authorized (PROCUREMENT_MANAGER)...")
+        success, response = self.test_delete_purchase_order(
+            self.manager_token, 
+            order_id, 
+            200, 
+            "Delete Purchase Order - Authorized"
+        )
+        if not success:
+            print("❌ Failed to delete purchase order as PROCUREMENT_MANAGER")
+            return False
+
+        # 5. Test DELETE /api/purchase-orders/{order_id} - Unauthorized (other role)
+        print("\n🚫 Testing DELETE Purchase Order - Unauthorized (Supervisor)...")
+        
+        # Create another purchase order for unauthorized test
+        success, request_id2 = self.test_create_material_request(self.manager_token, engineer_id)
+        if success and request_id2:
+            if self.engineer_token:
+                self.test_approve_request(self.engineer_token, request_id2)
+            else:
+                self.test_approve_request(self.manager_token, request_id2)
+            
+            success, order_id2 = self.test_create_purchase_order_with_selected_items(
+                self.manager_token, request_id2, [0]
+            )
+            
+            if success and order_id2:
+                # Try to delete with supervisor token (should fail with 403)
+                if self.supervisor_token:
+                    success, response = self.test_delete_purchase_order(
+                        self.supervisor_token, 
+                        order_id2, 
+                        403, 
+                        "Delete Purchase Order - Unauthorized (Supervisor)"
+                    )
+                    if success:
+                        print("✅ Correctly rejected unauthorized purchase order deletion")
+                    else:
+                        print("❌ Should have rejected unauthorized purchase order deletion")
+                else:
+                    print("⚠️ No supervisor token available for unauthorized test")
+
+        # 6. Test DELETE /api/requests/{request_id} - Authorized (PROCUREMENT_MANAGER)
+        print("\n🗑️ Testing DELETE Material Request - Authorized (PROCUREMENT_MANAGER)...")
+        
+        # Create a new request for deletion test
+        success, request_id3 = self.test_create_material_request(self.manager_token, engineer_id)
+        if success and request_id3:
+            # Create a purchase order for this request to test cascade deletion
+            if self.engineer_token:
+                self.test_approve_request(self.engineer_token, request_id3)
+            else:
+                self.test_approve_request(self.manager_token, request_id3)
+            
+            success, order_id3 = self.test_create_purchase_order_with_selected_items(
+                self.manager_token, request_id3, [0, 1]
+            )
+            
+            # Now delete the request (should also delete related purchase orders)
+            success, response = self.test_delete_material_request(
+                self.manager_token, 
+                request_id3, 
+                200, 
+                "Delete Material Request - Authorized"
+            )
+            if success:
+                print("✅ Successfully deleted material request")
+                if response.get('deleted_orders', 0) > 0:
+                    print(f"✅ Correctly deleted {response['deleted_orders']} related purchase orders")
+                else:
+                    print("⚠️ No related purchase orders were deleted")
+            else:
+                print("❌ Failed to delete material request as PROCUREMENT_MANAGER")
+
+        # 7. Test DELETE /api/requests/{request_id} - Unauthorized (other role)
+        print("\n🚫 Testing DELETE Material Request - Unauthorized (Supervisor)...")
+        
+        # Create another request for unauthorized test
+        success, request_id4 = self.test_create_material_request(self.manager_token, engineer_id)
+        if success and request_id4 and self.supervisor_token:
+            success, response = self.test_delete_material_request(
+                self.supervisor_token, 
+                request_id4, 
+                403, 
+                "Delete Material Request - Unauthorized (Supervisor)"
+            )
+            if success:
+                print("✅ Correctly rejected unauthorized material request deletion")
+            else:
+                print("❌ Should have rejected unauthorized material request deletion")
+
+        # 8. Test DELETE /api/admin/clean-all-data - Non-existent email (should 404)
+        print("\n🚫 Testing Clean All Data - Non-existent Email...")
+        success, response = self.test_clean_all_data(
+            self.manager_token, 
+            "nonexistent@example.com", 
+            404, 
+            "Clean All Data - Non-existent Email"
+        )
+        if success:
+            print("✅ Correctly returned 404 for non-existent email")
+        else:
+            print("❌ Should have returned 404 for non-existent email")
+
+        # 9. Test DELETE /api/admin/clean-all-data - Unauthorized (other role)
+        print("\n🚫 Testing Clean All Data - Unauthorized (Supervisor)...")
+        if self.supervisor_token:
+            success, response = self.test_clean_all_data(
+                self.supervisor_token, 
+                "notofall@gmail.com", 
+                403, 
+                "Clean All Data - Unauthorized (Supervisor)"
+            )
+            if success:
+                print("✅ Correctly rejected unauthorized clean-all-data request")
+            else:
+                print("❌ Should have rejected unauthorized clean-all-data request")
+
+        # 10. Test DELETE /api/admin/clean-all-data - Valid (PROCUREMENT_MANAGER with existing email)
+        print("\n🗑️ Testing Clean All Data - Valid (PROCUREMENT_MANAGER)...")
+        success, response = self.test_clean_all_data(
+            self.manager_token, 
+            "notofall@gmail.com", 
+            200, 
+            "Clean All Data - Valid"
+        )
+        if success:
+            print("✅ Successfully cleaned all data")
+            if response.get('deleted'):
+                deleted = response['deleted']
+                print(f"   Deleted: {deleted.get('users', 0)} users, {deleted.get('requests', 0)} requests, {deleted.get('orders', 0)} orders")
+            else:
+                print("⚠️ No deletion counts in response")
+        else:
+            print("❌ Failed to clean all data as PROCUREMENT_MANAGER")
+
+        print("\n🎉 DELETE APIs test completed!")
+        return True
+
     def run_delivery_tracking_test(self):
         """Test complete delivery tracking workflow"""
         print("\n🚚 Starting Delivery Tracking Workflow Test...")
