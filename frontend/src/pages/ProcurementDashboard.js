@@ -92,6 +92,12 @@ const ProcurementDashboard = () => {
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [userManagementOpen, setUserManagementOpen] = useState(false);  // نافذة إدارة المستخدمين
   
+  // Export Dialog - نافذة التصدير
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportStartDate, setExportStartDate] = useState("");
+  const [exportEndDate, setExportEndDate] = useState("");
+  const [exportType, setExportType] = useState("orders"); // "orders" or "requests"
+  
   // Catalog item linking for PO - ربط الأصناف بالكتالوج
   const [catalogPrices, setCatalogPrices] = useState({});  // {itemIndex: {catalog_item_id, price, name}}
   
