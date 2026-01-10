@@ -696,3 +696,185 @@ export const exportBudgetReportToPDF = (report, projectName = null) => {
 
   printHTML(html, 'تقرير الميزانية');
 };
+
+// تصدير تقرير التكاليف - حسب المشروع أو التصنيف
+export const exportCostReportToPDF = (reportsData, type = 'all', exportedBy = null) => {
+  const savings = reportsData.savings;
+  
+  let title = 'تقرير توفير التكاليف';
+  let dataRows = '';
+  let tableHeaders = '';
+  
+  if (type === 'project' && savings.by_project?.length > 0) {
+    title = 'تقرير التكاليف حسب المشروع';
+    tableHeaders = `
+      <tr>
+        <th>المشروع</th>
+        <th style="text-align: center;">الأوامر</th>
+        <th style="text-align: center;">التقديري</th>
+        <th style="text-align: center;">الفعلي</th>
+        <th style="text-align: center;">التوفير</th>
+        <th style="text-align: center;">النسبة</th>
+      </tr>
+    `;
+    dataRows = savings.by_project.map((item, idx) => `
+      <tr style="background: ${idx % 2 === 0 ? '#f9fafb' : '#fff'};">
+        <td style="font-weight: 600;">${item.project}</td>
+        <td style="text-align: center;">${item.orders_count}</td>
+        <td style="text-align: center;">${item.estimated?.toLocaleString('ar-SA')} ر.س</td>
+        <td style="text-align: center; color: #2563eb;">${item.actual?.toLocaleString('ar-SA')} ر.س</td>
+        <td style="text-align: center; font-weight: 600; color: ${item.saving >= 0 ? '#059669' : '#dc2626'};">${item.saving?.toLocaleString('ar-SA')} ر.س</td>
+        <td style="text-align: center;">
+          <span style="padding: 2px 8px; border-radius: 4px; font-size: 10px; background: ${item.saving_percent >= 0 ? '#dcfce7' : '#fee2e2'}; color: ${item.saving_percent >= 0 ? '#059669' : '#dc2626'};">
+            ${item.saving_percent}%
+          </span>
+        </td>
+      </tr>
+    `).join('');
+  } else if (type === 'category' && savings.by_category?.length > 0) {
+    title = 'تقرير التكاليف حسب التصنيف';
+    tableHeaders = `
+      <tr>
+        <th>التصنيف</th>
+        <th style="text-align: center;">الأوامر</th>
+        <th style="text-align: center;">التقديري</th>
+        <th style="text-align: center;">الفعلي</th>
+        <th style="text-align: center;">التوفير</th>
+        <th style="text-align: center;">النسبة</th>
+      </tr>
+    `;
+    dataRows = savings.by_category.map((item, idx) => `
+      <tr style="background: ${idx % 2 === 0 ? '#f9fafb' : '#fff'};">
+        <td style="font-weight: 600;">${item.category}</td>
+        <td style="text-align: center;">${item.orders_count}</td>
+        <td style="text-align: center;">${item.estimated?.toLocaleString('ar-SA')} ر.س</td>
+        <td style="text-align: center; color: #2563eb;">${item.actual?.toLocaleString('ar-SA')} ر.س</td>
+        <td style="text-align: center; font-weight: 600; color: ${item.saving >= 0 ? '#059669' : '#dc2626'};">${item.saving?.toLocaleString('ar-SA')} ر.س</td>
+        <td style="text-align: center;">
+          <span style="padding: 2px 8px; border-radius: 4px; font-size: 10px; background: ${item.saving_percent >= 0 ? '#dcfce7' : '#fee2e2'}; color: ${item.saving_percent >= 0 ? '#059669' : '#dc2626'};">
+            ${item.saving_percent}%
+          </span>
+        </td>
+      </tr>
+    `).join('');
+  }
+  
+  // Build summary cards
+  const summaryCards = `
+    <div style="display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap;">
+      <div style="flex: 1; min-width: 100px; background: #f1f5f9; border-radius: 6px; padding: 10px; text-align: center;">
+        <p style="font-size: 9px; color: #6b7280; margin: 0;">إجمالي الأوامر</p>
+        <p style="font-size: 16px; font-weight: 700; color: #334155; margin: 3px 0 0 0;">${savings.summary.orders_count || 0}</p>
+      </div>
+      <div style="flex: 1; min-width: 100px; background: #eff6ff; border-radius: 6px; padding: 10px; text-align: center;">
+        <p style="font-size: 9px; color: #6b7280; margin: 0;">التقديري</p>
+        <p style="font-size: 14px; font-weight: 700; color: #2563eb; margin: 3px 0 0 0;">${savings.summary.total_estimated?.toLocaleString('ar-SA') || 0} ر.س</p>
+      </div>
+      <div style="flex: 1; min-width: 100px; background: #fff7ed; border-radius: 6px; padding: 10px; text-align: center;">
+        <p style="font-size: 9px; color: #6b7280; margin: 0;">الفعلي</p>
+        <p style="font-size: 14px; font-weight: 700; color: #ea580c; margin: 3px 0 0 0;">${savings.summary.total_actual?.toLocaleString('ar-SA') || 0} ر.س</p>
+      </div>
+      <div style="flex: 1; min-width: 100px; background: ${savings.summary.total_saving >= 0 ? '#f0fdf4' : '#fef2f2'}; border-radius: 6px; padding: 10px; text-align: center;">
+        <p style="font-size: 9px; color: #6b7280; margin: 0;">التوفير</p>
+        <p style="font-size: 14px; font-weight: 700; color: ${savings.summary.total_saving >= 0 ? '#059669' : '#dc2626'}; margin: 3px 0 0 0;">${savings.summary.total_saving?.toLocaleString('ar-SA') || 0} ر.س</p>
+      </div>
+      <div style="flex: 1; min-width: 100px; background: ${savings.summary.saving_percent >= 0 ? '#ecfdf5' : '#fef2f2'}; border-radius: 6px; padding: 10px; text-align: center;">
+        <p style="font-size: 9px; color: #6b7280; margin: 0;">نسبة التوفير</p>
+        <p style="font-size: 16px; font-weight: 700; color: ${savings.summary.saving_percent >= 0 ? '#059669' : '#dc2626'}; margin: 3px 0 0 0;">${savings.summary.saving_percent || 0}%</p>
+      </div>
+    </div>
+  `;
+  
+  // Build all reports HTML for type 'all'
+  let allReportsHTML = '';
+  if (type === 'all') {
+    // By Project Table
+    if (savings.by_project?.length > 0) {
+      allReportsHTML += `
+        <h4 style="color: #ea580c; margin: 20px 0 10px 0; font-size: 13px;">📊 التكاليف حسب المشروع</h4>
+        <table>
+          <thead>
+            <tr>
+              <th>المشروع</th>
+              <th style="text-align: center;">الأوامر</th>
+              <th style="text-align: center;">التقديري</th>
+              <th style="text-align: center;">الفعلي</th>
+              <th style="text-align: center;">التوفير</th>
+              <th style="text-align: center;">النسبة</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${savings.by_project.map((item, idx) => `
+              <tr style="background: ${idx % 2 === 0 ? '#f9fafb' : '#fff'};">
+                <td style="font-weight: 600; font-size: 10px;">${item.project}</td>
+                <td style="text-align: center; font-size: 10px;">${item.orders_count}</td>
+                <td style="text-align: center; font-size: 10px;">${item.estimated?.toLocaleString('ar-SA')} ر.س</td>
+                <td style="text-align: center; color: #2563eb; font-size: 10px;">${item.actual?.toLocaleString('ar-SA')} ر.س</td>
+                <td style="text-align: center; font-weight: 600; color: ${item.saving >= 0 ? '#059669' : '#dc2626'}; font-size: 10px;">${item.saving?.toLocaleString('ar-SA')} ر.س</td>
+                <td style="text-align: center;">
+                  <span style="padding: 1px 4px; border-radius: 3px; font-size: 8px; background: ${item.saving_percent >= 0 ? '#dcfce7' : '#fee2e2'}; color: ${item.saving_percent >= 0 ? '#059669' : '#dc2626'};">${item.saving_percent}%</span>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+    
+    // By Category Table
+    if (savings.by_category?.length > 0) {
+      allReportsHTML += `
+        <h4 style="color: #0d9488; margin: 20px 0 10px 0; font-size: 13px;">📁 التكاليف حسب التصنيف</h4>
+        <table>
+          <thead>
+            <tr>
+              <th>التصنيف</th>
+              <th style="text-align: center;">الأوامر</th>
+              <th style="text-align: center;">التقديري</th>
+              <th style="text-align: center;">الفعلي</th>
+              <th style="text-align: center;">التوفير</th>
+              <th style="text-align: center;">النسبة</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${savings.by_category.map((item, idx) => `
+              <tr style="background: ${idx % 2 === 0 ? '#f9fafb' : '#fff'};">
+                <td style="font-weight: 600; font-size: 10px;">${item.category}</td>
+                <td style="text-align: center; font-size: 10px;">${item.orders_count}</td>
+                <td style="text-align: center; font-size: 10px;">${item.estimated?.toLocaleString('ar-SA')} ر.س</td>
+                <td style="text-align: center; color: #2563eb; font-size: 10px;">${item.actual?.toLocaleString('ar-SA')} ر.س</td>
+                <td style="text-align: center; font-weight: 600; color: ${item.saving >= 0 ? '#059669' : '#dc2626'}; font-size: 10px;">${item.saving?.toLocaleString('ar-SA')} ر.س</td>
+                <td style="text-align: center;">
+                  <span style="padding: 1px 4px; border-radius: 3px; font-size: 8px; background: ${item.saving_percent >= 0 ? '#dcfce7' : '#fee2e2'}; color: ${item.saving_percent >= 0 ? '#059669' : '#dc2626'};">${item.saving_percent}%</span>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+  }
+  
+  const html = `
+    <div class="header">
+      <div class="title">${title}</div>
+      ${exportedBy ? `<div class="subtitle">صادر بواسطة: ${exportedBy}</div>` : ''}
+    </div>
+    
+    ${summaryCards}
+    
+    ${type === 'all' ? allReportsHTML : (dataRows ? `
+      <table>
+        <thead>${tableHeaders}</thead>
+        <tbody>${dataRows}</tbody>
+      </table>
+    ` : '<p style="text-align: center; color: #9ca3af; padding: 20px;">لا توجد بيانات</p>')}
+    
+    <div class="footer">
+      <p>نظام إدارة طلبات المواد - تاريخ التصدير: ${formatDateShort(new Date().toISOString())}</p>
+      ${exportedBy ? `<p style="margin-top: 3px;">صادر بواسطة: ${exportedBy}</p>` : ''}
+    </div>
+  `;
+
+  printHTML(html, title);
+};
