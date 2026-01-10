@@ -5415,6 +5415,7 @@ async def startup_db_client():
     """Initialize database indexes and system settings on startup"""
     await create_indexes()
     await init_system_settings()
+    await migrate_order_numbers()  # ترحيل أرقام الأوامر القديمة
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
