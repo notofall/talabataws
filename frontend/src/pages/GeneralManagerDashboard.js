@@ -382,7 +382,7 @@ export default function GeneralManagerDashboard() {
                   <div key={order.id} className="p-3 hover:bg-slate-50">
                     <div className="flex justify-between items-start mb-2">
                       <div>
-                        <p className="font-medium text-slate-800">{order.request_number || order.id.slice(0, 8)}</p>
+                        <p className="font-medium text-slate-800">{order.order_number || order.request_number || order.id.slice(0, 8)}</p>
                         <p className="text-xs text-slate-500">{order.project_name}</p>
                       </div>
                       <div className="text-left">
