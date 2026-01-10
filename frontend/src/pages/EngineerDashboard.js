@@ -251,6 +251,17 @@ const EngineerDashboard = () => {
                 مرفوضة
                 <Badge className="mr-1 bg-red-500 text-white text-xs">{filterCounts.rejected}</Badge>
               </Button>
+              {filterCounts.rejected_by_manager > 0 && (
+                <Button 
+                  size="sm" 
+                  variant={filterMode === "rejected_by_manager" ? "default" : "outline"}
+                  onClick={() => setFilterMode("rejected_by_manager")}
+                  className={`h-8 text-xs ${filterMode === "rejected_by_manager" ? "bg-orange-600 hover:bg-orange-700" : "text-orange-700 border-orange-300 hover:bg-orange-50"}`}
+                >
+                  تحتاج تعديل
+                  <Badge className="mr-1 bg-orange-500 text-white text-xs">{filterCounts.rejected_by_manager}</Badge>
+                </Button>
+              )}
               <Button 
                 size="sm" 
                 variant={filterMode === "ordered" ? "default" : "outline"}
