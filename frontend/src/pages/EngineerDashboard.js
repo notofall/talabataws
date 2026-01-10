@@ -113,11 +113,28 @@ const EngineerDashboard = () => {
     }
   };
 
+  // إعادة إرسال الطلب المرفوض من مدير المشتريات
+  const handleResubmit = async (requestId) => {
+    if (!window.confirm("هل تريد إعادة إرسال هذا الطلب؟")) return;
+    
+    setActionLoading(true);
+    try {
+      await axios.post(`${API_URL}/requests/${requestId}/resubmit`, {}, getAuthHeaders());
+      toast.success("تم إعادة إرسال الطلب بنجاح");
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "فشل في إعادة إرسال الطلب");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const getStatusBadge = (status) => {
     const map = {
       pending_engineer: { label: "معلق", color: "bg-yellow-100 text-yellow-800 border-yellow-300" },
       approved_by_engineer: { label: "معتمد", color: "bg-green-100 text-green-800 border-green-300" },
       rejected_by_engineer: { label: "مرفوض", color: "bg-red-100 text-red-800 border-red-300" },
+      rejected_by_manager: { label: "مرفوض من المشتريات", color: "bg-orange-100 text-orange-800 border-orange-300" },
       purchase_order_issued: { label: "تم الإصدار", color: "bg-blue-100 text-blue-800 border-blue-300" },
     };
     const info = map[status] || { label: status, color: "bg-slate-100 text-slate-800" };
