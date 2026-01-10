@@ -191,6 +191,18 @@ backend:
         agent: "testing"
         comment: "Backup system statistics endpoint working correctly. Returns system stats as expected."
 
+  - task: "DELETE APIs - Purchase Orders and Requests Deletion"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ DELETE APIs TESTING COMPLETED - All deletion endpoints working correctly. DELETE /api/purchase-orders/{order_id}: PROCUREMENT_MANAGER can delete successfully (200), other roles correctly rejected (403). DELETE /api/requests/{request_id}: PROCUREMENT_MANAGER can delete successfully (200) with cascade deletion of related purchase orders, other roles correctly rejected (403). DELETE /api/admin/clean-all-data: Correctly returns 404 for non-existent email, properly rejects unauthorized access (403), PROCUREMENT_MANAGER can execute successfully (200) with proper deletion counts. All role-based access control working as expected. Cascade deletion functionality verified - deleting requests properly removes related purchase orders and delivery records."
+
 frontend:
   - task: "Frontend Testing - Comprehensive UI and Integration Testing"
     implemented: true
