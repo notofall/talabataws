@@ -639,6 +639,38 @@ async def get_approval_limit() -> float:
     except ValueError:
         return 20000.0
 
+async def migrate_order_numbers():
+    """إضافة أرقام تسلسلية للأوامر القديمة التي لا تملك رقم"""
+    # البحث عن الأوامر التي ليس لها رقم تسلسلي
+    orders_without_number = await db.purchase_orders.find(
+        {"order_number": {"$exists": False}},
+        {"_id": 0, "id": 1, "created_at": 1}
+    ).sort("created_at", 1).to_list(10000)
+    
+    if not orders_without_number:
+        return
+    
+    logging.info(f"Found {len(orders_without_number)} orders without order_number, migrating...")
+    
+    # البدء من آخر رقم تسلسلي موجود
+    last_order = await db.purchase_orders.find_one(
+        {"order_seq": {"$exists": True}},
+        {"order_seq": 1},
+        sort=[("order_seq", -1)]
+    )
+    
+    next_seq = (last_order.get("order_seq", 0) if last_order else 0) + 1
+    
+    for order in orders_without_number:
+        order_number = f"PO-{next_seq:03d}"
+        await db.purchase_orders.update_one(
+            {"id": order["id"]},
+            {"$set": {"order_number": order_number, "order_seq": next_seq}}
+        )
+        next_seq += 1
+    
+    logging.info(f"Migrated {len(orders_without_number)} orders with sequential numbers")
+
 # Audit Trail Helper Function
 async def log_audit(
     entity_type: str,
