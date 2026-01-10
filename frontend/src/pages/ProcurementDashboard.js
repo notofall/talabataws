@@ -962,17 +962,42 @@ const ProcurementDashboard = () => {
     }
   };
 
-  // Delete Material Request
-  const handleDeleteRequest = async (requestId) => {
-    if (!window.confirm("هل أنت متأكد من حذف هذا الطلب؟ سيتم حذف جميع أوامر الشراء المرتبطة به أيضاً.")) return;
+  // Reject Request States - حالات رفض الطلب
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [rejectingRequest, setRejectingRequest] = useState(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejectLoading, setRejectLoading] = useState(false);
+
+  // Reject Request by Manager - رفض الطلب من مدير المشتريات
+  const handleRejectRequest = async () => {
+    if (!rejectReason.trim()) {
+      toast.error("يرجى إدخال سبب الرفض");
+      return;
+    }
     
+    setRejectLoading(true);
     try {
-      const res = await axios.delete(`${API_URL}/requests/${requestId}`, getAuthHeaders());
-      toast.success(res.data.message || "تم حذف الطلب بنجاح");
+      await axios.post(`${API_URL}/requests/${rejectingRequest.id}/reject-by-manager`, 
+        { reason: rejectReason }, 
+        getAuthHeaders()
+      );
+      toast.success("تم رفض الطلب وإعادته للمهندس");
+      setRejectDialogOpen(false);
+      setRejectingRequest(null);
+      setRejectReason("");
       fetchData();
     } catch (error) {
-      toast.error(error.response?.data?.detail || "فشل في حذف الطلب");
+      toast.error(error.response?.data?.detail || "فشل في رفض الطلب");
+    } finally {
+      setRejectLoading(false);
     }
+  };
+
+  // Open reject dialog
+  const openRejectDialog = (request) => {
+    setRejectingRequest(request);
+    setRejectReason("");
+    setRejectDialogOpen(true);
   };
 
   // Clean All Data
