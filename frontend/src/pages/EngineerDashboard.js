@@ -356,7 +356,7 @@ const EngineerDashboard = () => {
                             <TableCell>{getStatusBadge(req.status)}</TableCell>
                             <TableCell className="text-sm text-slate-500">{formatDate(req.created_at)}</TableCell>
                             <TableCell>
-                              <div className="flex gap-1">
+                              <div className="flex gap-1 flex-wrap">
                                 <Button size="sm" variant="ghost" onClick={() => { setSelectedRequest(req); setViewDialogOpen(true); }} className="h-8 w-8 p-0"><Eye className="w-4 h-4" /></Button>
                                 {req.status === "pending_engineer" && (
                                   <>
@@ -364,8 +364,18 @@ const EngineerDashboard = () => {
                                     <Button size="sm" variant="destructive" onClick={() => { setSelectedRequest(req); setRejectDialogOpen(true); }} disabled={actionLoading}><X className="w-4 h-4 ml-1" />رفض</Button>
                                   </>
                                 )}
+                                {req.status === "rejected_by_manager" && (
+                                  <Button size="sm" className="bg-orange-600 hover:bg-orange-700" onClick={() => handleResubmit(req.id)} disabled={actionLoading}>
+                                    <Send className="w-4 h-4 ml-1" />إعادة إرسال
+                                  </Button>
+                                )}
                                 <Button size="sm" variant="ghost" onClick={() => exportRequestToPDF(req)} className="h-8 w-8 p-0"><Download className="w-4 h-4 text-green-600" /></Button>
                               </div>
+                              {req.status === "rejected_by_manager" && req.manager_rejection_reason && (
+                                <div className="mt-1 text-xs text-orange-600 max-w-xs truncate" title={req.manager_rejection_reason}>
+                                  سبب الرفض: {req.manager_rejection_reason}
+                                </div>
+                              )}
                             </TableCell>
                           </TableRow>
                         ))}
