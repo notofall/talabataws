@@ -2862,6 +2862,122 @@ const ProcurementDashboard = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Export Dialog - نافذة التصدير */}
+      <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+        <DialogContent className="w-[95vw] max-w-md p-4" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-green-600">
+              <Download className="w-5 h-5" />
+              تصدير التقارير PDF
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4 mt-4">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+              <p className="text-sm text-green-700 font-medium mb-1">📄 تصدير التقارير حسب التاريخ</p>
+              <p className="text-xs text-green-600">اختر نوع التقرير والفترة الزمنية ثم اضغط تصدير</p>
+            </div>
+            
+            <div>
+              <Label className="text-sm">نوع التقرير:</Label>
+              <div className="flex gap-2 mt-2">
+                <Button 
+                  variant={exportType === "orders" ? "default" : "outline"} 
+                  size="sm"
+                  onClick={() => setExportType("orders")}
+                  className={exportType === "orders" ? "bg-green-600" : ""}
+                >
+                  <ShoppingCart className="w-4 h-4 ml-1" />
+                  أوامر الشراء
+                </Button>
+                <Button 
+                  variant={exportType === "requests" ? "default" : "outline"} 
+                  size="sm"
+                  onClick={() => setExportType("requests")}
+                  className={exportType === "requests" ? "bg-green-600" : ""}
+                >
+                  <FileText className="w-4 h-4 ml-1" />
+                  الطلبات
+                </Button>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-sm">من تاريخ:</Label>
+                <Input 
+                  type="date"
+                  value={exportStartDate}
+                  onChange={(e) => setExportStartDate(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-sm">إلى تاريخ:</Label>
+                <Input 
+                  type="date"
+                  value={exportEndDate}
+                  onChange={(e) => setExportEndDate(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+            </div>
+            
+            <div className="text-center text-xs text-slate-500">
+              سيتم تضمين اسمك ({user?.name}) في التقرير المُصدَّر
+            </div>
+            
+            <div className="flex gap-2 pt-2">
+              <Button 
+                onClick={() => setExportDialogOpen(false)} 
+                variant="outline" 
+                className="flex-1"
+              >
+                إلغاء
+              </Button>
+              <Button 
+                onClick={handleExportByDate} 
+                disabled={!exportStartDate || !exportEndDate}
+                className="flex-1 bg-green-600 hover:bg-green-700"
+              >
+                <Download className="w-4 h-4 ml-2" />
+                تصدير PDF
+              </Button>
+            </div>
+            
+            <div className="border-t pt-3 mt-3">
+              <p className="text-xs text-slate-500 mb-2">أو تصدير سريع:</p>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => {
+                    exportPurchaseOrdersTableToPDF(allOrders, user?.name);
+                    toast.success("تم تصدير جميع أوامر الشراء");
+                    setExportDialogOpen(false);
+                  }}
+                  className="flex-1 text-xs"
+                >
+                  كل الأوامر ({allOrders.length})
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => {
+                    exportRequestsTableToPDF(requests, 'جميع الطلبات', user?.name);
+                    toast.success("تم تصدير جميع الطلبات");
+                    setExportDialogOpen(false);
+                  }}
+                  className="flex-1 text-xs"
+                >
+                  كل الطلبات ({requests.length})
+                </Button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Price Catalog & Aliases Dialog */}
       <Dialog open={catalogDialogOpen} onOpenChange={setCatalogDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
