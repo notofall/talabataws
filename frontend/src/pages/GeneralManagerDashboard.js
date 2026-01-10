@@ -33,7 +33,8 @@ export default function GeneralManagerDashboard() {
     approval_limit: 20000
   });
   const [pendingOrders, setPendingOrders] = useState([]);
-  const [approvedOrders, setApprovedOrders] = useState([]);
+  const [gmApprovedOrders, setGmApprovedOrders] = useState([]); // الأوامر المعتمدة من المدير العام
+  const [procurementApprovedOrders, setProcurementApprovedOrders] = useState([]); // الأوامر المعتمدة من المشتريات
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
@@ -42,11 +43,13 @@ export default function GeneralManagerDashboard() {
   const [rejectionReason, setRejectionReason] = useState('');
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [orderToReject, setOrderToReject] = useState(null);
-  const [activeTab, setActiveTab] = useState('pending'); // 'pending' or 'approved'
+  const [activeTab, setActiveTab] = useState('pending'); // 'pending', 'gm_approved', 'procurement_approved'
   const [pendingPage, setPendingPage] = useState(1);
-  const [approvedPage, setApprovedPage] = useState(1);
+  const [gmApprovedPage, setGmApprovedPage] = useState(1);
+  const [procurementApprovedPage, setProcurementApprovedPage] = useState(1);
   const [pendingTotalPages, setPendingTotalPages] = useState(1);
-  const [approvedTotalPages, setApprovedTotalPages] = useState(1);
+  const [gmApprovedTotalPages, setGmApprovedTotalPages] = useState(1);
+  const [procurementApprovedTotalPages, setProcurementApprovedTotalPages] = useState(1);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
@@ -54,24 +57,27 @@ export default function GeneralManagerDashboard() {
     try {
       const headers = { Authorization: `Bearer ${token}` };
       
-      const [statsRes, pendingRes, approvedRes] = await Promise.all([
+      const [statsRes, pendingRes, gmApprovedRes, procurementApprovedRes] = await Promise.all([
         axios.get(`${API_URL}/api/gm/stats`, { headers }),
         axios.get(`${API_URL}/api/gm/all-orders?status=pending&page=${pendingPage}&page_size=10`, { headers }),
-        axios.get(`${API_URL}/api/gm/all-orders?status=approved&page=${approvedPage}&page_size=10`, { headers })
+        axios.get(`${API_URL}/api/gm/all-orders?status=gm_approved&page=${gmApprovedPage}&page_size=10`, { headers }),
+        axios.get(`${API_URL}/api/gm/all-orders?status=procurement_approved&page=${procurementApprovedPage}&page_size=10`, { headers })
       ]);
       
       setStats(statsRes.data);
       setPendingOrders(pendingRes.data.items || []);
       setPendingTotalPages(pendingRes.data.total_pages || 1);
-      setApprovedOrders(approvedRes.data.items || []);
-      setApprovedTotalPages(approvedRes.data.total_pages || 1);
+      setGmApprovedOrders(gmApprovedRes.data.items || []);
+      setGmApprovedTotalPages(gmApprovedRes.data.total_pages || 1);
+      setProcurementApprovedOrders(procurementApprovedRes.data.items || []);
+      setProcurementApprovedTotalPages(procurementApprovedRes.data.total_pages || 1);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('حدث خطأ في تحميل البيانات');
     } finally {
       setLoading(false);
     }
-  }, [token, pendingPage, approvedPage]);
+  }, [token, pendingPage, gmApprovedPage, procurementApprovedPage]);
 
   useEffect(() => {
     fetchData();
