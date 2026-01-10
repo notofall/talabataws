@@ -476,7 +476,16 @@ export default function GeneralManagerDashboard() {
                           <span className="text-sm font-bold text-purple-600">{formatCurrency(order.total_amount)}</span>
                         </td>
                         <td className="px-4 py-3">{getStatusBadge(order.status)}</td>
-                        <td className="px-4 py-3 text-sm text-slate-500">{formatDate(order.created_at)}</td>
+                        <td className="px-4 py-3 text-sm text-slate-500">
+                          {formatDate(order.created_at)}
+                          {/* عرض من اعتمد الأمر */}
+                          {activeTab === 'gm_approved' && order.gm_approved_by_name && (
+                            <div className="text-xs text-purple-600 mt-1">✓ {order.gm_approved_by_name}</div>
+                          )}
+                          {activeTab === 'procurement_approved' && order.manager_name && (
+                            <div className="text-xs text-green-600 mt-1">✓ {order.manager_name}</div>
+                          )}
+                        </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             <Button
@@ -487,7 +496,7 @@ export default function GeneralManagerDashboard() {
                             >
                               <Eye className="w-4 h-4" />
                             </Button>
-                            {activeTab === 'approved' && (
+                            {(activeTab === 'gm_approved' || activeTab === 'procurement_approved') && (
                               <Button
                                 variant="outline"
                                 size="sm"
