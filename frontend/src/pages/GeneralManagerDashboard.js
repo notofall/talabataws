@@ -166,10 +166,20 @@ export default function GeneralManagerDashboard() {
     );
   };
 
-  const currentOrders = activeTab === 'pending' ? pendingOrders : approvedOrders;
-  const currentPage = activeTab === 'pending' ? pendingPage : approvedPage;
-  const totalPages = activeTab === 'pending' ? pendingTotalPages : approvedTotalPages;
-  const setCurrentPage = activeTab === 'pending' ? setPendingPage : setApprovedPage;
+  // تحديد الأوامر والصفحات حسب التبويب النشط
+  const getCurrentOrders = () => {
+    switch (activeTab) {
+      case 'pending': return pendingOrders;
+      case 'gm_approved': return gmApprovedOrders;
+      case 'procurement_approved': return procurementApprovedOrders;
+      default: return pendingOrders;
+    }
+  };
+  
+  const currentOrders = getCurrentOrders();
+  const currentPage = activeTab === 'pending' ? pendingPage : (activeTab === 'gm_approved' ? gmApprovedPage : procurementApprovedPage);
+  const totalPages = activeTab === 'pending' ? pendingTotalPages : (activeTab === 'gm_approved' ? gmApprovedTotalPages : procurementApprovedTotalPages);
+  const setCurrentPage = activeTab === 'pending' ? setPendingPage : (activeTab === 'gm_approved' ? setGmApprovedPage : setProcurementApprovedPage);
 
   return (
     <div className="min-h-screen bg-slate-50" dir="rtl">
