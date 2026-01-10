@@ -2518,6 +2518,17 @@ async def update_purchase_order(
         
         update_fields["items"] = items
         update_fields["total_amount"] = total_amount
+        
+        # التحقق من حد الموافقة بعد تعديل الأسعار
+        approval_limit = await get_approval_limit()
+        if total_amount > approval_limit:
+            # إذا تجاوز الحد، يجب تغيير الحالة لتحتاج موافقة المدير العام
+            update_fields["needs_gm_approval"] = True
+            # إذا كان الأمر معتمد أو بانتظار الاعتماد، يُعاد للمدير العام
+            if order.get("status") in [PurchaseOrderStatus.PENDING_APPROVAL, PurchaseOrderStatus.APPROVED]:
+                update_fields["status"] = PurchaseOrderStatus.PENDING_GM_APPROVAL
+        else:
+            update_fields["needs_gm_approval"] = False
     
     if not update_fields:
         raise HTTPException(status_code=400, detail="لا توجد بيانات للتحديث")
