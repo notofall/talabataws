@@ -3524,10 +3524,20 @@ const ProcurementDashboard = () => {
                 <>
                   {/* Cost Savings Summary */}
                   <div className="border rounded-lg p-4 bg-gradient-to-l from-green-50 to-emerald-50">
-                    <h4 className="font-bold text-lg text-green-800 mb-3 flex items-center gap-2">
-                      <TrendingUp className="w-5 h-5" />
-                      تقرير توفير التكاليف
-                    </h4>
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-bold text-lg text-green-800 flex items-center gap-2">
+                        <TrendingUp className="w-5 h-5" />
+                        تقرير توفير التكاليف
+                      </h4>
+                      <Button 
+                        size="sm" 
+                        onClick={() => exportCostReportToPDF(reportsData, 'all')}
+                        className="bg-green-600 hover:bg-green-700 text-xs h-7"
+                      >
+                        <Download className="w-3 h-3 ml-1" />
+                        تصدير PDF
+                      </Button>
+                    </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                       <div className="bg-white rounded-lg p-3 text-center shadow-sm">
                         <p className="text-xs text-slate-500">التقديري</p>
@@ -3555,6 +3565,110 @@ const ProcurementDashboard = () => {
                       </div>
                     </div>
                   </div>
+
+                  {/* Cost by Project - تقرير التكاليف حسب المشروع */}
+                  {reportsData.savings.by_project?.length > 0 && (
+                    <div className="border rounded-lg p-4 bg-gradient-to-l from-orange-50 to-amber-50">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-bold text-lg text-orange-800 flex items-center gap-2">
+                          <FileText className="w-5 h-5" />
+                          التكاليف حسب المشروع
+                        </h4>
+                        <Button 
+                          size="sm" 
+                          onClick={() => exportCostReportToPDF(reportsData, 'project')}
+                          className="bg-orange-600 hover:bg-orange-700 text-xs h-7"
+                        >
+                          <Download className="w-3 h-3 ml-1" />
+                          تصدير PDF
+                        </Button>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b bg-white/50">
+                              <th className="text-right p-2">المشروع</th>
+                              <th className="text-right p-2">الأوامر</th>
+                              <th className="text-right p-2">التقديري</th>
+                              <th className="text-right p-2">الفعلي</th>
+                              <th className="text-right p-2">التوفير</th>
+                              <th className="text-right p-2">النسبة</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {reportsData.savings.by_project.map((item, idx) => (
+                              <tr key={idx} className="border-b last:border-0 hover:bg-white/50">
+                                <td className="p-2 font-medium">{item.project}</td>
+                                <td className="p-2">{item.orders_count}</td>
+                                <td className="p-2 text-slate-600">{item.estimated?.toLocaleString()} ر.س</td>
+                                <td className="p-2 text-blue-600">{item.actual?.toLocaleString()} ر.س</td>
+                                <td className={`p-2 font-bold ${item.saving >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                  {item.saving?.toLocaleString()} ر.س
+                                </td>
+                                <td className="p-2">
+                                  <Badge variant={item.saving_percent >= 0 ? "default" : "destructive"} className="text-xs">
+                                    {item.saving_percent}%
+                                  </Badge>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Cost by Category - تقرير التكاليف حسب التصنيف */}
+                  {reportsData.savings.by_category?.length > 0 && (
+                    <div className="border rounded-lg p-4 bg-gradient-to-l from-cyan-50 to-teal-50">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-bold text-lg text-teal-800 flex items-center gap-2">
+                          <DollarSign className="w-5 h-5" />
+                          التكاليف حسب التصنيف
+                        </h4>
+                        <Button 
+                          size="sm" 
+                          onClick={() => exportCostReportToPDF(reportsData, 'category')}
+                          className="bg-teal-600 hover:bg-teal-700 text-xs h-7"
+                        >
+                          <Download className="w-3 h-3 ml-1" />
+                          تصدير PDF
+                        </Button>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b bg-white/50">
+                              <th className="text-right p-2">التصنيف</th>
+                              <th className="text-right p-2">الأوامر</th>
+                              <th className="text-right p-2">التقديري</th>
+                              <th className="text-right p-2">الفعلي</th>
+                              <th className="text-right p-2">التوفير</th>
+                              <th className="text-right p-2">النسبة</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {reportsData.savings.by_category.map((item, idx) => (
+                              <tr key={idx} className="border-b last:border-0 hover:bg-white/50">
+                                <td className="p-2 font-medium">{item.category}</td>
+                                <td className="p-2">{item.orders_count}</td>
+                                <td className="p-2 text-slate-600">{item.estimated?.toLocaleString()} ر.س</td>
+                                <td className="p-2 text-blue-600">{item.actual?.toLocaleString()} ر.س</td>
+                                <td className={`p-2 font-bold ${item.saving >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                  {item.saving?.toLocaleString()} ر.س
+                                </td>
+                                <td className="p-2">
+                                  <Badge variant={item.saving_percent >= 0 ? "default" : "destructive"} className="text-xs">
+                                    {item.saving_percent}%
+                                  </Badge>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Catalog Usage */}
                   <div className="border rounded-lg p-4 bg-gradient-to-l from-blue-50 to-indigo-50">
