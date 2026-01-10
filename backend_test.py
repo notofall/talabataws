@@ -709,6 +709,19 @@ class MaterialRequestAPITester:
             self.log_test(test_name, False, f"Exception: {str(e)}")
             return False, {}
 
+    def test_create_user(self, token, user_data, expected_status=200, test_name="Create User"):
+        """Test creating a user"""
+        headers = {'Authorization': f'Bearer {token}'}
+        success, response = self.run_test(
+            test_name,
+            "POST",
+            "admin/users",
+            expected_status,
+            data=user_data,
+            headers=headers
+        )
+        return success, response if success else {}
+
     def run_delete_apis_test(self):
         """Test DELETE APIs for purchase orders, requests, and clean-all-data"""
         print("\n🗑️ Starting DELETE APIs Test...")
@@ -718,19 +731,40 @@ class MaterialRequestAPITester:
             print("❌ Health check failed, stopping tests")
             return False
 
-        # 2. Login users - using the provided credentials
+        # 2. Login main user (PROCUREMENT_MANAGER)
         print("\n📝 Testing Authentication...")
         self.manager_token = self.test_login("notofall@gmail.com", "123456", "Procurement Manager")
         
-        # Create a supervisor for testing unauthorized access
-        self.supervisor_token = self.test_login("supervisor1@test.com", "123456", "Supervisor")
-        self.engineer_token = self.test_login("engineer1@test.com", "123456", "Engineer")
-
         if not self.manager_token:
             print("❌ Authentication failed for procurement manager")
             return False
 
-        # 3. Create test data first (request and purchase order)
+        # 3. Create test users for other roles
+        print("\n👥 Creating Test Users...")
+        
+        # Create supervisor
+        supervisor_data = {
+            "name": "مشرف اختبار",
+            "email": "supervisor_test@test.com",
+            "password": "123456",
+            "role": "supervisor"
+        }
+        success, _ = self.test_create_user(self.manager_token, supervisor_data, 200, "Create Test Supervisor")
+        if success:
+            self.supervisor_token = self.test_login("supervisor_test@test.com", "123456", "Test Supervisor")
+        
+        # Create engineer
+        engineer_data = {
+            "name": "مهندس اختبار",
+            "email": "engineer_test@test.com", 
+            "password": "123456",
+            "role": "engineer"
+        }
+        success, _ = self.test_create_user(self.manager_token, engineer_data, 200, "Create Test Engineer")
+        if success:
+            self.engineer_token = self.test_login("engineer_test@test.com", "123456", "Test Engineer")
+
+        # 4. Create test data (request and purchase order)
         print("\n📋 Creating Test Data...")
         
         # Get engineers list
@@ -765,7 +799,7 @@ class MaterialRequestAPITester:
             print("❌ Failed to create purchase order for testing")
             return False
 
-        # 4. Test DELETE /api/purchase-orders/{order_id} - Authorized (PROCUREMENT_MANAGER)
+        # 5. Test DELETE /api/purchase-orders/{order_id} - Authorized (PROCUREMENT_MANAGER)
         print("\n🗑️ Testing DELETE Purchase Order - Authorized (PROCUREMENT_MANAGER)...")
         success, response = self.test_delete_purchase_order(
             self.manager_token, 
@@ -777,7 +811,7 @@ class MaterialRequestAPITester:
             print("❌ Failed to delete purchase order as PROCUREMENT_MANAGER")
             return False
 
-        # 5. Test DELETE /api/purchase-orders/{order_id} - Unauthorized (other role)
+        # 6. Test DELETE /api/purchase-orders/{order_id} - Unauthorized (other role)
         print("\n🚫 Testing DELETE Purchase Order - Unauthorized (Supervisor)...")
         
         # Create another purchase order for unauthorized test
@@ -808,7 +842,7 @@ class MaterialRequestAPITester:
                 else:
                     print("⚠️ No supervisor token available for unauthorized test")
 
-        # 6. Test DELETE /api/requests/{request_id} - Authorized (PROCUREMENT_MANAGER)
+        # 7. Test DELETE /api/requests/{request_id} - Authorized (PROCUREMENT_MANAGER)
         print("\n🗑️ Testing DELETE Material Request - Authorized (PROCUREMENT_MANAGER)...")
         
         # Create a new request for deletion test
@@ -840,7 +874,7 @@ class MaterialRequestAPITester:
             else:
                 print("❌ Failed to delete material request as PROCUREMENT_MANAGER")
 
-        # 7. Test DELETE /api/requests/{request_id} - Unauthorized (other role)
+        # 8. Test DELETE /api/requests/{request_id} - Unauthorized (other role)
         print("\n🚫 Testing DELETE Material Request - Unauthorized (Supervisor)...")
         
         # Create another request for unauthorized test
@@ -857,7 +891,7 @@ class MaterialRequestAPITester:
             else:
                 print("❌ Should have rejected unauthorized material request deletion")
 
-        # 8. Test DELETE /api/admin/clean-all-data - Non-existent email (should 404)
+        # 9. Test DELETE /api/admin/clean-all-data - Non-existent email (should 404)
         print("\n🚫 Testing Clean All Data - Non-existent Email...")
         success, response = self.test_clean_all_data(
             self.manager_token, 
@@ -870,7 +904,7 @@ class MaterialRequestAPITester:
         else:
             print("❌ Should have returned 404 for non-existent email")
 
-        # 9. Test DELETE /api/admin/clean-all-data - Unauthorized (other role)
+        # 10. Test DELETE /api/admin/clean-all-data - Unauthorized (other role)
         print("\n🚫 Testing Clean All Data - Unauthorized (Supervisor)...")
         if self.supervisor_token:
             success, response = self.test_clean_all_data(
@@ -884,7 +918,7 @@ class MaterialRequestAPITester:
             else:
                 print("❌ Should have rejected unauthorized clean-all-data request")
 
-        # 10. Test DELETE /api/admin/clean-all-data - Valid (PROCUREMENT_MANAGER with existing email)
+        # 11. Test DELETE /api/admin/clean-all-data - Valid (PROCUREMENT_MANAGER with existing email)
         print("\n🗑️ Testing Clean All Data - Valid (PROCUREMENT_MANAGER)...")
         success, response = self.test_clean_all_data(
             self.manager_token, 
