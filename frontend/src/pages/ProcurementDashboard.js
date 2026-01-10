@@ -2986,6 +2986,71 @@ const ProcurementDashboard = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Reject Request Dialog - نافذة رفض الطلب */}
+      <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+        <DialogContent className="w-[95vw] max-w-md p-4" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <X className="w-5 h-5" />
+              رفض الطلب وإعادته للمهندس
+            </DialogTitle>
+          </DialogHeader>
+          
+          {rejectingRequest && (
+            <div className="space-y-4 mt-4">
+              <div className="bg-slate-50 border rounded-lg p-3">
+                <p className="text-sm font-medium text-slate-700 mb-2">تفاصيل الطلب:</p>
+                <div className="text-xs text-slate-600 space-y-1">
+                  <p><strong>رقم الطلب:</strong> {rejectingRequest.request_number || rejectingRequest.id?.slice(0, 8).toUpperCase()}</p>
+                  <p><strong>المشروع:</strong> {rejectingRequest.project_name}</p>
+                  <p><strong>المشرف:</strong> {rejectingRequest.supervisor_name}</p>
+                  <p><strong>المهندس:</strong> {rejectingRequest.engineer_name}</p>
+                </div>
+              </div>
+              
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <p className="text-xs text-amber-700">
+                  ⚠️ عند رفض الطلب سيتم إعادته للمهندس للتعديل وإعادة الإرسال
+                </p>
+              </div>
+              
+              <div>
+                <Label className="text-sm">سبب الرفض <span className="text-red-500">*</span></Label>
+                <Textarea 
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  placeholder="مثال: المواصفات غير مكتملة، يرجى تحديد الكمية بدقة..."
+                  className="mt-1 min-h-[100px]"
+                />
+              </div>
+              
+              <div className="flex gap-2 pt-2">
+                <Button 
+                  onClick={() => {
+                    setRejectDialogOpen(false);
+                    setRejectingRequest(null);
+                    setRejectReason("");
+                  }} 
+                  variant="outline" 
+                  className="flex-1"
+                >
+                  إلغاء
+                </Button>
+                <Button 
+                  onClick={handleRejectRequest} 
+                  disabled={rejectLoading || !rejectReason.trim()}
+                  variant="destructive"
+                  className="flex-1"
+                >
+                  {rejectLoading ? <Loader2 className="w-4 h-4 animate-spin ml-2" /> : <X className="w-4 h-4 ml-2" />}
+                  رفض الطلب
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Clean Data Dialog - نافذة تنظيف البيانات */}
       <Dialog open={cleanDataDialogOpen} onOpenChange={setCleanDataDialogOpen}>
         <DialogContent className="w-[95vw] max-w-md p-4" dir="rtl">
