@@ -2384,8 +2384,13 @@ async def create_purchase_order(
     needs_gm_approval = total_amount > approval_limit
     initial_status = PurchaseOrderStatus.PENDING_GM_APPROVAL if needs_gm_approval else PurchaseOrderStatus.PENDING_APPROVAL
     
+    # توليد رقم أمر الشراء التسلسلي
+    order_number, order_seq = await get_next_order_number()
+    
     order_doc = {
         "id": order_id,
+        "order_number": order_number,  # رقم أمر الشراء التسلسلي (PO-001, PO-002...)
+        "order_seq": order_seq,  # الرقم التسلسلي للترتيب
         "request_id": order_data.request_id,
         "request_number": request.get("request_number"),  # رقم الطلب المتسلسل
         "items": selected_items,
