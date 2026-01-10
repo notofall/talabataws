@@ -760,7 +760,7 @@ async def get_next_request_number(supervisor_id: str) -> tuple:
     return prefix + str(next_seq), next_seq
 
 async def get_next_order_number() -> str:
-    """Get the next sequential order number for purchase orders (e.g., PO-0001, PO-0002...)"""
+    """Get the next sequential order number for purchase orders (e.g., PO-00000001, PO-00000002...)"""
     # Find the highest order sequence
     last_order = await db.purchase_orders.find_one(
         {"order_seq": {"$exists": True}},
@@ -777,12 +777,8 @@ async def get_next_order_number() -> str:
         total_orders = await db.purchase_orders.count_documents({})
         next_seq = total_orders + 1
     
-    # Format: PO-0001, PO-0002, ... (4 أرقام - يدعم حتى 9999)
-    # إذا تجاوز 9999، سيصبح 5 أرقام تلقائياً
-    if next_seq <= 9999:
-        return f"PO-{next_seq:04d}", next_seq
-    else:
-        return f"PO-{next_seq}", next_seq
+    # Format: PO-00000001 (8 أرقام - يدعم حتى 99,999,999)
+    return f"PO-{next_seq:08d}", next_seq
 
 async def send_email_notification(to_email: str, subject: str, content: str):
     """Send email notification using SendGrid"""
