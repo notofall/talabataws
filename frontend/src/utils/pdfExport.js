@@ -463,7 +463,7 @@ export const exportPurchaseOrderToPDF = (order) => {
   printHTML(html, `أمر شراء - ${order.id?.slice(0, 8) || ''}`);
 };
 
-export const exportRequestsTableToPDF = (requests, title = 'قائمة الطلبات') => {
+export const exportRequestsTableToPDF = (requests, title = 'قائمة الطلبات', exportedBy = null, dateRange = null) => {
   const rows = requests.map((r, idx) => {
     const items = Array.isArray(r.items) ? r.items : [];
     const itemsSummary = items.length > 0 
@@ -471,6 +471,7 @@ export const exportRequestsTableToPDF = (requests, title = 'قائمة الطل�
       : '-';
     return `
       <tr style="background: ${idx % 2 === 0 ? '#f8fafc' : '#fff'};">
+        <td style="font-weight: bold; color: #ea580c;">${r.request_number || r.id?.slice(0, 8).toUpperCase() || '-'}</td>
         <td>${itemsSummary}</td>
         <td>${r.project_name || '-'}</td>
         <td>${r.supervisor_name || '-'}</td>
@@ -484,11 +485,29 @@ export const exportRequestsTableToPDF = (requests, title = 'قائمة الطل�
   const html = `
     <div class="header">
       <div class="title">${title}</div>
+      ${dateRange ? `<div class="subtitle">من ${dateRange.from} إلى ${dateRange.to}</div>` : ''}
+      ${exportedBy ? `<div class="subtitle" style="margin-top: 5px;">صادر بواسطة: ${exportedBy}</div>` : ''}
+    </div>
+    
+    <div style="display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap;">
+      <div style="flex: 1; min-width: 100px; background: #eff6ff; border-radius: 6px; padding: 10px; text-align: center;">
+        <p style="font-size: 9px; color: #6b7280; margin: 0;">إجمالي الطلبات</p>
+        <p style="font-size: 16px; font-weight: 700; color: #2563eb; margin: 3px 0 0 0;">${requests.length}</p>
+      </div>
+      <div style="flex: 1; min-width: 100px; background: #f0fdf4; border-radius: 6px; padding: 10px; text-align: center;">
+        <p style="font-size: 9px; color: #6b7280; margin: 0;">طلبات معتمدة</p>
+        <p style="font-size: 16px; font-weight: 700; color: #059669; margin: 3px 0 0 0;">${requests.filter(r => r.status === 'approved_by_engineer' || r.status === 'purchase_order_issued').length}</p>
+      </div>
+      <div style="flex: 1; min-width: 100px; background: #fef3c7; border-radius: 6px; padding: 10px; text-align: center;">
+        <p style="font-size: 9px; color: #6b7280; margin: 0;">بانتظار المهندس</p>
+        <p style="font-size: 16px; font-weight: 700; color: #d97706; margin: 3px 0 0 0;">${requests.filter(r => r.status === 'pending_engineer').length}</p>
+      </div>
     </div>
     
     <table>
       <thead>
         <tr>
+          <th>رقم الطلب</th>
           <th>الأصناف</th>
           <th>المشروع</th>
           <th>المشرف</th>
@@ -502,6 +521,7 @@ export const exportRequestsTableToPDF = (requests, title = 'قائمة الطل�
     
     <div class="footer">
       <p>نظام إدارة طلبات المواد - تاريخ التصدير: ${formatDateShort(new Date().toISOString())}</p>
+      ${exportedBy ? `<p style="margin-top: 3px;">صادر بواسطة: ${exportedBy}</p>` : ''}
     </div>
   `;
 
