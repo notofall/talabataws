@@ -528,7 +528,10 @@ export const exportRequestsTableToPDF = (requests, title = 'قائمة الطل�
   printHTML(html, title);
 };
 
-export const exportPurchaseOrdersTableToPDF = (orders) => {
+export const exportPurchaseOrdersTableToPDF = (orders, exportedBy = null, dateRange = null) => {
+  // Calculate total amount
+  const totalAmount = orders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
+  
   const rows = orders.map((o, idx) => {
     const items = Array.isArray(o.items) ? o.items : [];
     const itemsSummary = items.length > 0 
@@ -536,11 +539,12 @@ export const exportPurchaseOrdersTableToPDF = (orders) => {
       : '-';
     return `
       <tr style="background: ${idx % 2 === 0 ? '#f8fafc' : '#fff'};">
-        <td style="font-weight: bold;">${o.id?.slice(0, 8).toUpperCase() || '-'}</td>
+        <td style="font-weight: bold; color: #ea580c;">${o.id?.slice(0, 8).toUpperCase() || '-'}</td>
+        <td>${o.request_number || '-'}</td>
         <td>${itemsSummary}</td>
         <td>${o.project_name || '-'}</td>
         <td><span class="badge badge-green">${o.supplier_name || '-'}</span></td>
-        <td>${o.manager_name || '-'}</td>
+        <td style="text-align: center; font-weight: 600; color: #059669;">${o.total_amount > 0 ? o.total_amount.toLocaleString('ar-SA') : '-'}</td>
         <td><span class="badge badge-blue">${getOrderStatusTextAr(o.status)}</span></td>
         <td>${formatDateShort(o.created_at)}</td>
       </tr>
@@ -550,25 +554,55 @@ export const exportPurchaseOrdersTableToPDF = (orders) => {
   const html = `
     <div class="header">
       <div class="title">قائمة أوامر الشراء</div>
+      ${dateRange ? `<div class="subtitle">من ${dateRange.from} إلى ${dateRange.to}</div>` : ''}
+      ${exportedBy ? `<div class="subtitle" style="margin-top: 5px;">صادر بواسطة: ${exportedBy}</div>` : ''}
+    </div>
+    
+    <div style="display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap;">
+      <div style="flex: 1; min-width: 100px; background: #eff6ff; border-radius: 6px; padding: 10px; text-align: center;">
+        <p style="font-size: 9px; color: #6b7280; margin: 0;">إجمالي الأوامر</p>
+        <p style="font-size: 16px; font-weight: 700; color: #2563eb; margin: 3px 0 0 0;">${orders.length}</p>
+      </div>
+      <div style="flex: 1; min-width: 100px; background: #f0fdf4; border-radius: 6px; padding: 10px; text-align: center;">
+        <p style="font-size: 9px; color: #6b7280; margin: 0;">معتمدة</p>
+        <p style="font-size: 16px; font-weight: 700; color: #059669; margin: 3px 0 0 0;">${orders.filter(o => o.status === 'approved' || o.status === 'printed' || o.status === 'shipped' || o.status === 'delivered').length}</p>
+      </div>
+      <div style="flex: 1; min-width: 100px; background: #fff7ed; border-radius: 6px; padding: 10px; text-align: center;">
+        <p style="font-size: 9px; color: #6b7280; margin: 0;">إجمالي المبلغ</p>
+        <p style="font-size: 14px; font-weight: 700; color: #ea580c; margin: 3px 0 0 0;">${totalAmount.toLocaleString('ar-SA')} ر.س</p>
+      </div>
+      <div style="flex: 1; min-width: 100px; background: #ecfdf5; border-radius: 6px; padding: 10px; text-align: center;">
+        <p style="font-size: 9px; color: #6b7280; margin: 0;">تم التسليم</p>
+        <p style="font-size: 16px; font-weight: 700; color: #059669; margin: 3px 0 0 0;">${orders.filter(o => o.status === 'delivered').length}</p>
+      </div>
     </div>
     
     <table>
       <thead>
         <tr>
           <th>رقم الأمر</th>
+          <th>رقم الطلب</th>
           <th>الأصناف</th>
           <th>المشروع</th>
           <th>المورد</th>
-          <th>مدير المشتريات</th>
+          <th style="text-align: center;">المبلغ</th>
           <th>الحالة</th>
           <th>التاريخ</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
+      <tfoot>
+        <tr style="background: #fef3c7;">
+          <td colspan="5" style="text-align: left; font-weight: 700; font-size: 11px; padding: 8px;">المجموع الكلي (${orders.length} أمر)</td>
+          <td style="text-align: center; font-size: 12px; font-weight: 700; color: #ea580c; padding: 8px;">${totalAmount.toLocaleString('ar-SA')} ر.س</td>
+          <td colspan="2"></td>
+        </tr>
+      </tfoot>
     </table>
     
     <div class="footer">
       <p>نظام إدارة طلبات المواد - تاريخ التصدير: ${formatDateShort(new Date().toISOString())}</p>
+      ${exportedBy ? `<p style="margin-top: 3px;">صادر بواسطة: ${exportedBy}</p>` : ''}
     </div>
   `;
 
