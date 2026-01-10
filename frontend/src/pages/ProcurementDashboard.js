@@ -113,6 +113,9 @@ const ProcurementDashboard = () => {
   const [backupLoading, setBackupLoading] = useState(false);
   const [importFile, setImportFile] = useState(null);
   
+  // Mobile Menu Drawer - القائمة الجانبية للجوال
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  
   // Request filter view mode
   const [requestViewMode, setRequestViewMode] = useState("approved"); // Default to approved
   const [requestsPage, setRequestsPage] = useState(1);
