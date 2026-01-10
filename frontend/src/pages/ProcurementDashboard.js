@@ -995,6 +995,54 @@ const ProcurementDashboard = () => {
     }
   };
 
+  // Export by Date - تصدير حسب التاريخ
+  const handleExportByDate = () => {
+    if (!exportStartDate || !exportEndDate) {
+      toast.error("الرجاء تحديد تاريخ البداية والنهاية");
+      return;
+    }
+    
+    const start = new Date(exportStartDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(exportEndDate);
+    end.setHours(23, 59, 59, 999);
+    
+    const dateRange = {
+      from: new Date(exportStartDate).toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' }),
+      to: new Date(exportEndDate).toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' })
+    };
+    
+    if (exportType === "orders") {
+      const filteredByDate = allOrders.filter(o => {
+        const orderDate = new Date(o.created_at);
+        return orderDate >= start && orderDate <= end;
+      });
+      
+      if (filteredByDate.length === 0) {
+        toast.error("لا توجد أوامر شراء في هذه الفترة");
+        return;
+      }
+      
+      exportPurchaseOrdersTableToPDF(filteredByDate, user?.name, dateRange);
+      toast.success(`تم تصدير ${filteredByDate.length} أمر شراء`);
+    } else {
+      const filteredByDate = requests.filter(r => {
+        const reqDate = new Date(r.created_at);
+        return reqDate >= start && reqDate <= end;
+      });
+      
+      if (filteredByDate.length === 0) {
+        toast.error("لا توجد طلبات في هذه الفترة");
+        return;
+      }
+      
+      exportRequestsTableToPDF(filteredByDate, 'قائمة الطلبات', user?.name, dateRange);
+      toast.success(`تم تصدير ${filteredByDate.length} طلب`);
+    }
+    
+    setExportDialogOpen(false);
+  };
+
   const formatDate = (dateString) => new Date(dateString).toLocaleDateString("ar-SA", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
   const formatDateFull = (dateString) => new Date(dateString).toLocaleDateString("ar-SA", { year: "numeric", month: "long", day: "numeric" });
   const formatCurrency = (amount) => `${(amount || 0).toLocaleString('ar-SA')} ر.س`;
