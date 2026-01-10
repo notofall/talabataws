@@ -1703,7 +1703,7 @@ const ProcurementDashboard = () => {
                         <div key={order.id} className={`p-3 space-y-2 ${order.status === "delivered" ? "bg-emerald-50/50" : ""}`}>
                           <div className="flex justify-between items-start">
                             <div>
-                              <p className="font-mono text-orange-600 font-bold text-sm">{order.id?.slice(0, 8).toUpperCase()}</p>
+                              <p className="font-mono text-orange-600 font-bold text-sm">{order.order_number || order.id?.slice(0, 8).toUpperCase()}</p>
                               <p className="text-xs text-slate-500">{order.project_name}</p>
                             </div>
                             {getOrderStatusBadge(order.status)}
