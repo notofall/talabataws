@@ -3,6 +3,7 @@ import { Toaster } from "sonner";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import SetupPage from "./pages/SetupPage";
+import DatabaseSetupPage from "./pages/DatabaseSetupPage";
 import SupervisorDashboard from "./pages/SupervisorDashboard";
 import EngineerDashboard from "./pages/EngineerDashboard";
 import ProcurementDashboard from "./pages/ProcurementDashboard";
