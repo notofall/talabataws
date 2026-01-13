@@ -5,14 +5,12 @@ For System Admin role only
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, BackgroundTasks
 from pydantic import BaseModel
 from typing import Optional
-from datetime import datetime, timezone
+from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 import uuid
 import json
 import os
-import subprocess
-import shutil
 from pathlib import Path
 
 from database import get_postgres_session, User, SystemSetting
