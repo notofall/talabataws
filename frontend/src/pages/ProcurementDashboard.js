@@ -1711,8 +1711,8 @@ const ProcurementDashboard = () => {
             <div className="space-y-3 mt-2">
               <div className="text-center pb-2 border-b">
                 <p className="text-xs text-slate-500">رقم الأمر</p>
-                <p className="text-lg font-bold text-orange-600">{selectedOrder.id.slice(0, 8).toUpperCase()}</p>
-                <p className="text-xs text-slate-400">رقم الطلب: {selectedOrder.request_id?.slice(0, 8).toUpperCase()}</p>
+                <p className="text-lg font-bold text-orange-600">{selectedOrder.order_number || selectedOrder.id?.slice(0, 8).toUpperCase()}</p>
+                <p className="text-xs text-slate-400">رقم الطلب: {selectedOrder.request_number || selectedOrder.request_id?.slice(0, 8).toUpperCase()}</p>
               </div>
               <div className="bg-slate-50 p-3 rounded-lg space-y-2">
                 <p className="text-sm font-medium border-b pb-2">الأصناف:</p>
