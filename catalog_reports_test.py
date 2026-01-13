@@ -18,7 +18,7 @@ import csv
 from datetime import datetime
 
 class CatalogReportsAPITester:
-    def __init__(self, base_url="https://material-system.preview.emergentagent.com"):
+    def __init__(self, base_url="https://pg-evolution.preview.emergentagent.com"):
         self.base_url = base_url
         self.manager_token = None
         self.supervisor_token = None
