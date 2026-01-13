@@ -1670,6 +1670,7 @@ const ProcurementDashboard = () => {
                   if (ordersViewMode === "approved") return ["approved", "printed"].includes(order.status);
                   if (ordersViewMode === "shipped") return ["shipped", "partially_delivered"].includes(order.status);
                   if (ordersViewMode === "delivered") return order.status === "delivered";
+                  if (ordersViewMode === "rejected_gm") return order.status === "rejected_by_gm";
                   return true;
                 });
                 
