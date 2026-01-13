@@ -261,13 +261,19 @@ export default function AdvancedReports({ onClose }) {
           <head>
             <meta charset="UTF-8">
             <style>
-              body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 20px; direction: rtl; }
+              body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 20px; direction: rtl; margin-top: 50px; }
               h1 { color: #ea580c; border-bottom: 2px solid #ea580c; padding-bottom: 10px; }
               h2 { color: #334155; margin-top: 30px; }
               .filter-info { background: #f1f5f9; padding: 10px; border-radius: 8px; margin-bottom: 20px; }
               .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin: 20px 0; }
               .stat-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; text-align: center; }
               .stat-value { font-size: 24px; font-weight: bold; }
+              .btn-container { position: fixed; top: 0; left: 0; right: 0; background: linear-gradient(to bottom, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.9) 70%, transparent 100%); padding: 15px; z-index: 999; display: flex; gap: 10px; }
+              .print-btn { background: #ea580c; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+              .print-btn:hover { background: #c2410c; }
+              .close-btn { background: #64748b; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+              .close-btn:hover { background: #475569; }
+              @media print { .btn-container { display: none !important; } body { margin-top: 0; } }
               .stat-label { font-size: 12px; color: #64748b; }
               .green { color: #16a34a; }
               .red { color: #dc2626; }
