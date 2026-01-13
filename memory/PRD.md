@@ -5,61 +5,40 @@
 
 ---
 
-## 🚀 التحول إلى PostgreSQL (جديد - 13 يناير 2026)
+## 🚀 التحول إلى PostgreSQL (13 يناير 2026)
 
-### ما تم إنجازه في جلسة التحويل:
+### ✅ ما تم إنجازه بالكامل:
 
-#### ✅ المرحلة 1: البنية التحتية
-- [x] إنشاء اتصال مع PlanetScale PostgreSQL
-- [x] إنشاء 15 جدول SQL في قاعدة البيانات
-- [x] إنشاء ملفات الـ Database Layer:
-  - `/app/backend/database/config.py` - إعدادات الاتصال
-  - `/app/backend/database/connection.py` - إدارة الجلسات
-  - `/app/backend/database/models.py` - نماذج SQLAlchemy
+#### البنية التحتية
+- [x] اتصال مع PlanetScale PostgreSQL
+- [x] إنشاء 15 جدول SQL
+- [x] إنشاء ملفات Database Layer (config, connection, models)
 
-#### ✅ المرحلة 2: APIs المحولة
-| API | الملف | الحالة |
-|-----|-------|--------|
-| Auth (تسجيل/دخول) | `pg_auth_routes.py` | ✅ |
-| Users Management | `pg_auth_routes.py` | ✅ |
-| Projects | `pg_projects_routes.py` | ✅ |
-| Suppliers | `pg_suppliers_routes.py` | ✅ |
-| Budget Categories | `pg_budget_routes.py` | ✅ |
-| Material Requests | `pg_requests_routes.py` | ✅ |
-| Purchase Orders | ❌ قيد التطوير | 🔄 |
+#### الـ APIs المحولة (59 API)
+| الملف | عدد APIs | الحالة |
+|-------|----------|--------|
+| `pg_auth_routes.py` | 13 | ✅ |
+| `pg_projects_routes.py` | 5 | ✅ |
+| `pg_suppliers_routes.py` | 5 | ✅ |
+| `pg_budget_routes.py` | 8 | ✅ |
+| `pg_requests_routes.py` | 7 | ✅ |
+| `pg_orders_routes.py` | 10 | ✅ |
+| `pg_settings_routes.py` | 11 | ✅ |
 
-### الجداول المنشأة في PostgreSQL:
+### نقاط النهاية الجديدة:
 ```
-1. users              - المستخدمين
-2. projects           - المشاريع  
-3. suppliers          - الموردين
-4. budget_categories  - تصنيفات الميزانية
-5. default_budget_categories - التصنيفات الافتراضية
-6. material_requests  - طلبات المواد
-7. material_request_items - أصناف الطلبات
-8. purchase_orders    - أوامر الشراء
-9. purchase_order_items - أصناف أوامر الشراء
-10. delivery_records  - سجلات التسليم
-11. audit_logs        - سجل التدقيق
-12. system_settings   - إعدادات النظام
-13. price_catalog     - كتالوج الأسعار
-14. item_aliases      - الأسماء البديلة
-15. attachments       - المرفقات
-```
-
-### نقاط النهاية الجديدة (PostgreSQL):
-```
-/api/pg/health                    - فحص الاتصال
-/api/pg/setup/check               - فحص الإعداد
-/api/pg/setup/first-admin         - إنشاء أول مدير
-/api/pg/auth/login                - تسجيل الدخول
-/api/pg/auth/me                   - المستخدم الحالي
-/api/pg/admin/users               - إدارة المستخدمين
-/api/pg/projects                  - المشاريع
-/api/pg/suppliers                 - الموردين
-/api/pg/budget-categories         - تصنيفات الميزانية
-/api/pg/default-budget-categories - التصنيفات الافتراضية
-/api/pg/requests                  - طلبات المواد
+/api/pg/auth/*           - المصادقة
+/api/pg/admin/users/*    - إدارة المستخدمين
+/api/pg/projects/*       - المشاريع
+/api/pg/suppliers/*      - الموردين
+/api/pg/budget-categories/* - تصنيفات الميزانية
+/api/pg/requests/*       - طلبات المواد
+/api/pg/purchase-orders/* - أوامر الشراء
+/api/pg/gm/*             - لوحة المدير العام
+/api/pg/settings/*       - الإعدادات
+/api/pg/reports/*        - التقارير
+/api/pg/admin/*          - إدارة البيانات
+/api/pg/audit-logs       - سجل التدقيق
 ```
 
 ---
@@ -78,18 +57,16 @@
 ## المهام القادمة
 
 ### 🔴 P0 - أولوية قصوى
-1. إكمال تحويل Purchase Orders APIs
-2. تحديث Frontend ليستخدم `/api/pg/*`
+1. تعديل Frontend ليستخدم `/api/pg/*` بدلاً من `/api/*`
+2. اختبار شامل للتدفق الكامل
 
 ### 🟡 P1 - أولوية متوسطة  
-1. System Settings APIs
-2. Reports & Analytics APIs
-3. تحويل PWA للموبايل
+1. تحويل PWA للموبايل
+2. إضافة Price Catalog APIs
 
 ### 🟢 P2 - أولوية منخفضة
-1. Audit Trail APIs
-2. Price Catalog APIs
-3. File Attachments
+1. File Attachments
+2. Email Notifications
 
 ---
 
@@ -103,28 +80,25 @@ Database: postgres
 SSL: Required
 ```
 
-### ملف .env:
-```
-POSTGRES_HOST=eu-central-2.pg.psdb.cloud
-POSTGRES_PORT=6432
-POSTGRES_USER=pscale_api_...
-POSTGRES_PASSWORD=pscale_pw_...
-POSTGRES_DB=postgres
-```
-
 ---
 
 ## الهيكل التقني
 
 ### Backend:
-- FastAPI + SQLAlchemy 2.0 + asyncpg
-- MongoDB (قديم) + PostgreSQL (جديد)
-- JWT Authentication
-
-### Frontend:
-- React + Tailwind + Shadcn UI
-- RTL Arabic Support
-
-### Database:
-- PlanetScale PostgreSQL (Managed)
-- Connection Pooling enabled
+```
+/app/backend/
+├── server.py              # FastAPI app
+├── database/
+│   ├── __init__.py
+│   ├── config.py          # PostgreSQL settings
+│   ├── connection.py      # SQLAlchemy engine
+│   └── models.py          # 15 SQLAlchemy models
+└── routes/
+    ├── pg_auth_routes.py
+    ├── pg_projects_routes.py
+    ├── pg_suppliers_routes.py
+    ├── pg_budget_routes.py
+    ├── pg_requests_routes.py
+    ├── pg_orders_routes.py
+    └── pg_settings_routes.py
+```
