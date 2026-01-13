@@ -181,8 +181,8 @@ async def get_cost_savings_report(
     current_user: User = Depends(get_current_user_pg),
     session: AsyncSession = Depends(get_postgres_session)
 ):
-    """Get cost savings report"""
-    if current_user.role != UserRole.PROCUREMENT_MANAGER:
+    """Get cost savings report - available for procurement manager and general manager"""
+    if current_user.role not in [UserRole.PROCUREMENT_MANAGER, UserRole.GENERAL_MANAGER]:
         raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
     
     query = select(PurchaseOrder).where(PurchaseOrder.status.in_(["approved", "printed", "shipped", "delivered"]))
