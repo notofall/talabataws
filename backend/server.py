@@ -29,7 +29,9 @@ async def root_health_check():
 
 # ==================== Setup Routes (must be before auth) ====================
 from routes.setup_routes import setup_router
+from routes.system_routes import system_router
 app.include_router(setup_router)
+app.include_router(system_router)
 
 # ==================== PostgreSQL Routes ====================
 from routes.pg_auth_routes import pg_auth_router
