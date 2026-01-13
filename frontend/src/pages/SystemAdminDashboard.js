@@ -310,6 +310,132 @@ export default function SystemAdminDashboard() {
     }
   };
 
+  // Fetch Domain Status
+  const fetchDomainStatus = useCallback(async () => {
+    setDomainLoading(true);
+    try {
+      const response = await axios.get(`${API_URL}/domain/status`, getAuthHeaders());
+      setDomainStatus(response.data);
+      if (response.data.domain) {
+        setDomainForm(prev => ({
+          ...prev,
+          domain: response.data.domain,
+          enable_ssl: response.data.ssl_enabled,
+          ssl_mode: response.data.ssl_mode || "letsencrypt"
+        }));
+      }
+    } catch (error) {
+      console.error("Error fetching domain status:", error);
+    } finally {
+      setDomainLoading(false);
+    }
+  }, [API_URL, getAuthHeaders]);
+
+  // Save Domain Configuration
+  const handleSaveDomain = async () => {
+    if (!domainForm.domain.trim()) {
+      toast.error("يرجى إدخال اسم الدومين");
+      return;
+    }
+    
+    setSavingDomain(true);
+    try {
+      const response = await axios.post(`${API_URL}/domain/configure`, domainForm, getAuthHeaders());
+      toast.success(response.data.message);
+      setNginxConfig(response.data);
+      fetchDomainStatus();
+    } catch (error) {
+      console.error("Error saving domain:", error);
+      toast.error(error.response?.data?.detail || "فشل في حفظ إعدادات الدومين");
+    } finally {
+      setSavingDomain(false);
+    }
+  };
+
+  // Upload SSL Certificate
+  const handleSslUpload = async (certFile, keyFile) => {
+    if (!certFile || !keyFile) {
+      toast.error("يرجى اختيار ملفي الشهادة والمفتاح");
+      return;
+    }
+    
+    setSslUploading(true);
+    const formData = new FormData();
+    formData.append("cert_file", certFile);
+    formData.append("key_file", keyFile);
+    
+    try {
+      const response = await axios.post(`${API_URL}/domain/ssl/upload`, formData, {
+        ...getAuthHeaders(),
+        headers: { ...getAuthHeaders().headers, "Content-Type": "multipart/form-data" }
+      });
+      toast.success(response.data.message);
+      fetchDomainStatus();
+    } catch (error) {
+      console.error("Error uploading SSL:", error);
+      toast.error(error.response?.data?.detail || "فشل في رفع شهادة SSL");
+    } finally {
+      setSslUploading(false);
+    }
+  };
+
+  // Setup Let's Encrypt
+  const handleLetsEncrypt = async () => {
+    try {
+      const response = await axios.post(`${API_URL}/domain/ssl/letsencrypt`, {}, getAuthHeaders());
+      toast.success(response.data.message);
+      setNginxConfig(prev => ({ ...prev, letsencrypt: response.data }));
+    } catch (error) {
+      console.error("Error setting up Let's Encrypt:", error);
+      toast.error(error.response?.data?.detail || "فشل في إعداد Let's Encrypt");
+    }
+  };
+
+  // Get DNS Instructions
+  const handleGetDnsInstructions = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/domain/dns-instructions`, getAuthHeaders());
+      setDnsInstructions(response.data.instructions);
+    } catch (error) {
+      console.error("Error fetching DNS instructions:", error);
+      toast.error("فشل في جلب تعليمات DNS");
+    }
+  };
+
+  // Get Nginx Config
+  const handleGetNginxConfig = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/domain/nginx-config`, getAuthHeaders());
+      setNginxConfig(prev => ({ ...prev, nginxContent: response.data.config }));
+    } catch (error) {
+      console.error("Error fetching Nginx config:", error);
+    }
+  };
+
+  // Reset Domain
+  const handleResetDomain = async () => {
+    if (!confirm("هل أنت متأكد من إعادة تعيين إعدادات الدومين؟ سيتم حذف جميع الإعدادات وشهادات SSL.")) {
+      return;
+    }
+    
+    try {
+      await axios.delete(`${API_URL}/domain/reset`, getAuthHeaders());
+      toast.success("تم إعادة تعيين إعدادات الدومين");
+      setDomainStatus(null);
+      setDomainForm({ domain: "", enable_ssl: true, ssl_mode: "letsencrypt", admin_email: "" });
+      setNginxConfig(null);
+    } catch (error) {
+      console.error("Error resetting domain:", error);
+      toast.error("فشل في إعادة تعيين إعدادات الدومين");
+    }
+  };
+
+  // Copy to clipboard
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text);
+    toast.success("تم النسخ إلى الحافظة");
+  };
+
   // Clear Old Logs
   const handleClearOldLogs = async (daysToKeep = 30) => {
     if (!confirm(`هل أنت متأكد من حذف السجلات الأقدم من ${daysToKeep} يوم؟`)) return;
