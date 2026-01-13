@@ -60,14 +60,52 @@ def get_config() -> Optional[dict]:
 
 
 def save_config(config: dict) -> bool:
-    """Save database configuration"""
+    """Save database configuration to JSON and .env"""
     try:
+        # Save to JSON for reference
         with open(CONFIG_FILE, 'w') as f:
             json.dump(config, f, indent=2)
+        
+        # Also update .env file for persistence across restarts
+        env_content = []
+        if ENV_FILE.exists():
+            with open(ENV_FILE, 'r') as f:
+                for line in f:
+                    # Keep non-postgres lines
+                    if not line.strip().startswith(('POSTGRES_', 'DATABASE_URL')):
+                        env_content.append(line)
+        
+        # Add new database config
+        ssl_param = "?sslmode=require" if config.get("ssl_mode") == "require" else ""
+        db_url = f"postgresql+asyncpg://{config['username']}:{config['password']}@{config['host']}:{config['port']}/{config['database']}{ssl_param}"
+        
+        env_content.append(f"\n# Database Configuration - Auto-generated on {datetime.now().isoformat()}\n")
+        env_content.append(f"POSTGRES_HOST={config['host']}\n")
+        env_content.append(f"POSTGRES_PORT={config['port']}\n")
+        env_content.append(f"POSTGRES_DB={config['database']}\n")
+        env_content.append(f"POSTGRES_USER={config['username']}\n")
+        env_content.append(f"POSTGRES_PASSWORD={config['password']}\n")
+        env_content.append(f"POSTGRES_SSLMODE={config.get('ssl_mode', 'require')}\n")
+        env_content.append(f"DATABASE_URL={db_url}\n")
+        
+        with open(ENV_FILE, 'w') as f:
+            f.writelines(env_content)
+        
         return True
     except Exception as e:
         print(f"Error saving config: {e}")
         return False
+
+
+def mark_setup_complete():
+    """Mark setup as complete"""
+    with open(SETUP_COMPLETE_FILE, 'w') as f:
+        f.write(datetime.now().isoformat())
+
+
+def is_setup_complete() -> bool:
+    """Check if setup has been completed"""
+    return SETUP_COMPLETE_FILE.exists() or CONFIG_FILE.exists() or os.environ.get("POSTGRES_HOST")
 
 
 @setup_router.get("/status")
