@@ -54,6 +54,7 @@ export default function GeneralManagerDashboard() {
   const [gmApprovedTotalPages, setGmApprovedTotalPages] = useState(1);
   const [procurementApprovedTotalPages, setProcurementApprovedTotalPages] = useState(1);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [advancedReportsOpen, setAdvancedReportsOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
