@@ -1320,7 +1320,7 @@ const ProcurementDashboard = () => {
               >
                 مرفوض
                 <Badge className="mr-1 bg-red-500 text-white text-xs">
-                  {requests.filter(r => r.status === "rejected_by_manager").length}
+                  {requests.filter(r => r.status === "rejected_by_manager" || r.status === "rejected_by_engineer").length}
                 </Badge>
               </Button>
               <Button 
@@ -1331,7 +1331,7 @@ const ProcurementDashboard = () => {
               >
                 تم الإصدار
                 <Badge className="mr-1 bg-blue-500 text-white text-xs">
-                  {requests.filter(r => r.status === "ordered").length}
+                  {requests.filter(r => r.status === "purchase_order_issued").length}
                 </Badge>
               </Button>
               <Button 
