@@ -1244,7 +1244,7 @@ const ProcurementDashboard = () => {
                 onClick={() => { setSuppliersListDialogOpen(true); setMobileMenuOpen(false); }}
                 className="w-full flex items-center gap-3 px-3 py-3 text-slate-300 hover:bg-slate-800 rounded-lg transition-colors"
               >
-                <Users className="w-5 h-5 text-purple-400" />
+                <Users className="w-5 h-5 text-blue-400" />
                 <span className="text-sm">الموردين</span>
               </button>
               
@@ -1254,6 +1254,14 @@ const ProcurementDashboard = () => {
               >
                 <Package className="w-5 h-5 text-orange-400" />
                 <span className="text-sm">كتالوج الأسعار</span>
+              </button>
+              
+              <button 
+                onClick={() => { setAdvancedReportsOpen(true); setMobileMenuOpen(false); }}
+                className="w-full flex items-center gap-3 px-3 py-3 text-slate-300 hover:bg-slate-800 rounded-lg transition-colors"
+              >
+                <PieChart className="w-5 h-5 text-purple-400" />
+                <span className="text-sm">التقارير المتقدمة</span>
               </button>
               
               {/* التصدير */}
