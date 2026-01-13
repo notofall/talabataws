@@ -968,7 +968,7 @@ export default function SystemAdminDashboard() {
                           <p className="text-xs text-muted-foreground">أدخل الدومين بدون http:// أو https://</p>
                         </div>
                         <div className="space-y-2">
-                          <Label>البريد الإلكتروني (لـ Let's Encrypt)</Label>
+                          <Label>البريد الإلكتروني (لـ Let&apos;s Encrypt)</Label>
                           <Input 
                             type="email"
                             value={domainForm.admin_email} 
