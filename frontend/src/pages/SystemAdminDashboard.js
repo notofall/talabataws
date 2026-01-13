@@ -404,7 +404,7 @@ export default function SystemAdminDashboard() {
 
         {/* Main Content */}
         <Tabs defaultValue="users" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
             <TabsTrigger value="users" className="gap-2">
               <Users className="h-4 w-4" /> المستخدمين
             </TabsTrigger>
@@ -413,6 +413,9 @@ export default function SystemAdminDashboard() {
             </TabsTrigger>
             <TabsTrigger value="backup" className="gap-2">
               <Database className="h-4 w-4" /> النسخ الاحتياطي
+            </TabsTrigger>
+            <TabsTrigger value="audit" className="gap-2" onClick={() => fetchAuditLogs()}>
+              <History className="h-4 w-4" /> سجل التدقيق
             </TabsTrigger>
           </TabsList>
 
