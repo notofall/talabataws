@@ -1,15 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
+import { Label } from "../components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { 
   BarChart3, TrendingUp, Users, Package, DollarSign, 
   RefreshCw, Calendar, Building2, Truck, CheckCircle2, 
-  XCircle, Clock, AlertTriangle, PieChart
+  XCircle, Clock, PieChart, Download, FileSpreadsheet, FileText, Filter
 } from "lucide-react";
 
 export default function AdvancedReports({ onClose }) {
@@ -18,14 +19,62 @@ export default function AdvancedReports({ onClose }) {
   const [summaryReport, setSummaryReport] = useState(null);
   const [approvalReport, setApprovalReport] = useState(null);
   const [supplierReport, setSupplierReport] = useState(null);
+  
+  // Filter options data
+  const [projects, setProjects] = useState([]);
+  const [engineers, setEngineers] = useState([]);
+  const [supervisors, setSupervisors] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
+  
+  // Active filters
+  const [filters, setFilters] = useState({
+    project_id: "",
+    engineer_id: "",
+    supervisor_id: "",
+    supplier_id: "",
+    start_date: "",
+    end_date: ""
+  });
 
-  const fetchReports = async () => {
+  // Fetch filter options
+  const fetchFilterOptions = useCallback(async () => {
+    try {
+      const [projectsRes, usersRes, suppliersRes] = await Promise.all([
+        axios.get(`${API_URL}/projects`, getAuthHeaders()),
+        axios.get(`${API_URL}/users/list`, getAuthHeaders()),
+        axios.get(`${API_URL}/suppliers`, getAuthHeaders())
+      ]);
+      
+      setProjects(projectsRes.data || []);
+      setSuppliers(suppliersRes.data || []);
+      
+      // Filter users by role
+      const users = usersRes.data || [];
+      setEngineers(users.filter(u => u.role === "engineer"));
+      setSupervisors(users.filter(u => u.role === "supervisor"));
+    } catch (error) {
+      console.error("Error fetching filter options:", error);
+    }
+  }, [API_URL, getAuthHeaders]);
+
+  const fetchReports = useCallback(async () => {
     setLoading(true);
     try {
+      // Build query params
+      const params = new URLSearchParams();
+      if (filters.project_id) params.append("project_id", filters.project_id);
+      if (filters.engineer_id) params.append("engineer_id", filters.engineer_id);
+      if (filters.supervisor_id) params.append("supervisor_id", filters.supervisor_id);
+      if (filters.supplier_id) params.append("supplier_id", filters.supplier_id);
+      if (filters.start_date) params.append("start_date", filters.start_date);
+      if (filters.end_date) params.append("end_date", filters.end_date);
+      
+      const queryString = params.toString() ? `?${params.toString()}` : "";
+      
       const [summaryRes, approvalRes, supplierRes] = await Promise.all([
-        axios.get(`${API_URL}/reports/advanced/summary`, getAuthHeaders()),
-        axios.get(`${API_URL}/reports/advanced/approval-analytics`, getAuthHeaders()),
-        axios.get(`${API_URL}/reports/advanced/supplier-performance`, getAuthHeaders())
+        axios.get(`${API_URL}/reports/advanced/summary${queryString}`, getAuthHeaders()),
+        axios.get(`${API_URL}/reports/advanced/approval-analytics${queryString}`, getAuthHeaders()),
+        axios.get(`${API_URL}/reports/advanced/supplier-performance${queryString}`, getAuthHeaders())
       ]);
       
       setSummaryReport(summaryRes.data);
@@ -37,11 +86,15 @@ export default function AdvancedReports({ onClose }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [API_URL, getAuthHeaders, filters]);
+
+  useEffect(() => {
+    fetchFilterOptions();
+  }, [fetchFilterOptions]);
 
   useEffect(() => {
     fetchReports();
-  }, []);
+  }, [fetchReports]);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('ar-SA', { 
@@ -50,6 +103,303 @@ export default function AdvancedReports({ onClose }) {
       maximumFractionDigits: 0 
     }).format(amount || 0);
   };
+
+  const clearFilters = () => {
+    setFilters({
+      project_id: "",
+      engineer_id: "",
+      supervisor_id: "",
+      supplier_id: "",
+      start_date: "",
+      end_date: ""
+    });
+  };
+
+  // Export to Excel
+  const exportToExcel = async (reportType) => {
+    try {
+      toast.info("جاري تصدير التقرير...");
+      
+      const params = new URLSearchParams();
+      if (filters.project_id) params.append("project_id", filters.project_id);
+      if (filters.engineer_id) params.append("engineer_id", filters.engineer_id);
+      if (filters.supervisor_id) params.append("supervisor_id", filters.supervisor_id);
+      if (filters.supplier_id) params.append("supplier_id", filters.supplier_id);
+      params.append("format", "excel");
+      
+      const response = await axios.get(
+        `${API_URL}/reports/advanced/${reportType}/export?${params.toString()}`,
+        {
+          ...getAuthHeaders(),
+          responseType: 'blob'
+        }
+      );
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `تقرير_${reportType}_${new Date().toLocaleDateString('ar-SA')}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      
+      toast.success("تم تصدير التقرير بنجاح");
+    } catch (error) {
+      console.error("Export error:", error);
+      toast.error("فشل في تصدير التقرير");
+    }
+  };
+
+  // Export to PDF
+  const exportToPDF = (reportType) => {
+    try {
+      let content = "";
+      const now = new Date().toLocaleString('ar-SA');
+      
+      // Get active filter names
+      const activeFilters = [];
+      if (filters.project_id) {
+        const project = projects.find(p => p.id === filters.project_id);
+        if (project) activeFilters.push(`المشروع: ${project.name}`);
+      }
+      if (filters.engineer_id) {
+        const engineer = engineers.find(e => e.id === filters.engineer_id);
+        if (engineer) activeFilters.push(`المهندس: ${engineer.name}`);
+      }
+      if (filters.supervisor_id) {
+        const supervisor = supervisors.find(s => s.id === filters.supervisor_id);
+        if (supervisor) activeFilters.push(`المشرف: ${supervisor.name}`);
+      }
+      if (filters.supplier_id) {
+        const supplier = suppliers.find(s => s.id === filters.supplier_id);
+        if (supplier) activeFilters.push(`المورد: ${supplier.name}`);
+      }
+      
+      const filterText = activeFilters.length > 0 ? activeFilters.join(" | ") : "جميع البيانات";
+      
+      if (reportType === "summary" && summaryReport) {
+        content = `
+          <html dir="rtl">
+          <head>
+            <meta charset="UTF-8">
+            <style>
+              body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 20px; direction: rtl; }
+              h1 { color: #ea580c; border-bottom: 2px solid #ea580c; padding-bottom: 10px; }
+              h2 { color: #334155; margin-top: 30px; }
+              .filter-info { background: #f1f5f9; padding: 10px; border-radius: 8px; margin-bottom: 20px; }
+              .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin: 20px 0; }
+              .stat-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; text-align: center; }
+              .stat-value { font-size: 24px; font-weight: bold; color: #ea580c; }
+              .stat-label { font-size: 12px; color: #64748b; }
+              table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+              th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: right; }
+              th { background: #f1f5f9; font-weight: bold; }
+              .footer { margin-top: 30px; text-align: center; color: #94a3b8; font-size: 12px; }
+            </style>
+          </head>
+          <body>
+            <h1>📊 الملخص التنفيذي</h1>
+            <div class="filter-info">
+              <strong>الفلاتر:</strong> ${filterText}<br>
+              <strong>تاريخ التقرير:</strong> ${now}
+            </div>
+            
+            <div class="stats-grid">
+              <div class="stat-card">
+                <div class="stat-value">${summaryReport.summary.total_requests}</div>
+                <div class="stat-label">إجمالي الطلبات</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value">${summaryReport.summary.total_orders}</div>
+                <div class="stat-label">أوامر الشراء</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value">${formatCurrency(summaryReport.summary.total_spending)}</div>
+                <div class="stat-label">إجمالي المصروفات</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value">${summaryReport.summary.approved_orders}</div>
+                <div class="stat-label">معتمدة</div>
+              </div>
+            </div>
+            
+            <h2>🏢 أكثر المشاريع إنفاقاً</h2>
+            <table>
+              <tr><th>#</th><th>المشروع</th><th>المبلغ</th></tr>
+              ${summaryReport.top_projects?.map((p, i) => `<tr><td>${i+1}</td><td>${p.name}</td><td>${formatCurrency(p.amount)}</td></tr>`).join('') || '<tr><td colspan="3">لا توجد بيانات</td></tr>'}
+            </table>
+            
+            <h2>🚚 أكثر الموردين تعاملاً</h2>
+            <table>
+              <tr><th>#</th><th>المورد</th><th>عدد الطلبات</th><th>المبلغ</th></tr>
+              ${summaryReport.top_suppliers?.map((s, i) => `<tr><td>${i+1}</td><td>${s.name}</td><td>${s.orders}</td><td>${formatCurrency(s.amount)}</td></tr>`).join('') || '<tr><td colspan="4">لا توجد بيانات</td></tr>'}
+            </table>
+            
+            <h2>📁 المصروفات حسب التصنيف</h2>
+            <table>
+              <tr><th>التصنيف</th><th>المبلغ</th></tr>
+              ${summaryReport.spending_by_category?.map(c => `<tr><td>${c.name}</td><td>${formatCurrency(c.amount)}</td></tr>`).join('') || '<tr><td colspan="2">لا توجد بيانات</td></tr>'}
+            </table>
+            
+            <div class="footer">تم إنشاء هذا التقرير بواسطة نظام إدارة طلبات المواد</div>
+          </body>
+          </html>
+        `;
+      } else if (reportType === "approvals" && approvalReport) {
+        content = `
+          <html dir="rtl">
+          <head>
+            <meta charset="UTF-8">
+            <style>
+              body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 20px; direction: rtl; }
+              h1 { color: #ea580c; border-bottom: 2px solid #ea580c; padding-bottom: 10px; }
+              h2 { color: #334155; margin-top: 30px; }
+              .filter-info { background: #f1f5f9; padding: 10px; border-radius: 8px; margin-bottom: 20px; }
+              .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin: 20px 0; }
+              .stat-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; text-align: center; }
+              .stat-value { font-size: 24px; font-weight: bold; }
+              .stat-label { font-size: 12px; color: #64748b; }
+              .green { color: #16a34a; }
+              .red { color: #dc2626; }
+              .yellow { color: #ca8a04; }
+              table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+              th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: right; }
+              th { background: #f1f5f9; font-weight: bold; }
+              .footer { margin-top: 30px; text-align: center; color: #94a3b8; font-size: 12px; }
+            </style>
+          </head>
+          <body>
+            <h1>✅ تحليل الاعتمادات</h1>
+            <div class="filter-info">
+              <strong>الفلاتر:</strong> ${filterText}<br>
+              <strong>تاريخ التقرير:</strong> ${now}
+            </div>
+            
+            <div class="stats-grid">
+              <div class="stat-card">
+                <div class="stat-value">${approvalReport.summary.total_requests}</div>
+                <div class="stat-label">إجمالي الطلبات</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value green">${approvalReport.summary.approved}</div>
+                <div class="stat-label">معتمدة (${approvalReport.summary.approval_rate}%)</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value red">${approvalReport.summary.rejected}</div>
+                <div class="stat-label">مرفوضة (${approvalReport.summary.rejection_rate}%)</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value yellow">${approvalReport.summary.pending}</div>
+                <div class="stat-label">معلقة</div>
+              </div>
+            </div>
+            
+            <h2>👷 حسب المهندس</h2>
+            <table>
+              <tr><th>المهندس</th><th>الإجمالي</th><th>معتمدة</th><th>مرفوضة</th><th>معلقة</th></tr>
+              ${approvalReport.by_engineer?.map(e => `<tr><td>${e.name}</td><td>${e.total}</td><td class="green">${e.approved}</td><td class="red">${e.rejected}</td><td class="yellow">${e.pending}</td></tr>`).join('') || '<tr><td colspan="5">لا توجد بيانات</td></tr>'}
+            </table>
+            
+            <h2>👨‍💼 حسب المشرف</h2>
+            <table>
+              <tr><th>المشرف</th><th>الإجمالي</th><th>معتمدة</th><th>مرفوضة</th><th>معلقة</th></tr>
+              ${approvalReport.by_supervisor?.map(s => `<tr><td>${s.name}</td><td>${s.total}</td><td class="green">${s.approved}</td><td class="red">${s.rejected}</td><td class="yellow">${s.pending}</td></tr>`).join('') || '<tr><td colspan="5">لا توجد بيانات</td></tr>'}
+            </table>
+            
+            <h2>🏢 حسب المشروع</h2>
+            <table>
+              <tr><th>المشروع</th><th>الإجمالي</th><th>معتمدة</th><th>مرفوضة</th><th>معلقة</th></tr>
+              ${approvalReport.by_project?.map(p => `<tr><td>${p.name}</td><td>${p.total}</td><td class="green">${p.approved}</td><td class="red">${p.rejected}</td><td class="yellow">${p.pending}</td></tr>`).join('') || '<tr><td colspan="5">لا توجد بيانات</td></tr>'}
+            </table>
+            
+            <div class="footer">تم إنشاء هذا التقرير بواسطة نظام إدارة طلبات المواد</div>
+          </body>
+          </html>
+        `;
+      } else if (reportType === "suppliers" && supplierReport) {
+        content = `
+          <html dir="rtl">
+          <head>
+            <meta charset="UTF-8">
+            <style>
+              body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 20px; direction: rtl; }
+              h1 { color: #ea580c; border-bottom: 2px solid #ea580c; padding-bottom: 10px; }
+              .filter-info { background: #f1f5f9; padding: 10px; border-radius: 8px; margin-bottom: 20px; }
+              .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin: 20px 0; }
+              .stat-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; text-align: center; }
+              .stat-value { font-size: 24px; font-weight: bold; color: #ea580c; }
+              .stat-label { font-size: 12px; color: #64748b; }
+              table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+              th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: right; }
+              th { background: #f1f5f9; font-weight: bold; }
+              .footer { margin-top: 30px; text-align: center; color: #94a3b8; font-size: 12px; }
+            </style>
+          </head>
+          <body>
+            <h1>🚚 تقرير أداء الموردين</h1>
+            <div class="filter-info">
+              <strong>الفلاتر:</strong> ${filterText}<br>
+              <strong>تاريخ التقرير:</strong> ${now}
+            </div>
+            
+            <div class="stats-grid">
+              <div class="stat-card">
+                <div class="stat-value">${supplierReport.summary.total_suppliers}</div>
+                <div class="stat-label">عدد الموردين</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value">${supplierReport.summary.total_orders}</div>
+                <div class="stat-label">إجمالي الطلبات</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value">${formatCurrency(supplierReport.summary.total_spending)}</div>
+                <div class="stat-label">إجمالي المشتريات</div>
+              </div>
+            </div>
+            
+            <h2>📋 تفاصيل الموردين</h2>
+            <table>
+              <tr>
+                <th>المورد</th>
+                <th>جهة الاتصال</th>
+                <th>الطلبات</th>
+                <th>المكتملة</th>
+                <th>نسبة الإكمال</th>
+                <th>إجمالي المشتريات</th>
+                <th>متوسط الطلب</th>
+              </tr>
+              ${supplierReport.suppliers?.map(s => `
+                <tr>
+                  <td>${s.supplier_name}</td>
+                  <td>${s.contact_person || '-'}</td>
+                  <td>${s.total_orders}</td>
+                  <td>${s.completed_orders}</td>
+                  <td>${s.completion_rate}%</td>
+                  <td>${formatCurrency(s.total_amount)}</td>
+                  <td>${formatCurrency(s.avg_order_value)}</td>
+                </tr>
+              `).join('') || '<tr><td colspan="7">لا توجد بيانات</td></tr>'}
+            </table>
+            
+            <div class="footer">تم إنشاء هذا التقرير بواسطة نظام إدارة طلبات المواد</div>
+          </body>
+          </html>
+        `;
+      }
+      
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(content);
+      printWindow.document.close();
+      printWindow.print();
+      
+      toast.success("تم فتح نافذة الطباعة");
+    } catch (error) {
+      console.error("PDF export error:", error);
+      toast.error("فشل في تصدير التقرير");
+    }
+  };
+
+  const hasActiveFilters = Object.values(filters).some(v => v !== "");
 
   if (loading) {
     return (
@@ -77,6 +427,104 @@ export default function AdvancedReports({ onClose }) {
         </Button>
       </div>
 
+      {/* Filters Section */}
+      <Card className="bg-slate-50 border-slate-200">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Filter className="h-5 w-5 text-slate-600" />
+            <span className="font-medium text-slate-700">الفلاتر</span>
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="text-red-500 hover:text-red-700 mr-auto">
+                <XCircle className="h-4 w-4 ml-1" /> مسح الفلاتر
+              </Button>
+            )}
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            {/* Project Filter */}
+            <div>
+              <Label className="text-xs text-slate-600">المشروع</Label>
+              <select
+                value={filters.project_id}
+                onChange={(e) => setFilters(prev => ({ ...prev, project_id: e.target.value }))}
+                className="w-full h-9 border rounded-lg bg-white px-2 text-sm"
+              >
+                <option value="">الكل</option>
+                {projects.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+            
+            {/* Engineer Filter */}
+            <div>
+              <Label className="text-xs text-slate-600">المهندس</Label>
+              <select
+                value={filters.engineer_id}
+                onChange={(e) => setFilters(prev => ({ ...prev, engineer_id: e.target.value }))}
+                className="w-full h-9 border rounded-lg bg-white px-2 text-sm"
+              >
+                <option value="">الكل</option>
+                {engineers.map(e => (
+                  <option key={e.id} value={e.id}>{e.name}</option>
+                ))}
+              </select>
+            </div>
+            
+            {/* Supervisor Filter */}
+            <div>
+              <Label className="text-xs text-slate-600">المشرف</Label>
+              <select
+                value={filters.supervisor_id}
+                onChange={(e) => setFilters(prev => ({ ...prev, supervisor_id: e.target.value }))}
+                className="w-full h-9 border rounded-lg bg-white px-2 text-sm"
+              >
+                <option value="">الكل</option>
+                {supervisors.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+            
+            {/* Supplier Filter */}
+            <div>
+              <Label className="text-xs text-slate-600">المورد</Label>
+              <select
+                value={filters.supplier_id}
+                onChange={(e) => setFilters(prev => ({ ...prev, supplier_id: e.target.value }))}
+                className="w-full h-9 border rounded-lg bg-white px-2 text-sm"
+              >
+                <option value="">الكل</option>
+                {suppliers.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+            
+            {/* Start Date */}
+            <div>
+              <Label className="text-xs text-slate-600">من تاريخ</Label>
+              <input
+                type="date"
+                value={filters.start_date}
+                onChange={(e) => setFilters(prev => ({ ...prev, start_date: e.target.value }))}
+                className="w-full h-9 border rounded-lg bg-white px-2 text-sm"
+              />
+            </div>
+            
+            {/* End Date */}
+            <div>
+              <Label className="text-xs text-slate-600">إلى تاريخ</Label>
+              <input
+                type="date"
+                value={filters.end_date}
+                onChange={(e) => setFilters(prev => ({ ...prev, end_date: e.target.value }))}
+                className="w-full h-9 border rounded-lg bg-white px-2 text-sm"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <Tabs defaultValue="summary" className="space-y-4">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="summary" className="gap-2">
@@ -94,6 +542,16 @@ export default function AdvancedReports({ onClose }) {
         <TabsContent value="summary" className="space-y-4">
           {summaryReport && (
             <>
+              {/* Export Buttons */}
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={() => exportToPDF("summary")}>
+                  <FileText className="h-4 w-4 ml-1" /> تصدير PDF
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => exportToExcel("summary")}>
+                  <FileSpreadsheet className="h-4 w-4 ml-1" /> تصدير Excel
+                </Button>
+              </div>
+              
               {/* Key Metrics */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <Card className="border-r-4 border-blue-500">
@@ -282,6 +740,16 @@ export default function AdvancedReports({ onClose }) {
         <TabsContent value="approvals" className="space-y-4">
           {approvalReport && (
             <>
+              {/* Export Buttons */}
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={() => exportToPDF("approvals")}>
+                  <FileText className="h-4 w-4 ml-1" /> تصدير PDF
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => exportToExcel("approval-analytics")}>
+                  <FileSpreadsheet className="h-4 w-4 ml-1" /> تصدير Excel
+                </Button>
+              </div>
+              
               {/* Approval Summary */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <Card className="border-r-4 border-blue-500">
@@ -352,6 +820,46 @@ export default function AdvancedReports({ onClose }) {
                 </CardContent>
               </Card>
 
+              {/* By Supervisor */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    حسب المشرف
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {approvalReport.by_supervisor?.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-slate-50">
+                          <tr>
+                            <th className="px-4 py-2 text-right">المشرف</th>
+                            <th className="px-4 py-2 text-center">الإجمالي</th>
+                            <th className="px-4 py-2 text-center">معتمدة</th>
+                            <th className="px-4 py-2 text-center">مرفوضة</th>
+                            <th className="px-4 py-2 text-center">معلقة</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {approvalReport.by_supervisor.map((item, idx) => (
+                            <tr key={idx} className="hover:bg-slate-50">
+                              <td className="px-4 py-3 font-medium">{item.name}</td>
+                              <td className="px-4 py-3 text-center">{item.total}</td>
+                              <td className="px-4 py-3 text-center text-green-600">{item.approved}</td>
+                              <td className="px-4 py-3 text-center text-red-600">{item.rejected}</td>
+                              <td className="px-4 py-3 text-center text-yellow-600">{item.pending}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="text-center text-slate-500 py-4">لا توجد بيانات</p>
+                  )}
+                </CardContent>
+              </Card>
+
               {/* By Project */}
               <Card>
                 <CardHeader>
@@ -399,6 +907,16 @@ export default function AdvancedReports({ onClose }) {
         <TabsContent value="suppliers" className="space-y-4">
           {supplierReport && (
             <>
+              {/* Export Buttons */}
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={() => exportToPDF("suppliers")}>
+                  <FileText className="h-4 w-4 ml-1" /> تصدير PDF
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => exportToExcel("supplier-performance")}>
+                  <FileSpreadsheet className="h-4 w-4 ml-1" /> تصدير Excel
+                </Button>
+              </div>
+              
               {/* Summary Cards */}
               <div className="grid grid-cols-3 gap-4">
                 <Card className="border-r-4 border-blue-500">
