@@ -2095,59 +2095,55 @@ const ProcurementDashboard = () => {
                               </div>
                               
                               {/* Catalog linking - searchable dropdown */}
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs text-slate-600 whitespace-nowrap">ربط بالكتالوج:</span>
-                                <div className="flex-1">
-                                  <SearchableSelect
-                                    options={catalogItems}
-                                    value={catalogInfo?.catalog_item_id || ""}
-                                    onChange={(selectedId, catalogItem) => {
-                                      if (selectedId && catalogItem) {
-                                        setCatalogPrices(prev => ({
-                                          ...prev,
-                                          [idx]: {
-                                            catalog_item_id: catalogItem.id,
-                                            price: catalogItem.price,
-                                            name: catalogItem.name,
-                                            supplier_name: catalogItem.supplier_name
-                                          }
-                                        }));
-                                        setItemPrices(prev => ({
-                                          ...prev,
-                                          [idx]: catalogItem.price.toString()
-                                        }));
-                                        toast.success(`تم ربط "${item.name}" بـ "${catalogItem.name}" - السعر: ${catalogItem.price.toLocaleString()} ر.س`);
-                                      } else {
-                                        setCatalogPrices(prev => {
-                                          const newPrices = {...prev};
-                                          delete newPrices[idx];
-                                          return newPrices;
-                                        });
-                                      }
-                                    }}
-                                    placeholder="اختر صنف من الكتالوج"
-                                    searchPlaceholder="ابحث في الكتالوج..."
-                                    displayKey="name"
-                                    valueKey="id"
-                                    renderOption={(cat) => (
-                                      <div className="flex justify-between items-center">
-                                        <span>{cat.name}</span>
-                                        <span className="text-green-600 font-medium">{cat.price?.toLocaleString()} ر.س</span>
-                                      </div>
-                                    )}
-                                  />
+                              <div className="mt-3 pt-3 border-t border-slate-200">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-xs font-semibold text-slate-600">ربط بالكتالوج:</span>
+                                  {!catalogInfo && (
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm"
+                                      onClick={() => searchCatalogPrice(item.name, idx)}
+                                      className="text-blue-600 h-7 px-2 text-xs"
+                                      title="بحث تلقائي"
+                                    >
+                                      <Search className="w-3 h-3 ml-1" />
+                                      بحث تلقائي
+                                    </Button>
+                                  )}
                                 </div>
-                                {!catalogInfo && (
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm"
-                                    onClick={() => searchCatalogPrice(item.name, idx)}
-                                    className="text-blue-600 h-7 px-2"
-                                    title="بحث تلقائي"
-                                  >
-                                    <Search className="w-3 h-3" />
-                                  </Button>
-                                )}
+                                <SearchableSelect
+                                  options={catalogItems}
+                                  value={catalogInfo?.catalog_item_id || ""}
+                                  onChange={(selectedId, catalogItem) => {
+                                    if (selectedId && catalogItem) {
+                                      setCatalogPrices(prev => ({
+                                        ...prev,
+                                        [idx]: {
+                                          catalog_item_id: catalogItem.id,
+                                          price: catalogItem.price,
+                                          name: catalogItem.name,
+                                          supplier_name: catalogItem.supplier_name
+                                        }
+                                      }));
+                                      setItemPrices(prev => ({
+                                        ...prev,
+                                        [idx]: catalogItem.price.toString()
+                                      }));
+                                      toast.success(`تم ربط "${item.name}" بـ "${catalogItem.name}" - السعر: ${catalogItem.price.toLocaleString()} ر.س`);
+                                    } else {
+                                      setCatalogPrices(prev => {
+                                        const newPrices = {...prev};
+                                        delete newPrices[idx];
+                                        return newPrices;
+                                      });
+                                    }
+                                  }}
+                                  placeholder="اختر صنف من الكتالوج"
+                                  searchPlaceholder="ابحث بالاسم أو المورد..."
+                                  displayKey="name"
+                                  valueKey="id"
+                                  maxHeight="280px"
+                                />
                               </div>
                               
                               {catalogInfo && (
