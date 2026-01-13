@@ -143,19 +143,37 @@ async def get_system_info(current_user: User = Depends(get_current_user_pg)):
 
 @system_router.get("/check-updates")
 async def check_for_updates(current_user: User = Depends(get_current_user_pg)):
-    """Check if updates are available"""
+    """Check if updates are available from GitHub"""
     if current_user.role != UserRole.SYSTEM_ADMIN:
         raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
     
-    # In a real scenario, this would check a remote server
-    # For now, we simulate by comparing versions
+    import httpx
+    
     current = CURRENT_VERSION["version"]
+    latest = current
+    release_notes = []
+    download_url = None
     
-    # Simulated latest version (in production, fetch from update server)
-    latest = "2.1.0"  # Same as current = no update
+    # Check GitHub releases for updates
+    # Change this to your GitHub repo
+    github_repo = os.environ.get("GITHUB_REPO", "")
     
-    # You can change this to test update functionality:
-    # latest = "2.2.0"  # Uncomment to simulate available update
+    if github_repo:
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"https://api.github.com/repos/{github_repo}/releases/latest",
+                    headers={"Accept": "application/vnd.github.v3+json"},
+                    timeout=10.0
+                )
+                if response.status_code == 200:
+                    release_data = response.json()
+                    latest = release_data.get("tag_name", "").lstrip("v")
+                    release_notes = release_data.get("body", "").split("\n")[:10]
+                    download_url = release_data.get("html_url")
+        except Exception as e:
+            # If GitHub check fails, continue with current version
+            print(f"Failed to check GitHub for updates: {e}")
     
     update_available = latest > current
     
@@ -163,12 +181,8 @@ async def check_for_updates(current_user: User = Depends(get_current_user_pg)):
         current_version=current,
         latest_version=latest,
         update_available=update_available,
-        release_notes=[
-            "إصلاحات أمنية",
-            "تحسينات في الأداء",
-            "ميزات جديدة"
-        ] if update_available else [],
-        download_url="https://updates.example.com/v2.2.0.zip" if update_available else None
+        release_notes=release_notes if update_available else [],
+        download_url=download_url
     )
 
 
