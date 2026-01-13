@@ -291,6 +291,25 @@ async def change_password(
 
 # ==================== USER MANAGEMENT ROUTES ====================
 
+@pg_auth_router.get("/users/list")
+async def get_users_list_for_filters(
+    current_user: User = Depends(get_current_user_pg),
+    session: AsyncSession = Depends(get_postgres_session)
+):
+    """Get list of users for filters - accessible by all authenticated users"""
+    result = await session.execute(select(User).where(User.is_active == True).order_by(User.name))
+    users = result.scalars().all()
+    
+    return [
+        {
+            "id": u.id,
+            "name": u.name,
+            "role": u.role
+        }
+        for u in users
+    ]
+
+
 @pg_auth_router.get("/admin/users")
 async def get_all_users_admin(
     current_user: User = Depends(get_current_user_pg),
