@@ -109,6 +109,9 @@ async def create_project(
     
     session.add(new_project)
     
+    # Flush to ensure project is saved before adding budget categories (foreign key constraint)
+    await session.flush()
+    
     # Copy default budget categories to new project
     result = await session.execute(select(DefaultBudgetCategory))
     default_categories = result.scalars().all()
