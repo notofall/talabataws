@@ -1204,8 +1204,8 @@ const ProcurementDashboard = () => {
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={() => setMobileMenuOpen(false)}
           />
-          {/* Drawer */}
-          <div className="absolute top-0 left-0 h-full w-72 bg-slate-900 shadow-2xl animate-in slide-in-from-left duration-300">
+          {/* Drawer - with PWA safe area */}
+          <div className="absolute top-0 left-0 h-full w-72 bg-slate-900 shadow-2xl animate-in slide-in-from-left duration-300 pwa-header">
             {/* Drawer Header */}
             <div className="flex items-center justify-between p-4 border-b border-slate-700">
               <div className="flex items-center gap-2">
