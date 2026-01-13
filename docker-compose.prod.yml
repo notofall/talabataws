@@ -1,0 +1,97 @@
+# Docker Compose للإنتاج - Production
+# استخدم هذا الملف على خادم الشركة
+#
+# الاستخدام:
+#   docker-compose -f docker-compose.prod.yml pull
+#   docker-compose -f docker-compose.prod.yml up -d
+#
+# ⚠️ تأكد من تغيير:
+#   - GITHUB_USERNAME إلى اسم المستخدم الخاص بك
+#   - GITHUB_REPO إلى اسم المستودع
+#   - كلمات المرور والمفاتيح السرية
+
+version: '3.8'
+
+services:
+  # قاعدة البيانات PostgreSQL
+  postgres:
+    image: postgres:14-alpine
+    container_name: material_requests_db
+    environment:
+      POSTGRES_USER: ${DB_USER:-app_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-secure_password_change_me}
+      POSTGRES_DB: ${DB_NAME:-material_requests}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-app_user} -d ${DB_NAME:-material_requests}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app_network
+
+  # Backend API
+  # ⚠️ غيّر GITHUB_USERNAME/GITHUB_REPO إلى القيم الصحيحة
+  backend:
+    image: ghcr.io/GITHUB_USERNAME/GITHUB_REPO/backend:latest
+    container_name: material_requests_backend
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=${DB_NAME:-material_requests}
+      - POSTGRES_USER=${DB_USER:-app_user}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-secure_password_change_me}
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - backend_data:/app/data
+      - backend_logs:/app/backend/logs
+    networks:
+      - app_network
+
+  # Frontend
+  # ⚠️ غيّر GITHUB_USERNAME/GITHUB_REPO إلى القيم الصحيحة
+  frontend:
+    image: ghcr.io/GITHUB_USERNAME/GITHUB_REPO/frontend:latest
+    container_name: material_requests_frontend
+    environment:
+      - REACT_APP_BACKEND_URL=${BACKEND_URL:-http://localhost:8001}
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - app_network
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: material_requests_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - frontend
+      - backend
+    restart: unless-stopped
+    networks:
+      - app_network
+
+volumes:
+  postgres_data:
+    name: material_requests_postgres_data
+  backend_data:
+    name: material_requests_backend_data
+  backend_logs:
+    name: material_requests_backend_logs
+
+networks:
+  app_network:
+    name: material_requests_network
