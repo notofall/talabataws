@@ -327,7 +327,6 @@ async def get_budget_report(
         project_budget = {
             "project_id": project.id,
             "project_name": project.name,
-            "total_budget": project.budget or 0,
             "categories": [],
             "total_spent": 0
         }
@@ -346,40 +345,56 @@ async def get_budget_report(
             )
             spent = float(spending_result.scalar() or 0)
             
-            # Get category budget for this project if exists
-            cat_budget_result = await session.execute(
-                select(BudgetCategory.budget)
-                .where(
-                    BudgetCategory.id == category.id,
-                    BudgetCategory.project_id == project.id
-                )
-            )
-            cat_budget = cat_budget_result.scalar() or category.budget or 0
+            cat_budget = float(category.budget or 0)
             
-            project_budget["categories"].append({
-                "category_id": category.id,
-                "category_name": category.name,
-                "budget": float(cat_budget),
-                "spent": spent,
-                "remaining": float(cat_budget) - spent,
-                "percentage": round((spent / float(cat_budget) * 100), 1) if cat_budget > 0 else 0
-            })
+            if spent > 0 or cat_budget > 0:
+                project_budget["categories"].append({
+                    "category_id": category.id,
+                    "category_name": category.name,
+                    "budget": cat_budget,
+                    "spent": spent,
+                    "remaining": cat_budget - spent,
+                    "percentage": round((spent / cat_budget * 100), 1) if cat_budget > 0 else 0
+                })
             
             project_budget["total_spent"] += spent
         
-        project_budget["remaining_budget"] = project_budget["total_budget"] - project_budget["total_spent"]
-        project_budget["budget_percentage"] = round(
-            (project_budget["total_spent"] / project_budget["total_budget"] * 100), 1
-        ) if project_budget["total_budget"] > 0 else 0
+        if project_budget["total_spent"] > 0 or project_budget["categories"]:
+            budget_data.append(project_budget)
+    
+    # Get overall category totals
+    category_totals = []
+    for category in categories:
+        total_budget = float(category.budget or 0)
         
-        budget_data.append(project_budget)
+        # Total spent in this category across all projects
+        total_spent_result = await session.execute(
+            select(func.coalesce(func.sum(PurchaseOrder.total_amount), 0))
+            .select_from(PurchaseOrder)
+            .where(
+                PurchaseOrder.category_id == category.id,
+                PurchaseOrder.status.in_(["approved", "printed", "shipped", "delivered"])
+            )
+        )
+        total_spent = float(total_spent_result.scalar() or 0)
+        
+        if total_budget > 0 or total_spent > 0:
+            category_totals.append({
+                "category_id": category.id,
+                "category_name": category.name,
+                "budget": total_budget,
+                "spent": total_spent,
+                "remaining": total_budget - total_spent,
+                "percentage": round((total_spent / total_budget * 100), 1) if total_budget > 0 else 0
+            })
     
     # Summary
-    total_all_budgets = sum(p["total_budget"] for p in budget_data)
-    total_all_spent = sum(p["total_spent"] for p in budget_data)
+    total_all_budgets = sum(c["budget"] for c in category_totals)
+    total_all_spent = sum(c["spent"] for c in category_totals)
     
     return {
         "projects": budget_data,
+        "categories": category_totals,
         "summary": {
             "total_budget": total_all_budgets,
             "total_spent": total_all_spent,
