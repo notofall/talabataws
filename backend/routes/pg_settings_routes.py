@@ -386,6 +386,288 @@ async def get_budget_report(
     }
 
 
+# ==================== ADVANCED REPORTS ====================
+
+from database import MaterialRequest
+
+@pg_settings_router.get("/reports/advanced/summary")
+async def get_advanced_summary_report(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    current_user: User = Depends(get_current_user_pg),
+    session: AsyncSession = Depends(get_postgres_session)
+):
+    """ملخص تنفيذي شامل - للمدير العام ومدير المشتريات"""
+    if current_user.role not in [UserRole.PROCUREMENT_MANAGER, UserRole.GENERAL_MANAGER]:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    
+    # Date filters
+    date_filter_orders = []
+    date_filter_requests = []
+    if start_date:
+        start = datetime.fromisoformat(start_date)
+        date_filter_orders.append(PurchaseOrder.created_at >= start)
+        date_filter_requests.append(MaterialRequest.created_at >= start)
+    if end_date:
+        end = datetime.fromisoformat(end_date)
+        date_filter_orders.append(PurchaseOrder.created_at <= end)
+        date_filter_requests.append(MaterialRequest.created_at <= end)
+    
+    # Total Purchase Orders
+    orders_query = select(PurchaseOrder)
+    if date_filter_orders:
+        orders_query = orders_query.where(and_(*date_filter_orders))
+    orders_result = await session.execute(orders_query)
+    all_orders = orders_result.scalars().all()
+    
+    # Total Material Requests
+    requests_query = select(MaterialRequest)
+    if date_filter_requests:
+        requests_query = requests_query.where(and_(*date_filter_requests))
+    requests_result = await session.execute(requests_query)
+    all_requests = requests_result.scalars().all()
+    
+    # Order statistics
+    orders_by_status = {}
+    total_order_amount = 0
+    for order in all_orders:
+        status = order.status or "pending"
+        orders_by_status[status] = orders_by_status.get(status, 0) + 1
+        if order.status in ["approved", "printed", "shipped", "delivered"]:
+            total_order_amount += order.total_amount or 0
+    
+    # Request statistics
+    requests_by_status = {}
+    for req in all_requests:
+        status = req.status or "pending"
+        requests_by_status[status] = requests_by_status.get(status, 0) + 1
+    
+    # Monthly spending trend (last 6 months)
+    monthly_spending = []
+    from datetime import timedelta
+    now = datetime.utcnow()
+    for i in range(5, -1, -1):
+        month_start = (now.replace(day=1) - timedelta(days=i*30)).replace(day=1)
+        month_end = (month_start + timedelta(days=32)).replace(day=1)
+        
+        month_result = await session.execute(
+            select(func.coalesce(func.sum(PurchaseOrder.total_amount), 0))
+            .where(
+                PurchaseOrder.status.in_(["approved", "printed", "shipped", "delivered"]),
+                PurchaseOrder.created_at >= month_start,
+                PurchaseOrder.created_at < month_end
+            )
+        )
+        month_total = float(month_result.scalar() or 0)
+        monthly_spending.append({
+            "month": month_start.strftime("%Y-%m"),
+            "month_name": month_start.strftime("%B %Y"),
+            "amount": month_total
+        })
+    
+    # Top 5 projects by spending
+    top_projects_result = await session.execute(
+        select(
+            PurchaseOrder.project_name,
+            func.sum(PurchaseOrder.total_amount).label("total")
+        )
+        .where(PurchaseOrder.status.in_(["approved", "printed", "shipped", "delivered"]))
+        .group_by(PurchaseOrder.project_name)
+        .order_by(desc("total"))
+        .limit(5)
+    )
+    top_projects = [{"name": r[0], "amount": float(r[1] or 0)} for r in top_projects_result.all()]
+    
+    # Top 5 suppliers by amount
+    top_suppliers_result = await session.execute(
+        select(
+            PurchaseOrder.supplier_name,
+            func.sum(PurchaseOrder.total_amount).label("total"),
+            func.count(PurchaseOrder.id).label("order_count")
+        )
+        .where(PurchaseOrder.status.in_(["approved", "printed", "shipped", "delivered"]))
+        .group_by(PurchaseOrder.supplier_name)
+        .order_by(desc("total"))
+        .limit(5)
+    )
+    top_suppliers = [{"name": r[0], "amount": float(r[1] or 0), "orders": r[2]} for r in top_suppliers_result.all()]
+    
+    # Spending by category
+    by_category_result = await session.execute(
+        select(
+            PurchaseOrder.category_name,
+            func.sum(PurchaseOrder.total_amount).label("total")
+        )
+        .where(PurchaseOrder.status.in_(["approved", "printed", "shipped", "delivered"]))
+        .group_by(PurchaseOrder.category_name)
+        .order_by(desc("total"))
+    )
+    spending_by_category = [{"name": r[0] or "غير مصنف", "amount": float(r[1] or 0)} for r in by_category_result.all()]
+    
+    return {
+        "summary": {
+            "total_orders": len(all_orders),
+            "total_requests": len(all_requests),
+            "total_spending": total_order_amount,
+            "approved_orders": orders_by_status.get("approved", 0) + orders_by_status.get("printed", 0) + orders_by_status.get("shipped", 0) + orders_by_status.get("delivered", 0),
+            "pending_orders": orders_by_status.get("pending", 0) + orders_by_status.get("pending_gm", 0),
+            "rejected_orders": orders_by_status.get("rejected", 0) + orders_by_status.get("rejected_gm", 0)
+        },
+        "orders_by_status": orders_by_status,
+        "requests_by_status": requests_by_status,
+        "monthly_spending": monthly_spending,
+        "top_projects": top_projects,
+        "top_suppliers": top_suppliers,
+        "spending_by_category": spending_by_category
+    }
+
+
+@pg_settings_router.get("/reports/advanced/approval-analytics")
+async def get_approval_analytics(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    current_user: User = Depends(get_current_user_pg),
+    session: AsyncSession = Depends(get_postgres_session)
+):
+    """تحليل سير الاعتمادات - للمدير العام ومدير المشتريات"""
+    if current_user.role not in [UserRole.PROCUREMENT_MANAGER, UserRole.GENERAL_MANAGER]:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    
+    date_filter = []
+    if start_date:
+        date_filter.append(MaterialRequest.created_at >= datetime.fromisoformat(start_date))
+    if end_date:
+        date_filter.append(MaterialRequest.created_at <= datetime.fromisoformat(end_date))
+    
+    # Get all requests
+    query = select(MaterialRequest)
+    if date_filter:
+        query = query.where(and_(*date_filter))
+    result = await session.execute(query)
+    all_requests = result.scalars().all()
+    
+    # Approval statistics
+    total = len(all_requests)
+    approved = len([r for r in all_requests if r.status in ["approved", "po_issued"]])
+    rejected = len([r for r in all_requests if r.status in ["rejected", "rejected_engineer"]])
+    pending = len([r for r in all_requests if r.status in ["pending", "pending_engineer"]])
+    
+    # By engineer
+    by_engineer = {}
+    for req in all_requests:
+        engineer = req.engineer_name or "غير محدد"
+        if engineer not in by_engineer:
+            by_engineer[engineer] = {"approved": 0, "rejected": 0, "pending": 0, "total": 0}
+        by_engineer[engineer]["total"] += 1
+        if req.status in ["approved", "po_issued"]:
+            by_engineer[engineer]["approved"] += 1
+        elif req.status in ["rejected", "rejected_engineer"]:
+            by_engineer[engineer]["rejected"] += 1
+        else:
+            by_engineer[engineer]["pending"] += 1
+    
+    # By supervisor
+    by_supervisor = {}
+    for req in all_requests:
+        supervisor = req.supervisor_name or "غير محدد"
+        if supervisor not in by_supervisor:
+            by_supervisor[supervisor] = {"approved": 0, "rejected": 0, "pending": 0, "total": 0}
+        by_supervisor[supervisor]["total"] += 1
+        if req.status in ["approved", "po_issued"]:
+            by_supervisor[supervisor]["approved"] += 1
+        elif req.status in ["rejected", "rejected_engineer"]:
+            by_supervisor[supervisor]["rejected"] += 1
+        else:
+            by_supervisor[supervisor]["pending"] += 1
+    
+    # By project
+    by_project = {}
+    for req in all_requests:
+        project = req.project_name or "غير محدد"
+        if project not in by_project:
+            by_project[project] = {"approved": 0, "rejected": 0, "pending": 0, "total": 0}
+        by_project[project]["total"] += 1
+        if req.status in ["approved", "po_issued"]:
+            by_project[project]["approved"] += 1
+        elif req.status in ["rejected", "rejected_engineer"]:
+            by_project[project]["rejected"] += 1
+        else:
+            by_project[project]["pending"] += 1
+    
+    return {
+        "summary": {
+            "total_requests": total,
+            "approved": approved,
+            "rejected": rejected,
+            "pending": pending,
+            "approval_rate": round((approved / total * 100), 1) if total > 0 else 0,
+            "rejection_rate": round((rejected / total * 100), 1) if total > 0 else 0
+        },
+        "by_engineer": [{"name": k, **v} for k, v in by_engineer.items()],
+        "by_supervisor": [{"name": k, **v} for k, v in by_supervisor.items()],
+        "by_project": [{"name": k, **v} for k, v in by_project.items()]
+    }
+
+
+@pg_settings_router.get("/reports/advanced/supplier-performance")
+async def get_supplier_performance_report(
+    current_user: User = Depends(get_current_user_pg),
+    session: AsyncSession = Depends(get_postgres_session)
+):
+    """تقرير أداء الموردين - للمدير العام ومدير المشتريات"""
+    if current_user.role not in [UserRole.PROCUREMENT_MANAGER, UserRole.GENERAL_MANAGER]:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    
+    # Get all suppliers
+    suppliers_result = await session.execute(select(Supplier))
+    suppliers = suppliers_result.scalars().all()
+    
+    performance_data = []
+    
+    for supplier in suppliers:
+        # Orders for this supplier
+        orders_result = await session.execute(
+            select(PurchaseOrder).where(PurchaseOrder.supplier_id == supplier.id)
+        )
+        orders = orders_result.scalars().all()
+        
+        if not orders:
+            continue
+        
+        total_orders = len(orders)
+        completed_orders = len([o for o in orders if o.status in ["delivered"]])
+        approved_orders = len([o for o in orders if o.status in ["approved", "printed", "shipped", "delivered"]])
+        total_amount = sum(o.total_amount or 0 for o in orders if o.status in ["approved", "printed", "shipped", "delivered"])
+        
+        # On-time delivery rate (simplified - based on status)
+        delivered = [o for o in orders if o.status == "delivered"]
+        
+        performance_data.append({
+            "supplier_id": supplier.id,
+            "supplier_name": supplier.name,
+            "contact_person": supplier.contact_person,
+            "phone": supplier.phone,
+            "total_orders": total_orders,
+            "completed_orders": completed_orders,
+            "approved_orders": approved_orders,
+            "total_amount": total_amount,
+            "completion_rate": round((completed_orders / total_orders * 100), 1) if total_orders > 0 else 0,
+            "avg_order_value": round(total_amount / approved_orders, 2) if approved_orders > 0 else 0
+        })
+    
+    # Sort by total amount
+    performance_data.sort(key=lambda x: x["total_amount"], reverse=True)
+    
+    return {
+        "suppliers": performance_data,
+        "summary": {
+            "total_suppliers": len(performance_data),
+            "total_orders": sum(s["total_orders"] for s in performance_data),
+            "total_spending": sum(s["total_amount"] for s in performance_data)
+        }
+    }
+
+
 # ==================== AUDIT LOG ROUTES ====================
 
 @pg_settings_router.get("/audit-logs")
