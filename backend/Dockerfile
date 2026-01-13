@@ -2,10 +2,13 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies including build tools for bcrypt
 RUN apt-get update && apt-get install -y \
     gcc \
     libpq-dev \
+    libffi-dev \
+    cargo \
+    rustc \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for caching
@@ -21,9 +24,9 @@ RUN pip install --no-cache-dir --upgrade pip && \
     psycopg2-binary \
     pydantic \
     pydantic-settings \
-    python-jose \
-    passlib \
-    bcrypt \
+    python-jose[cryptography] \
+    "passlib[bcrypt]" \
+    bcrypt==4.0.1 \
     python-multipart \
     python-dotenv \
     alembic \
