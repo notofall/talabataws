@@ -641,6 +641,147 @@ export default function SystemAdminDashboard() {
               </Card>
             </div>
           </TabsContent>
+
+          {/* Audit Trail Tab */}
+          <TabsContent value="audit">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <History className="h-5 w-5" />
+                  سجل التدقيق
+                </CardTitle>
+                <CardDescription>
+                  تتبع جميع العمليات والتغييرات في النظام
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {/* Filters */}
+                <div className="flex flex-wrap gap-4 mb-6">
+                  <div className="flex items-center gap-2">
+                    <Filter className="h-4 w-4 text-muted-foreground" />
+                    <Select 
+                      value={auditFilter.entity_type} 
+                      onValueChange={(value) => setAuditFilter(prev => ({ ...prev, entity_type: value === "all" ? "" : value }))}
+                    >
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="نوع الكيان" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">الكل</SelectItem>
+                        <SelectItem value="user">المستخدمين</SelectItem>
+                        <SelectItem value="project">المشاريع</SelectItem>
+                        <SelectItem value="request">طلبات المواد</SelectItem>
+                        <SelectItem value="purchase_order">أوامر الشراء</SelectItem>
+                        <SelectItem value="supplier">الموردين</SelectItem>
+                        <SelectItem value="category">تصنيفات الميزانية</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Select 
+                      value={auditFilter.limit.toString()} 
+                      onValueChange={(value) => setAuditFilter(prev => ({ ...prev, limit: parseInt(value) }))}
+                    >
+                      <SelectTrigger className="w-[120px]">
+                        <SelectValue placeholder="العدد" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="50">50 سجل</SelectItem>
+                        <SelectItem value="100">100 سجل</SelectItem>
+                        <SelectItem value="200">200 سجل</SelectItem>
+                        <SelectItem value="500">500 سجل</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    onClick={fetchAuditLogs}
+                    disabled={auditLoading}
+                  >
+                    <RefreshCw className={`ml-2 h-4 w-4 ${auditLoading ? 'animate-spin' : ''}`} />
+                    تحديث
+                  </Button>
+                </div>
+
+                {/* Audit Logs Table */}
+                {auditLoading ? (
+                  <div className="flex justify-center py-8">
+                    <RefreshCw className="h-8 w-8 animate-spin text-orange-500" />
+                  </div>
+                ) : auditLogs.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <History className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>لا توجد سجلات تدقيق</p>
+                  </div>
+                ) : (
+                  <div className="border rounded-lg overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/50">
+                        <tr>
+                          <th className="px-4 py-3 text-right font-medium">التاريخ والوقت</th>
+                          <th className="px-4 py-3 text-right font-medium">المستخدم</th>
+                          <th className="px-4 py-3 text-right font-medium">الدور</th>
+                          <th className="px-4 py-3 text-right font-medium">نوع الكيان</th>
+                          <th className="px-4 py-3 text-right font-medium">الإجراء</th>
+                          <th className="px-4 py-3 text-right font-medium">الوصف</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {auditLogs.map((log) => (
+                          <tr key={log.id} className="hover:bg-muted/30 transition-colors">
+                            <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
+                              {log.timestamp ? new Date(log.timestamp).toLocaleString('ar-SA', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              }) : '-'}
+                            </td>
+                            <td className="px-4 py-3 font-medium">{log.user_name}</td>
+                            <td className="px-4 py-3">
+                              <Badge variant="outline" className="text-xs">
+                                {roleLabels[log.user_role] || log.user_role}
+                              </Badge>
+                            </td>
+                            <td className="px-4 py-3">
+                              <Badge variant="secondary" className="text-xs">
+                                {entityTypeLabels[log.entity_type] || log.entity_type}
+                              </Badge>
+                            </td>
+                            <td className="px-4 py-3">
+                              <Badge 
+                                className={`text-xs ${
+                                  log.action.includes('delete') || log.action.includes('reject') 
+                                    ? 'bg-red-100 text-red-700 hover:bg-red-100' 
+                                    : log.action.includes('create') || log.action.includes('approve')
+                                    ? 'bg-green-100 text-green-700 hover:bg-green-100'
+                                    : 'bg-blue-100 text-blue-700 hover:bg-blue-100'
+                                }`}
+                              >
+                                {actionLabels[log.action] || log.action}
+                              </Badge>
+                            </td>
+                            <td className="px-4 py-3 max-w-xs truncate" title={log.description}>
+                              {log.description}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                
+                {/* Summary */}
+                {auditLogs.length > 0 && (
+                  <div className="mt-4 flex justify-between items-center text-sm text-muted-foreground">
+                    <span>إجمالي السجلات: {auditLogs.length}</span>
+                    <span>آخر تحديث: {new Date().toLocaleTimeString('ar-SA')}</span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
 
