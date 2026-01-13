@@ -904,6 +904,304 @@ export default function SystemAdminDashboard() {
             </Card>
           </TabsContent>
 
+          {/* Domain Tab */}
+          <TabsContent value="domain">
+            <div className="space-y-6">
+              {/* Domain Status Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Globe className="h-5 w-5 text-blue-600" />
+                    إعدادات الدومين
+                  </CardTitle>
+                  <CardDescription>ربط التطبيق بدومين خاص وإعداد شهادة SSL</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {domainLoading ? (
+                    <div className="flex justify-center py-8">
+                      <RefreshCw className="h-8 w-8 animate-spin text-blue-600" />
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      {/* Current Status */}
+                      {domainStatus?.is_configured && (
+                        <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                          <div className="flex items-center gap-2 text-green-700 font-medium mb-2">
+                            <CheckCircle2 className="h-5 w-5" />
+                            الدومين مُعد
+                          </div>
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <span className="text-muted-foreground">الدومين:</span>
+                              <span className="font-medium mr-2">{domainStatus.domain}</span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">SSL:</span>
+                              <Badge className={`mr-2 ${domainStatus.ssl_enabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+                                {domainStatus.ssl_enabled ? 'مفعل' : 'غير مفعل'}
+                              </Badge>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">نوع SSL:</span>
+                              <span className="font-medium mr-2">{domainStatus.ssl_mode === 'letsencrypt' ? 'Let\'s Encrypt' : 'يدوي'}</span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">حالة Nginx:</span>
+                              <Badge className={`mr-2 ${domainStatus.nginx_status === 'ssl_ready' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                {domainStatus.nginx_status === 'ssl_ready' ? 'جاهز' : domainStatus.nginx_status === 'ssl_pending' ? 'بانتظار SSL' : 'مُعد'}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Domain Form */}
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>اسم الدومين</Label>
+                          <Input 
+                            value={domainForm.domain} 
+                            onChange={(e) => setDomainForm(prev => ({ ...prev, domain: e.target.value }))}
+                            placeholder="example.com"
+                            dir="ltr"
+                          />
+                          <p className="text-xs text-muted-foreground">أدخل الدومين بدون http:// أو https://</p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>البريد الإلكتروني (لـ Let's Encrypt)</Label>
+                          <Input 
+                            type="email"
+                            value={domainForm.admin_email} 
+                            onChange={(e) => setDomainForm(prev => ({ ...prev, admin_email: e.target.value }))}
+                            placeholder="admin@example.com"
+                            dir="ltr"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div className="flex items-center gap-3">
+                          <input 
+                            type="checkbox" 
+                            id="enable_ssl"
+                            checked={domainForm.enable_ssl}
+                            onChange={(e) => setDomainForm(prev => ({ ...prev, enable_ssl: e.target.checked }))}
+                            className="h-4 w-4"
+                          />
+                          <Label htmlFor="enable_ssl" className="cursor-pointer">تفعيل SSL (HTTPS)</Label>
+                        </div>
+                        {domainForm.enable_ssl && (
+                          <div className="space-y-2">
+                            <Label>طريقة SSL</Label>
+                            <Select 
+                              value={domainForm.ssl_mode} 
+                              onValueChange={(v) => setDomainForm(prev => ({ ...prev, ssl_mode: v }))}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="letsencrypt">Let's Encrypt (تلقائي ومجاني)</SelectItem>
+                                <SelectItem value="manual">رفع شهادة يدوياً</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex gap-2">
+                        <Button onClick={handleSaveDomain} disabled={savingDomain} className="flex-1">
+                          {savingDomain ? <RefreshCw className="ml-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="ml-2 h-4 w-4" />}
+                          حفظ إعدادات الدومين
+                        </Button>
+                        {domainStatus?.is_configured && (
+                          <Button variant="destructive" onClick={handleResetDomain}>
+                            <Trash2 className="ml-2 h-4 w-4" />
+                            إعادة تعيين
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* SSL Certificate Upload Card */}
+              {domainStatus?.is_configured && domainForm.ssl_mode === 'manual' && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Lock className="h-5 w-5 text-green-600" />
+                      رفع شهادة SSL
+                    </CardTitle>
+                    <CardDescription>ارفع شهادة SSL والمفتاح الخاص يدوياً</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>ملف الشهادة (fullchain.pem)</Label>
+                          <Input 
+                            type="file" 
+                            id="cert_file"
+                            accept=".pem,.crt,.cer"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>ملف المفتاح الخاص (privkey.pem)</Label>
+                          <Input 
+                            type="file" 
+                            id="key_file"
+                            accept=".pem,.key"
+                          />
+                        </div>
+                      </div>
+                      <Button 
+                        onClick={() => {
+                          const certFile = document.getElementById('cert_file').files[0];
+                          const keyFile = document.getElementById('key_file').files[0];
+                          handleSslUpload(certFile, keyFile);
+                        }}
+                        disabled={sslUploading}
+                      >
+                        {sslUploading ? <RefreshCw className="ml-2 h-4 w-4 animate-spin" /> : <Upload className="ml-2 h-4 w-4" />}
+                        رفع الشهادة
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Let's Encrypt Setup Card */}
+              {domainStatus?.is_configured && domainForm.ssl_mode === 'letsencrypt' && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Lock className="h-5 w-5 text-green-600" />
+                      إعداد Let's Encrypt
+                    </CardTitle>
+                    <CardDescription>الحصول على شهادة SSL مجانية من Let's Encrypt</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="flex items-center gap-2 text-blue-700 font-medium mb-2">
+                          <Info className="h-5 w-5" />
+                          متطلبات Let's Encrypt
+                        </div>
+                        <ul className="list-disc list-inside text-sm text-blue-600 space-y-1">
+                          <li>الدومين يجب أن يشير إلى عنوان IP الخادم</li>
+                          <li>المنفذ 80 يجب أن يكون مفتوحاً</li>
+                          <li>البريد الإلكتروني مطلوب للإشعارات</li>
+                        </ul>
+                      </div>
+                      <Button onClick={handleLetsEncrypt}>
+                        <Lock className="ml-2 h-4 w-4" />
+                        إنشاء سكربت Let's Encrypt
+                      </Button>
+                      
+                      {nginxConfig?.letsencrypt && (
+                        <div className="p-4 bg-gray-50 rounded-lg">
+                          <div className="flex justify-between items-center mb-2">
+                            <Label>أوامر Let's Encrypt</Label>
+                            <Button variant="ghost" size="sm" onClick={() => copyToClipboard(nginxConfig.letsencrypt.instructions)}>
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          <pre className="text-xs bg-gray-900 text-green-400 p-4 rounded-lg overflow-x-auto whitespace-pre-wrap" dir="ltr">
+                            {nginxConfig.letsencrypt.instructions}
+                          </pre>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* DNS Instructions Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <ExternalLink className="h-5 w-5 text-orange-600" />
+                    تعليمات DNS
+                  </CardTitle>
+                  <CardDescription>كيفية توجيه الدومين إلى الخادم</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <Button variant="outline" onClick={handleGetDnsInstructions}>
+                      <ExternalLink className="ml-2 h-4 w-4" />
+                      عرض تعليمات DNS
+                    </Button>
+                    
+                    {dnsInstructions && (
+                      <div className="p-4 bg-gray-50 rounded-lg">
+                        <div className="flex justify-between items-center mb-2">
+                          <Label>تعليمات إعداد DNS</Label>
+                          <Button variant="ghost" size="sm" onClick={() => copyToClipboard(dnsInstructions)}>
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <pre className="text-sm bg-white p-4 rounded-lg overflow-x-auto whitespace-pre-wrap border" dir="ltr">
+                          {dnsInstructions}
+                        </pre>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Nginx Configuration Card */}
+              {domainStatus?.is_configured && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Server className="h-5 w-5 text-purple-600" />
+                      إعدادات Nginx
+                    </CardTitle>
+                    <CardDescription>ملفات الإعداد المُنشأة</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <Button variant="outline" onClick={handleGetNginxConfig}>
+                        <Server className="ml-2 h-4 w-4" />
+                        عرض إعدادات Nginx
+                      </Button>
+                      
+                      {nginxConfig?.nginxContent && (
+                        <div className="p-4 bg-gray-50 rounded-lg">
+                          <div className="flex justify-between items-center mb-2">
+                            <Label>ملف nginx.conf</Label>
+                            <Button variant="ghost" size="sm" onClick={() => copyToClipboard(nginxConfig.nginxContent)}>
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          <pre className="text-xs bg-gray-900 text-green-400 p-4 rounded-lg overflow-x-auto max-h-64" dir="ltr">
+                            {nginxConfig.nginxContent}
+                          </pre>
+                        </div>
+                      )}
+
+                      {nginxConfig?.next_steps && (
+                        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                          <div className="flex items-center gap-2 text-yellow-700 font-medium mb-2">
+                            <AlertTriangle className="h-5 w-5" />
+                            الخطوات التالية
+                          </div>
+                          <ol className="list-decimal list-inside text-sm text-yellow-600 space-y-1">
+                            {nginxConfig.next_steps.map((step, i) => (
+                              <li key={i}>{step}</li>
+                            ))}
+                          </ol>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </TabsContent>
+
           {/* Backup Tab */}
           <TabsContent value="backup">
             <div className="grid md:grid-cols-2 gap-6">
