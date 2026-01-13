@@ -2203,13 +2203,27 @@ const ProcurementDashboard = () => {
                     </div>
                   </div>
 
-                  <Button 
-                    className="w-full h-11 bg-orange-600 hover:bg-orange-700" 
-                    onClick={handleCreateOrder} 
-                    disabled={submitting || selectedItemIndices.length === 0}
-                  >
-                    {submitting ? "جاري الإصدار..." : <><ShoppingCart className="w-4 h-4 ml-2" />إصدار أمر شراء ({selectedItemIndices.length} صنف) - {formatCurrency(calculateTotal())}</>}
-                  </Button>
+                  {/* Submit Button */}
+                  <div className="sticky bottom-0 bg-white pt-3 pb-1 border-t mt-4">
+                    <Button 
+                      className="w-full h-12 bg-gradient-to-l from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600 text-base font-semibold shadow-lg" 
+                      onClick={handleCreateOrder} 
+                      disabled={submitting || selectedItemIndices.length === 0}
+                    >
+                      {submitting ? (
+                        <span className="flex items-center gap-2">
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          جاري الإصدار...
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-2">
+                          <ShoppingCart className="w-5 h-5" />
+                          إصدار أمر شراء ({selectedItemIndices.length} صنف)
+                          <span className="bg-white/20 px-2 py-0.5 rounded">{formatCurrency(calculateTotal())}</span>
+                        </span>
+                      )}
+                    </Button>
+                  </div>
                 </>
               )}
             </div>
