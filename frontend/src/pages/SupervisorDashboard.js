@@ -76,19 +76,24 @@ const SupervisorDashboard = () => {
 
   const fetchData = async () => {
     try {
-      const [requestsRes, engineersRes, statsRes, deliveriesRes, projectsRes] = await Promise.all([
+      // Using PostgreSQL APIs
+      const [requestsRes, engineersRes, projectsRes] = await Promise.all([
         axios.get(`${API_URL}/requests`, getAuthHeaders()),
         axios.get(`${API_URL}/users/engineers`, getAuthHeaders()),
-        axios.get(`${API_URL}/v2/dashboard/stats`, getAuthHeaders()),
-        axios.get(`${API_URL}/purchase-orders/pending-delivery`, getAuthHeaders()),
         axios.get(`${API_URL}/projects`, getAuthHeaders()),
       ]);
       setRequests(requestsRes.data);
       setEngineers(engineersRes.data);
-      setStats(statsRes.data);
-      setPendingDeliveries(deliveriesRes.data || []);
       setProjects(projectsRes.data || []);
+      // Calculate stats from data
+      setStats({
+        total: requestsRes.data.length,
+        pending: requestsRes.data.filter(r => r.status === 'pending_engineer').length,
+        approved: requestsRes.data.filter(r => r.status === 'approved_by_engineer').length
+      });
+      setPendingDeliveries([]); // Will be fetched separately if needed
     } catch (error) {
+      console.error("Error fetching data:", error);
       toast.error("فشل في تحميل البيانات");
     } finally {
       setLoading(false);
