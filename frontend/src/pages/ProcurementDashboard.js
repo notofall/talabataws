@@ -172,7 +172,7 @@ const ProcurementDashboard = () => {
         axios.get(`${API_URL}/projects`, getAuthHeaders()),
         axios.get(`${API_URL}/default-budget-categories`, getAuthHeaders()),
         axios.get(`${API_URL}/reports/dashboard`, getAuthHeaders()),
-        axios.get(`${API_URL}/admin/users`, getAuthHeaders()).catch(() => ({ data: [] })), // Fetch users for filters
+        axios.get(`${API_URL}/users/list`, getAuthHeaders()).catch(() => ({ data: [] })), // Fetch users for filters
       ]);
       setRequests(requestsRes.data);
       setAllOrders(ordersRes.data);
