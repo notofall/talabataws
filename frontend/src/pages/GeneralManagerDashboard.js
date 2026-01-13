@@ -785,6 +785,13 @@ export default function GeneralManagerDashboard() {
         onOpenChange={setPasswordDialogOpen}
         token={token}
       />
+
+      {/* Advanced Reports Dialog */}
+      <Dialog open={advancedReportsOpen} onOpenChange={setAdvancedReportsOpen}>
+        <DialogContent className="w-[95vw] max-w-6xl max-h-[90vh] overflow-y-auto p-6" dir="rtl">
+          <AdvancedReports onClose={() => setAdvancedReportsOpen(false)} />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
