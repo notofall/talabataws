@@ -9,6 +9,7 @@ import ProcurementDashboard from "./pages/ProcurementDashboard";
 import PrinterDashboard from "./pages/PrinterDashboard";
 import DeliveryTrackerDashboard from "./pages/DeliveryTrackerDashboard";
 import GeneralManagerDashboard from "./pages/GeneralManagerDashboard";
+import SystemAdminDashboard from "./pages/SystemAdminDashboard";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import "./App.css";
 
@@ -32,6 +33,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
     // Redirect to appropriate dashboard based on role
+    if (user.role === "system_admin") return <Navigate to="/system-admin" replace />;
     if (user.role === "supervisor") return <Navigate to="/supervisor" replace />;
     if (user.role === "engineer") return <Navigate to="/engineer" replace />;
     if (user.role === "procurement_manager") return <Navigate to="/procurement" replace />;
@@ -56,6 +58,7 @@ const PublicRoute = ({ children }) => {
   }
 
   if (user) {
+    if (user.role === "system_admin") return <Navigate to="/system-admin" replace />;
     if (user.role === "supervisor") return <Navigate to="/supervisor" replace />;
     if (user.role === "engineer") return <Navigate to="/engineer" replace />;
     if (user.role === "procurement_manager") return <Navigate to="/procurement" replace />;
