@@ -650,8 +650,8 @@ const ProcurementDashboard = () => {
   const fetchBudgetReport = async (projectId = null) => {
     try {
       const url = projectId 
-        ? `${API_URL}/budget-reports?project_id=${projectId}`
-        : `${API_URL}/budget-reports`;
+        ? `${API_URL}/reports/budget?project_id=${projectId}`
+        : `${API_URL}/reports/budget`;
       const res = await axios.get(url, getAuthHeaders());
       setBudgetReport(res.data);
       setBudgetReportDialogOpen(true);
