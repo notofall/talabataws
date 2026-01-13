@@ -1428,14 +1428,29 @@ const ProcurementDashboard = () => {
 
         {/* Pending Approval Orders - only show if there are any */}
         {pendingApprovalOrders.length > 0 && (
-          <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+          <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
             <div className="flex items-center justify-between">
-              <p className="text-sm text-orange-700 flex items-center gap-2">
+              <p className="text-sm text-yellow-700 flex items-center gap-2">
                 <AlertCircle className="w-4 h-4" />
-                يوجد {pendingApprovalOrders.length} أمر بانتظار الاعتماد
+                يوجد {pendingApprovalOrders.length} أمر بانتظار اعتمادك
               </p>
               <Button size="sm" className="bg-green-600 hover:bg-green-700 h-7" onClick={() => pendingApprovalOrders.forEach(o => handleApproveOrder(o.id))}>
                 <Check className="w-3 h-3 ml-1" />اعتماد الكل
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Pending GM Approval Orders - notification bar */}
+        {pendingGMApprovalOrders.length > 0 && (
+          <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-purple-700 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4" />
+                يوجد {pendingGMApprovalOrders.length} أمر بانتظار موافقة المدير العام
+              </p>
+              <Button size="sm" variant="outline" className="h-7 border-purple-300 text-purple-700" onClick={() => setOrdersViewMode("pending_gm")}>
+                <Eye className="w-3 h-3 ml-1" />عرض
               </Button>
             </div>
           </div>
