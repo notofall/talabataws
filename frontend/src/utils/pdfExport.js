@@ -460,7 +460,7 @@ export const exportPurchaseOrderToPDF = (order) => {
     </div>
   `;
 
-  printHTML(html, `أمر شراء - ${order.id?.slice(0, 8) || ''}`);
+  printHTML(html, `أمر شراء - ${order.order_number || order.id?.slice(0, 8) || ''}`);
 };
 
 export const exportRequestsTableToPDF = (requests, title = 'قائمة الطلبات', exportedBy = null, dateRange = null) => {
