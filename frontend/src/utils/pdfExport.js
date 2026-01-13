@@ -355,7 +355,7 @@ export const exportPurchaseOrderToPDF = (order) => {
   const html = `
     <div class="compact-header">
       <div class="title">أمر شراء</div>
-      <div class="order-number">رقم: ${order.id?.slice(0, 8).toUpperCase() || '-'}</div>
+      <div class="order-number">رقم: ${order.order_number || order.id?.slice(0, 8).toUpperCase() || '-'}</div>
       <div class="subtitle">طلب رقم: ${requestNumber}</div>
     </div>
     
