@@ -90,7 +90,7 @@ const EngineerDashboard = () => {
   const handleApprove = async (requestId) => {
     setActionLoading(true);
     try {
-      await axios.put(`${API_URL}/requests/${requestId}/approve`, {}, getAuthHeaders());
+      await axios.post(`${API_URL}/requests/${requestId}/approve`, {}, getAuthHeaders());
       toast.success("تم اعتماد الطلب بنجاح");
       fetchData();
     } catch (error) {
@@ -104,7 +104,7 @@ const EngineerDashboard = () => {
     if (!rejectionReason.trim()) { toast.error("الرجاء إدخال سبب الرفض"); return; }
     setActionLoading(true);
     try {
-      await axios.put(`${API_URL}/requests/${selectedRequest.id}/reject`, { reason: rejectionReason }, getAuthHeaders());
+      await axios.post(`${API_URL}/requests/${selectedRequest.id}/reject`, { reason: rejectionReason }, getAuthHeaders());
       toast.success("تم رفض الطلب");
       setRejectDialogOpen(false);
       setRejectionReason("");
