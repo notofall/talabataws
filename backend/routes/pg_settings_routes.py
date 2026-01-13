@@ -778,17 +778,12 @@ async def export_summary_report(
             ws[f'C{row}'] = data["amount"]
             row += 1
         
-        # Auto-fit columns
-        for col in ws.columns:
-            max_length = 0
-            column = col[0].column_letter
-            for cell in col:
-                try:
-                    if len(str(cell.value)) > max_length:
-                        max_length = len(str(cell.value))
-                except:
-                    pass
-            ws.column_dimensions[column].width = max_length + 2
+        # Set column widths manually
+        ws.column_dimensions['A'].width = 30
+        ws.column_dimensions['B'].width = 15
+        ws.column_dimensions['C'].width = 20
+        ws.column_dimensions['D'].width = 15
+        ws.column_dimensions['E'].width = 15
         
         # Save to buffer
         buffer = io.BytesIO()
