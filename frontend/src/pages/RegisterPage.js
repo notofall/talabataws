@@ -33,7 +33,12 @@ const RegisterPage = () => {
           setShowAdminForm(true);
         }
       })
-      .catch(() => setSetupRequired(false))
+      .catch((error) => {
+        console.log('Setup check error:', error);
+        // If backend is not reachable, assume it's a new system and show admin form
+        setSetupRequired(true);
+        setShowAdminForm(true);
+      })
       .finally(() => setLoading(false));
   }, []);
 
