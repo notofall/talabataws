@@ -40,6 +40,7 @@ const ProcurementDashboard = () => {
   const [allOrders, setAllOrders] = useState([]);
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
+  const [users, setUsers] = useState([]); // للفلاتر
   const [stats, setStats] = useState({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
