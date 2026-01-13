@@ -1548,7 +1548,9 @@ const ProcurementDashboard = () => {
                 // Filter orders based on view mode AND search term
                 let allDisplayOrders = filteredOrders.filter(order => {
                   if (ordersViewMode === "all") return true;
-                  if (ordersViewMode === "approved") return ["approved", "printed", "pending_approval"].includes(order.status);
+                  if (ordersViewMode === "pending") return order.status === "pending_approval";
+                  if (ordersViewMode === "pending_gm") return order.status === "pending_gm_approval";
+                  if (ordersViewMode === "approved") return ["approved", "printed"].includes(order.status);
                   if (ordersViewMode === "shipped") return ["shipped", "partially_delivered"].includes(order.status);
                   if (ordersViewMode === "delivered") return order.status === "delivered";
                   return true;
