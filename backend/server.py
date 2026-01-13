@@ -5401,6 +5401,10 @@ async def get_supplier_performance_report(current_user: dict = Depends(get_curre
 # Include the router in the main app (after all routes are defined)
 app.include_router(api_router)
 
+# Include PostgreSQL routes (new migration)
+from routes.pg_auth_routes import pg_auth_router
+app.include_router(pg_auth_router)
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
@@ -5422,7 +5426,15 @@ async def startup_db_client():
     await create_indexes()
     await init_system_settings()
     await migrate_order_numbers()  # ترحيل أرقام الأوامر القديمة
+    
+    # Initialize PostgreSQL tables
+    from database import init_postgres_db
+    await init_postgres_db()
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
+    
+    # Close PostgreSQL connection
+    from database import close_postgres_db
+    await close_postgres_db()
