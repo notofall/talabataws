@@ -183,7 +183,7 @@ export default function AdvancedReports({ onClose }) {
           <head>
             <meta charset="UTF-8">
             <style>
-              body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 20px; direction: rtl; }
+              body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 20px; direction: rtl; margin-top: 50px; }
               h1 { color: #ea580c; border-bottom: 2px solid #ea580c; padding-bottom: 10px; }
               h2 { color: #334155; margin-top: 30px; }
               .filter-info { background: #f1f5f9; padding: 10px; border-radius: 8px; margin-bottom: 20px; }
@@ -195,9 +195,19 @@ export default function AdvancedReports({ onClose }) {
               th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: right; }
               th { background: #f1f5f9; font-weight: bold; }
               .footer { margin-top: 30px; text-align: center; color: #94a3b8; font-size: 12px; }
+              .btn-container { position: fixed; top: 0; left: 0; right: 0; background: linear-gradient(to bottom, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.9) 70%, transparent 100%); padding: 15px; z-index: 999; display: flex; gap: 10px; }
+              .print-btn { background: #ea580c; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+              .print-btn:hover { background: #c2410c; }
+              .close-btn { background: #64748b; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+              .close-btn:hover { background: #475569; }
+              @media print { .btn-container { display: none !important; } body { margin-top: 0; } }
             </style>
           </head>
           <body>
+            <div class="btn-container">
+              <button class="print-btn" onclick="window.print()">🖨️ طباعة / حفظ PDF</button>
+              <button class="close-btn" onclick="window.close()">✕ إغلاق</button>
+            </div>
             <h1>📊 الملخص التنفيذي</h1>
             <div class="filter-info">
               <strong>الفلاتر:</strong> ${filterText}<br>
