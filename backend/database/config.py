@@ -18,9 +18,9 @@ class PostgresSettings(BaseSettings):
     # SSL/TLS Configuration for PlanetScale
     postgres_sslmode: str = "require"
     
-    # Connection Pool Configuration - Optimized for PlanetScale free tier
-    pool_size: int = 5  # Reduced from 20
-    max_overflow: int = 3  # Reduced from 10
+    # Connection Pool Configuration - Balanced for moderate usage
+    pool_size: int = 10  # 10 connections ready
+    max_overflow: int = 5  # 5 extra if needed
     pool_pre_ping: bool = True
     pool_recycle: int = 1800  # Recycle connections every 30 minutes
     
