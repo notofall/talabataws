@@ -6,6 +6,7 @@ import asyncio
 import sys
 sys.path.insert(0, '/app/backend')
 
+from sqlalchemy import text
 from database import postgres_settings, init_postgres_db, engine
 
 
@@ -23,7 +24,7 @@ async def test_connection():
     try:
         # Test basic connection
         async with engine.connect() as conn:
-            result = await conn.execute("SELECT 1")
+            result = await conn.execute(text("SELECT 1"))
             row = result.fetchone()
             print(f"✅ Connection test: {row[0]}")
         
@@ -33,12 +34,12 @@ async def test_connection():
         
         # Verify tables were created
         async with engine.connect() as conn:
-            result = await conn.execute("""
+            result = await conn.execute(text("""
                 SELECT table_name 
                 FROM information_schema.tables 
                 WHERE table_schema = 'public'
                 ORDER BY table_name
-            """)
+            """))
             tables = result.fetchall()
             print(f"\n📋 Tables created ({len(tables)}):")
             for table in tables:
@@ -51,6 +52,8 @@ async def test_connection():
         
     except Exception as e:
         print(f"\n❌ Connection failed: {e}")
+        import traceback
+        traceback.print_exc()
         return False
     finally:
         await engine.dispose()
