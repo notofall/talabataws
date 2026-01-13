@@ -883,19 +883,6 @@ const ProcurementDashboard = () => {
     }
   };
 
-  // Delete Purchase Order
-  const handleDeleteOrder = async (orderId) => {
-    if (!window.confirm("هل أنت متأكد من حذف أمر الشراء هذا؟ سيتم حذفه نهائياً.")) return;
-    
-    try {
-      await axios.delete(`${API_URL}/purchase-orders/${orderId}`, getAuthHeaders());
-      toast.success("تم حذف أمر الشراء بنجاح");
-      fetchData();
-    } catch (error) {
-      toast.error(error.response?.data?.detail || "فشل في حذف أمر الشراء");
-    }
-  };
-
   // Reject Request States - حالات رفض الطلب
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectingRequest, setRejectingRequest] = useState(null);
