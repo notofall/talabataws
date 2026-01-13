@@ -164,7 +164,7 @@ const ProcurementDashboard = () => {
   const fetchData = async () => {
     try {
       // Using PostgreSQL APIs
-      const [requestsRes, ordersRes, suppliersRes, categoriesRes, projectsRes, defaultCatsRes, dashboardRes] = await Promise.all([
+      const [requestsRes, ordersRes, suppliersRes, categoriesRes, projectsRes, defaultCatsRes, dashboardRes, usersRes] = await Promise.all([
         axios.get(`${API_URL}/requests`, getAuthHeaders()),
         axios.get(`${API_URL}/purchase-orders`, getAuthHeaders()),
         axios.get(`${API_URL}/suppliers`, getAuthHeaders()),
@@ -172,6 +172,7 @@ const ProcurementDashboard = () => {
         axios.get(`${API_URL}/projects`, getAuthHeaders()),
         axios.get(`${API_URL}/default-budget-categories`, getAuthHeaders()),
         axios.get(`${API_URL}/reports/dashboard`, getAuthHeaders()),
+        axios.get(`${API_URL}/admin/users`, getAuthHeaders()).catch(() => ({ data: [] })), // Fetch users for filters
       ]);
       setRequests(requestsRes.data);
       setAllOrders(ordersRes.data);
@@ -189,6 +190,7 @@ const ProcurementDashboard = () => {
       setBudgetCategories(categoriesRes.data);
       setProjects(projectsRes.data || []);
       setDefaultCategories(defaultCatsRes.data || []);
+      setUsers(usersRes.data || []);
     } catch (error) {
       console.error("Error fetching data:", error);
       toast.error("فشل في تحميل البيانات");
