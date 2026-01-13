@@ -43,11 +43,11 @@ class PostgresSettings(BaseSettings):
             # Convert postgres:// to postgresql+asyncpg://
             if direct_url.startswith("postgres://"):
                 direct_url = direct_url.replace("postgres://", "postgresql+asyncpg://", 1)
-            elif direct_url.startswith("postgresql://"):
+            elif direct_url.startswith("postgresql://") and "+asyncpg" not in direct_url:
                 direct_url = direct_url.replace("postgresql://", "postgresql+asyncpg://", 1)
-            # Add ssl if not present
-            if "ssl" not in direct_url and "sslmode" not in direct_url:
-                direct_url += "?ssl=require" if "?" not in direct_url else "&ssl=require"
+            # Replace sslmode with ssl for asyncpg compatibility
+            direct_url = direct_url.replace("sslmode=require", "ssl=require")
+            direct_url = direct_url.replace("sslmode=disable", "ssl=disable")
             return direct_url
         
         # Construct from individual components
