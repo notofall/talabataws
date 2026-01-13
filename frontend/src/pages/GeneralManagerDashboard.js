@@ -125,14 +125,22 @@ export default function GeneralManagerDashboard() {
 
   const handleReject = async () => {
     if (!orderToReject) return;
+    if (!rejectionReason.trim()) {
+      toast.error('الرجاء إدخال سبب الرفض');
+      return;
+    }
     
     try {
       const headers = { Authorization: `Bearer ${token}` };
-      // Note: Reject functionality needs to be added to PostgreSQL routes if needed
-      toast.info('جاري تطوير خاصية الرفض');
+      await axios.post(`${API_URL}/api/pg/purchase-orders/${orderToReject}/gm-reject`, 
+        { reason: rejectionReason }, 
+        { headers }
+      );
+      toast.success('تم رفض أمر الشراء');
       setShowRejectDialog(false);
       setOrderToReject(null);
       setRejectionReason('');
+      fetchData();
     } catch (error) {
       toast.error(error.response?.data?.detail || 'حدث خطأ في الرفض');
     }
