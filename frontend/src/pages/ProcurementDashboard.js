@@ -654,7 +654,9 @@ const ProcurementDashboard = () => {
       const url = projectId 
         ? `${API_URL}/reports/budget?project_id=${projectId}`
         : `${API_URL}/reports/budget`;
+      console.log("Fetching budget report from:", url);
       const res = await axios.get(url, getAuthHeaders());
+      console.log("Budget API response:", res.data);
       
       // Transform API response to match expected format
       const apiData = res.data;
@@ -708,6 +710,7 @@ const ProcurementDashboard = () => {
       // Filter over budget categories
       transformedData.over_budget = transformedData.categories.filter(cat => cat.remaining < 0);
       
+      console.log("Transformed budget data:", transformedData);
       setBudgetReport(transformedData);
       setBudgetReportDialogOpen(true);
     } catch (error) {
