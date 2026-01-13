@@ -929,7 +929,7 @@ const ProcurementDashboard = () => {
     setRejectDialogOpen(true);
   };
 
-  // Export by Date - تصدير حسب التاريخ
+  // Export by Date - تصدير حسب التاريخ مع الفلاتر الجديدة
   const handleExportByDate = () => {
     if (!exportStartDate || !exportEndDate) {
       toast.error("الرجاء تحديد تاريخ البداية والنهاية");
@@ -946,35 +946,84 @@ const ProcurementDashboard = () => {
       to: new Date(exportEndDate).toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' })
     };
     
+    // Build filter description for PDF header
+    let filterDescription = [];
+    if (exportProjectFilter) {
+      const projectName = projects.find(p => p.id === exportProjectFilter)?.name || exportProjectFilter;
+      filterDescription.push(`المشروع: ${projectName}`);
+    }
+    if (exportSupervisorFilter) {
+      const supervisorName = users.filter(u => u.role === "site_supervisor").find(u => u.id === exportSupervisorFilter)?.name || exportSupervisorFilter;
+      filterDescription.push(`المشرف: ${supervisorName}`);
+    }
+    if (exportEngineerFilter) {
+      const engineerName = users.filter(u => u.role === "engineer").find(u => u.id === exportEngineerFilter)?.name || exportEngineerFilter;
+      filterDescription.push(`المهندس: ${engineerName}`);
+    }
+    if (exportApprovalTypeFilter !== "all") {
+      filterDescription.push(`نوع الموافقة: ${exportApprovalTypeFilter === "gm_approved" ? "معتمدة من المدير العام" : "معتمدة من مدير المشتريات"}`);
+    }
+    
     if (exportType === "orders") {
-      const filteredByDate = allOrders.filter(o => {
+      let filteredByDate = allOrders.filter(o => {
         const orderDate = new Date(o.created_at);
         return orderDate >= start && orderDate <= end;
       });
       
+      // Apply additional filters
+      if (exportProjectFilter) {
+        filteredByDate = filteredByDate.filter(o => o.project_id === exportProjectFilter);
+      }
+      if (exportApprovalTypeFilter === "gm_approved") {
+        filteredByDate = filteredByDate.filter(o => o.gm_approved === true);
+      } else if (exportApprovalTypeFilter === "procurement_approved") {
+        filteredByDate = filteredByDate.filter(o => o.status === "approved" && !o.gm_approved);
+      }
+      
       if (filteredByDate.length === 0) {
-        toast.error("لا توجد أوامر شراء في هذه الفترة");
+        toast.error("لا توجد أوامر شراء تطابق الفلاتر المحددة");
         return;
       }
       
-      exportPurchaseOrdersTableToPDF(filteredByDate, user?.name, dateRange);
+      exportPurchaseOrdersTableToPDF(filteredByDate, user?.name, dateRange, filterDescription.join(" | "));
       toast.success(`تم تصدير ${filteredByDate.length} أمر شراء`);
     } else {
-      const filteredByDate = requests.filter(r => {
+      let filteredByDate = requests.filter(r => {
         const reqDate = new Date(r.created_at);
         return reqDate >= start && reqDate <= end;
       });
       
+      // Apply additional filters
+      if (exportProjectFilter) {
+        filteredByDate = filteredByDate.filter(r => r.project_id === exportProjectFilter);
+      }
+      if (exportSupervisorFilter) {
+        filteredByDate = filteredByDate.filter(r => r.supervisor_id === exportSupervisorFilter);
+      }
+      if (exportEngineerFilter) {
+        filteredByDate = filteredByDate.filter(r => r.engineer_id === exportEngineerFilter);
+      }
+      
       if (filteredByDate.length === 0) {
-        toast.error("لا توجد طلبات في هذه الفترة");
+        toast.error("لا توجد طلبات تطابق الفلاتر المحددة");
         return;
       }
       
-      exportRequestsTableToPDF(filteredByDate, 'قائمة الطلبات', user?.name, dateRange);
+      exportRequestsTableToPDF(filteredByDate, 'قائمة الطلبات', user?.name, dateRange, filterDescription.join(" | "));
       toast.success(`تم تصدير ${filteredByDate.length} طلب`);
     }
     
     setExportDialogOpen(false);
+  };
+
+  // Reset export filters
+  const resetExportFilters = () => {
+    setExportStartDate("");
+    setExportEndDate("");
+    setExportProjectFilter("");
+    setExportSupervisorFilter("");
+    setExportEngineerFilter("");
+    setExportApprovalTypeFilter("all");
   };
 
   const formatDate = (dateString) => new Date(dateString).toLocaleDateString("ar-SA", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
