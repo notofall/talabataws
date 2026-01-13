@@ -14,7 +14,9 @@ import { Textarea } from "../components/ui/textarea";
 import { 
   Users, Settings, Database, Download, Upload, Trash2, 
   Plus, Edit, Key, Shield, Building2, Image, FileText,
-  LogOut, RefreshCw, AlertTriangle, History, Search, Filter
+  LogOut, RefreshCw, AlertTriangle, History, Search, Filter,
+  Server, Activity, HardDrive, Cpu, MemoryStick, Clock,
+  Terminal, CheckCircle2, XCircle, Info, Wrench
 } from "lucide-react";
 
 export default function SystemAdminDashboard() {
