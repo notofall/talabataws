@@ -153,6 +153,84 @@ export default function SystemAdminDashboard() {
     }
   }, [API_URL, getAuthHeaders, auditFilter]);
 
+  // Fetch System Info
+  const fetchSystemInfo = useCallback(async () => {
+    setSystemLoading(true);
+    try {
+      const [infoRes, updateRes, dbRes] = await Promise.all([
+        axios.get(`${API_URL}/system/info`, getAuthHeaders()),
+        axios.get(`${API_URL}/system/check-updates`, getAuthHeaders()),
+        axios.get(`${API_URL}/system/database-stats`, getAuthHeaders())
+      ]);
+      setSystemInfo(infoRes.data);
+      setUpdateInfo(updateRes.data);
+      setDbStats(dbRes.data);
+    } catch (error) {
+      console.error("Error fetching system info:", error);
+      toast.error("فشل في تحميل معلومات النظام");
+    } finally {
+      setSystemLoading(false);
+    }
+  }, [API_URL, getAuthHeaders]);
+
+  // Fetch System Logs
+  const fetchSystemLogs = useCallback(async () => {
+    setLogsLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (logFilter.level && logFilter.level !== "ALL") params.append("level", logFilter.level);
+      params.append("limit", logFilter.limit.toString());
+      
+      const response = await axios.get(`${API_URL}/system/logs?${params}`, getAuthHeaders());
+      setSystemLogs(response.data.logs || []);
+      setSystemLogsStats(response.data.stats || {});
+    } catch (error) {
+      console.error("Error fetching system logs:", error);
+      toast.error("فشل في تحميل سجلات النظام");
+    } finally {
+      setLogsLoading(false);
+    }
+  }, [API_URL, getAuthHeaders, logFilter]);
+
+  // Apply Update
+  const handleApplyUpdate = async () => {
+    if (!updateInfo?.update_available) {
+      toast.info("لا يوجد تحديث متاح");
+      return;
+    }
+    
+    setApplyingUpdate(true);
+    try {
+      const response = await axios.post(`${API_URL}/system/apply-update`, {}, getAuthHeaders());
+      if (response.data.success) {
+        toast.success("تم تنفيذ التحديث بنجاح");
+        // Show manual steps if provided
+        if (response.data.manual_steps) {
+          toast.info("يرجى اتباع الخطوات اليدوية لإكمال التحديث", { duration: 10000 });
+        }
+      }
+    } catch (error) {
+      console.error("Error applying update:", error);
+      toast.error(error.response?.data?.detail || "فشل في تطبيق التحديث");
+    } finally {
+      setApplyingUpdate(false);
+    }
+  };
+
+  // Clear Old Logs
+  const handleClearOldLogs = async (daysToKeep = 30) => {
+    if (!confirm(`هل أنت متأكد من حذف السجلات الأقدم من ${daysToKeep} يوم؟`)) return;
+    
+    try {
+      const response = await axios.delete(`${API_URL}/system/logs/clear?days_to_keep=${daysToKeep}`, getAuthHeaders());
+      toast.success(`تم حذف ${response.data.deleted} سجل قديم`);
+      fetchSystemLogs();
+    } catch (error) {
+      console.error("Error clearing logs:", error);
+      toast.error("فشل في حذف السجلات القديمة");
+    }
+  };
+
   useEffect(() => {
     fetchData();
   }, [fetchData]);
