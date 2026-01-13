@@ -1,0 +1,674 @@
+import { useState, useEffect, useCallback } from "react";
+import axios from "axios";
+import { useAuth } from "../context/AuthContext";
+import { toast } from "sonner";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
+import { Badge } from "../components/ui/badge";
+import { Textarea } from "../components/ui/textarea";
+import { 
+  Users, Settings, Database, Download, Upload, Trash2, 
+  Plus, Edit, Key, Shield, Building2, Image, FileText,
+  LogOut, RefreshCw, AlertTriangle
+} from "lucide-react";
+
+export default function SystemAdminDashboard() {
+  const { user, logout, API_URL, getAuthHeaders } = useAuth();
+  
+  // Stats
+  const [stats, setStats] = useState({
+    users_count: 0, projects_count: 0, suppliers_count: 0,
+    requests_count: 0, orders_count: 0, total_amount: 0
+  });
+  
+  // Users
+  const [users, setUsers] = useState([]);
+  const [showUserDialog, setShowUserDialog] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+  const [userForm, setUserForm] = useState({
+    name: "", email: "", password: "", role: "supervisor"
+  });
+  
+  // Company Settings
+  const [companySettings, setCompanySettings] = useState({
+    company_name: "", company_logo: "", company_address: "",
+    company_phone: "", company_email: "", report_header: "",
+    report_footer: "", pdf_primary_color: "#1e40af", pdf_show_logo: "true"
+  });
+  const [logoPreview, setLogoPreview] = useState(null);
+  
+  // Loading states
+  const [loading, setLoading] = useState(true);
+  const [savingSettings, setSavingSettings] = useState(false);
+  
+  // Cleanup dialog
+  const [showCleanupDialog, setShowCleanupDialog] = useState(false);
+  const [cleanupEmail, setCleanupEmail] = useState("");
+  
+  // Restore dialog
+  const [showRestoreDialog, setShowRestoreDialog] = useState(false);
+
+  const roleLabels = {
+    system_admin: "مدير النظام",
+    supervisor: "مشرف موقع",
+    engineer: "مهندس",
+    procurement_manager: "مدير مشتريات",
+    general_manager: "المدير العام",
+    printer: "طابعة",
+    delivery_tracker: "متتبع التسليم"
+  };
+
+  const fetchData = useCallback(async () => {
+    try {
+      const [statsRes, usersRes, settingsRes] = await Promise.all([
+        axios.get(`${API_URL}/sysadmin/stats`, getAuthHeaders()),
+        axios.get(`${API_URL}/admin/users`, getAuthHeaders()),
+        axios.get(`${API_URL}/sysadmin/company-settings`, getAuthHeaders())
+      ]);
+      
+      setStats(statsRes.data);
+      setUsers(usersRes.data);
+      setCompanySettings(prev => ({ ...prev, ...settingsRes.data }));
+      if (settingsRes.data.company_logo) {
+        setLogoPreview(settingsRes.data.company_logo);
+      }
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      toast.error("فشل في تحميل البيانات");
+    } finally {
+      setLoading(false);
+    }
+  }, [API_URL, getAuthHeaders]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // User Management
+  const handleCreateUser = async () => {
+    if (!userForm.name || !userForm.email || (!editingUser && !userForm.password)) {
+      toast.error("يرجى تعبئة جميع الحقول المطلوبة");
+      return;
+    }
+
+    try {
+      if (editingUser) {
+        await axios.put(`${API_URL}/admin/users/${editingUser.id}`, {
+          name: userForm.name,
+          email: userForm.email,
+          role: userForm.role
+        }, getAuthHeaders());
+        toast.success("تم تحديث المستخدم بنجاح");
+      } else {
+        await axios.post(`${API_URL}/admin/users`, userForm, getAuthHeaders());
+        toast.success("تم إنشاء المستخدم بنجاح");
+      }
+      
+      setShowUserDialog(false);
+      setEditingUser(null);
+      setUserForm({ name: "", email: "", password: "", role: "supervisor" });
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "حدث خطأ");
+    }
+  };
+
+  const handleResetPassword = async (userId) => {
+    const newPassword = prompt("أدخل كلمة المرور الجديدة:");
+    if (!newPassword || newPassword.length < 6) {
+      toast.error("كلمة المرور يجب أن تكون 6 أحرف على الأقل");
+      return;
+    }
+
+    try {
+      await axios.post(`${API_URL}/admin/users/${userId}/reset-password`, 
+        { new_password: newPassword }, getAuthHeaders());
+      toast.success("تم إعادة تعيين كلمة المرور");
+    } catch (error) {
+      toast.error("فشل في إعادة تعيين كلمة المرور");
+    }
+  };
+
+  const handleToggleActive = async (userId) => {
+    try {
+      await axios.put(`${API_URL}/admin/users/${userId}/toggle-active`, {}, getAuthHeaders());
+      toast.success("تم تحديث حالة المستخدم");
+      fetchData();
+    } catch (error) {
+      toast.error("فشل في تحديث حالة المستخدم");
+    }
+  };
+
+  const handleDeleteUser = async (userId, userName) => {
+    if (!confirm(`هل أنت متأكد من حذف المستخدم: ${userName}؟`)) return;
+    
+    try {
+      await axios.delete(`${API_URL}/admin/users/${userId}`, getAuthHeaders());
+      toast.success("تم حذف المستخدم");
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "فشل في حذف المستخدم");
+    }
+  };
+
+  // Company Settings
+  const handleSaveCompanySettings = async () => {
+    setSavingSettings(true);
+    try {
+      await axios.put(`${API_URL}/sysadmin/company-settings`, companySettings, getAuthHeaders());
+      toast.success("تم حفظ إعدادات الشركة بنجاح");
+    } catch (error) {
+      toast.error("فشل في حفظ الإعدادات");
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await axios.post(`${API_URL}/sysadmin/company-logo`, formData, {
+        ...getAuthHeaders(),
+        headers: { ...getAuthHeaders().headers, "Content-Type": "multipart/form-data" }
+      });
+      setLogoPreview(res.data.logo);
+      setCompanySettings(prev => ({ ...prev, company_logo: res.data.logo }));
+      toast.success("تم رفع الشعار بنجاح");
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "فشل في رفع الشعار");
+    }
+  };
+
+  // Backup & Restore
+  const handleBackup = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/sysadmin/backup`, {
+        ...getAuthHeaders(),
+        responseType: 'blob'
+      });
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `backup_${new Date().toISOString().split('T')[0]}.json`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      
+      toast.success("تم تحميل النسخة الاحتياطية");
+    } catch (error) {
+      toast.error("فشل في إنشاء النسخة الاحتياطية");
+    }
+  };
+
+  const handleRestore = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await axios.post(`${API_URL}/sysadmin/restore`, formData, {
+        ...getAuthHeaders(),
+        headers: { ...getAuthHeaders().headers, "Content-Type": "multipart/form-data" }
+      });
+      toast.success(`تم استعادة النسخة الاحتياطية: ${JSON.stringify(res.data.restored)}`);
+      setShowRestoreDialog(false);
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "فشل في استعادة النسخة الاحتياطية");
+    }
+  };
+
+  // Data Cleanup
+  const handleCleanData = async () => {
+    if (!cleanupEmail) {
+      toast.error("يرجى إدخال البريد الإلكتروني للمستخدم المراد الاحتفاظ به");
+      return;
+    }
+
+    try {
+      await axios.post(`${API_URL}/sysadmin/clean-data?preserve_admin_email=${encodeURIComponent(cleanupEmail)}`, 
+        {}, getAuthHeaders());
+      toast.success("تم تنظيف البيانات بنجاح");
+      setShowCleanupDialog(false);
+      setCleanupEmail("");
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "فشل في تنظيف البيانات");
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <RefreshCw className="h-8 w-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-100" dir="rtl">
+      {/* Header */}
+      <header className="bg-gradient-to-r from-purple-800 to-indigo-900 text-white py-4 px-6 shadow-lg">
+        <div className="container mx-auto flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <Shield className="h-8 w-8" />
+            <div>
+              <h1 className="text-xl font-bold">لوحة تحكم مدير النظام</h1>
+              <p className="text-sm text-purple-200">{user?.name}</p>
+            </div>
+          </div>
+          <Button variant="ghost" onClick={logout} className="text-white hover:bg-purple-700">
+            <LogOut className="ml-2 h-4 w-4" /> تسجيل الخروج
+          </Button>
+        </div>
+      </header>
+
+      <div className="container mx-auto py-6 px-4">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+          <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+            <CardContent className="pt-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-sm opacity-80">المستخدمين</p>
+                  <p className="text-2xl font-bold">{stats.users_count}</p>
+                </div>
+                <Users className="h-8 w-8 opacity-50" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white">
+            <CardContent className="pt-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-sm opacity-80">المشاريع</p>
+                  <p className="text-2xl font-bold">{stats.projects_count}</p>
+                </div>
+                <Building2 className="h-8 w-8 opacity-50" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-gradient-to-br from-orange-500 to-orange-600 text-white">
+            <CardContent className="pt-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-sm opacity-80">الموردين</p>
+                  <p className="text-2xl font-bold">{stats.suppliers_count}</p>
+                </div>
+                <Users className="h-8 w-8 opacity-50" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white">
+            <CardContent className="pt-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-sm opacity-80">الطلبات</p>
+                  <p className="text-2xl font-bold">{stats.requests_count}</p>
+                </div>
+                <FileText className="h-8 w-8 opacity-50" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white">
+            <CardContent className="pt-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-sm opacity-80">أوامر الشراء</p>
+                  <p className="text-2xl font-bold">{stats.orders_count}</p>
+                </div>
+                <FileText className="h-8 w-8 opacity-50" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-gradient-to-br from-pink-500 to-pink-600 text-white">
+            <CardContent className="pt-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-sm opacity-80">إجمالي المبالغ</p>
+                  <p className="text-xl font-bold">{stats.total_amount?.toLocaleString()}</p>
+                </div>
+                <Database className="h-8 w-8 opacity-50" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Main Content */}
+        <Tabs defaultValue="users" className="space-y-4">
+          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
+            <TabsTrigger value="users" className="gap-2">
+              <Users className="h-4 w-4" /> المستخدمين
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="gap-2">
+              <Settings className="h-4 w-4" /> إعدادات الشركة
+            </TabsTrigger>
+            <TabsTrigger value="backup" className="gap-2">
+              <Database className="h-4 w-4" /> النسخ الاحتياطي
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Users Tab */}
+          <TabsContent value="users">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>إدارة المستخدمين</CardTitle>
+                  <CardDescription>إضافة وتعديل وحذف المستخدمين</CardDescription>
+                </div>
+                <Button onClick={() => { setEditingUser(null); setUserForm({ name: "", email: "", password: "", role: "supervisor" }); setShowUserDialog(true); }}>
+                  <Plus className="ml-2 h-4 w-4" /> إضافة مستخدم
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-right text-sm font-medium text-gray-600">الاسم</th>
+                        <th className="px-4 py-3 text-right text-sm font-medium text-gray-600">البريد الإلكتروني</th>
+                        <th className="px-4 py-3 text-right text-sm font-medium text-gray-600">الدور</th>
+                        <th className="px-4 py-3 text-right text-sm font-medium text-gray-600">الحالة</th>
+                        <th className="px-4 py-3 text-right text-sm font-medium text-gray-600">الإجراءات</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {users.map(u => (
+                        <tr key={u.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 text-sm">{u.name}</td>
+                          <td className="px-4 py-3 text-sm text-gray-600">{u.email}</td>
+                          <td className="px-4 py-3">
+                            <Badge variant={u.role === 'system_admin' ? 'destructive' : 'secondary'}>
+                              {roleLabels[u.role] || u.role}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3">
+                            <Badge variant={u.is_active ? 'success' : 'outline'}>
+                              {u.is_active ? 'مفعل' : 'معطل'}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex gap-1">
+                              <Button size="sm" variant="ghost" onClick={() => {
+                                setEditingUser(u);
+                                setUserForm({ name: u.name, email: u.email, password: "", role: u.role });
+                                setShowUserDialog(true);
+                              }}>
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => handleResetPassword(u.id)}>
+                                <Key className="h-4 w-4" />
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => handleToggleActive(u.id)} disabled={u.id === user?.id}>
+                                <Shield className="h-4 w-4" />
+                              </Button>
+                              <Button size="sm" variant="ghost" className="text-red-600" onClick={() => handleDeleteUser(u.id, u.name)} disabled={u.id === user?.id}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Company Settings Tab */}
+          <TabsContent value="settings">
+            <Card>
+              <CardHeader>
+                <CardTitle>إعدادات الشركة</CardTitle>
+                <CardDescription>تخصيص معلومات الشركة وتنسيق التقارير</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Logo Upload */}
+                <div className="space-y-2">
+                  <Label>شعار الشركة</Label>
+                  <div className="flex items-center gap-4">
+                    {logoPreview && (
+                      <img src={logoPreview} alt="Logo" className="h-20 w-20 object-contain border rounded" />
+                    )}
+                    <Input type="file" accept="image/*" onChange={handleLogoUpload} className="max-w-xs" />
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>اسم الشركة</Label>
+                    <Input 
+                      value={companySettings.company_name} 
+                      onChange={(e) => setCompanySettings(prev => ({ ...prev, company_name: e.target.value }))}
+                      placeholder="أدخل اسم الشركة"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>البريد الإلكتروني</Label>
+                    <Input 
+                      value={companySettings.company_email} 
+                      onChange={(e) => setCompanySettings(prev => ({ ...prev, company_email: e.target.value }))}
+                      placeholder="info@company.com"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>رقم الهاتف</Label>
+                    <Input 
+                      value={companySettings.company_phone} 
+                      onChange={(e) => setCompanySettings(prev => ({ ...prev, company_phone: e.target.value }))}
+                      placeholder="05xxxxxxxx"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>لون التقارير الأساسي</Label>
+                    <div className="flex gap-2">
+                      <Input 
+                        type="color"
+                        value={companySettings.pdf_primary_color} 
+                        onChange={(e) => setCompanySettings(prev => ({ ...prev, pdf_primary_color: e.target.value }))}
+                        className="w-16 h-10"
+                      />
+                      <Input 
+                        value={companySettings.pdf_primary_color} 
+                        onChange={(e) => setCompanySettings(prev => ({ ...prev, pdf_primary_color: e.target.value }))}
+                        placeholder="#1e40af"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>عنوان الشركة</Label>
+                  <Textarea 
+                    value={companySettings.company_address} 
+                    onChange={(e) => setCompanySettings(prev => ({ ...prev, company_address: e.target.value }))}
+                    placeholder="أدخل عنوان الشركة الكامل"
+                    rows={2}
+                  />
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>رأس التقرير (Header)</Label>
+                    <Textarea 
+                      value={companySettings.report_header} 
+                      onChange={(e) => setCompanySettings(prev => ({ ...prev, report_header: e.target.value }))}
+                      placeholder="نص يظهر في أعلى كل تقرير"
+                      rows={2}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>تذييل التقرير (Footer)</Label>
+                    <Textarea 
+                      value={companySettings.report_footer} 
+                      onChange={(e) => setCompanySettings(prev => ({ ...prev, report_footer: e.target.value }))}
+                      placeholder="نص يظهر في أسفل كل تقرير"
+                      rows={2}
+                    />
+                  </div>
+                </div>
+
+                <Button onClick={handleSaveCompanySettings} disabled={savingSettings} className="w-full md:w-auto">
+                  {savingSettings ? <RefreshCw className="ml-2 h-4 w-4 animate-spin" /> : null}
+                  حفظ الإعدادات
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Backup Tab */}
+          <TabsContent value="backup">
+            <div className="grid md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Download className="h-5 w-5" /> النسخ الاحتياطي
+                  </CardTitle>
+                  <CardDescription>تصدير جميع بيانات النظام</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-gray-600 mb-4">
+                    سيتم تحميل ملف JSON يحتوي على جميع بيانات النظام بما في ذلك المستخدمين والمشاريع والطلبات وأوامر الشراء.
+                  </p>
+                  <Button onClick={handleBackup} className="w-full">
+                    <Download className="ml-2 h-4 w-4" /> تحميل النسخة الاحتياطية
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Upload className="h-5 w-5" /> استعادة البيانات
+                  </CardTitle>
+                  <CardDescription>استيراد بيانات من نسخة احتياطية</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-gray-600 mb-4">
+                    قم برفع ملف النسخة الاحتياطية (JSON) لاستعادة البيانات. البيانات الموجودة لن يتم استبدالها.
+                  </p>
+                  <Input type="file" accept=".json" onChange={handleRestore} />
+                </CardContent>
+              </Card>
+
+              <Card className="md:col-span-2 border-red-200">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-red-600">
+                    <AlertTriangle className="h-5 w-5" /> تنظيف البيانات
+                  </CardTitle>
+                  <CardDescription>حذف جميع البيانات مع الاحتفاظ بمستخدم واحد</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-red-600 mb-4">
+                    ⚠️ تحذير: هذا الإجراء سيحذف جميع البيانات بشكل نهائي ولا يمكن التراجع عنه!
+                  </p>
+                  <Button variant="destructive" onClick={() => setShowCleanupDialog(true)}>
+                    <Trash2 className="ml-2 h-4 w-4" /> تنظيف جميع البيانات
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
+
+      {/* User Dialog */}
+      <Dialog open={showUserDialog} onOpenChange={setShowUserDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingUser ? 'تعديل مستخدم' : 'إضافة مستخدم جديد'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>الاسم</Label>
+              <Input 
+                value={userForm.name} 
+                onChange={(e) => setUserForm(prev => ({ ...prev, name: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>البريد الإلكتروني</Label>
+              <Input 
+                type="email"
+                value={userForm.email} 
+                onChange={(e) => setUserForm(prev => ({ ...prev, email: e.target.value }))}
+              />
+            </div>
+            {!editingUser && (
+              <div className="space-y-2">
+                <Label>كلمة المرور</Label>
+                <Input 
+                  type="password"
+                  value={userForm.password} 
+                  onChange={(e) => setUserForm(prev => ({ ...prev, password: e.target.value }))}
+                />
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label>الدور</Label>
+              <Select value={userForm.role} onValueChange={(v) => setUserForm(prev => ({ ...prev, role: v }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="system_admin">مدير النظام</SelectItem>
+                  <SelectItem value="supervisor">مشرف موقع</SelectItem>
+                  <SelectItem value="engineer">مهندس</SelectItem>
+                  <SelectItem value="procurement_manager">مدير مشتريات</SelectItem>
+                  <SelectItem value="general_manager">المدير العام</SelectItem>
+                  <SelectItem value="printer">طابعة</SelectItem>
+                  <SelectItem value="delivery_tracker">متتبع التسليم</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowUserDialog(false)}>إلغاء</Button>
+            <Button onClick={handleCreateUser}>{editingUser ? 'تحديث' : 'إضافة'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cleanup Dialog */}
+      <Dialog open={showCleanupDialog} onOpenChange={setShowCleanupDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-red-600">تأكيد تنظيف البيانات</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              أدخل البريد الإلكتروني للمستخدم الذي تريد الاحتفاظ به. سيتم حذف جميع المستخدمين الآخرين وجميع البيانات.
+            </p>
+            <div className="space-y-2">
+              <Label>البريد الإلكتروني للمستخدم المحفوظ</Label>
+              <Input 
+                type="email"
+                value={cleanupEmail} 
+                onChange={(e) => setCleanupEmail(e.target.value)}
+                placeholder="admin@example.com"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCleanupDialog(false)}>إلغاء</Button>
+            <Button variant="destructive" onClick={handleCleanData}>تأكيد الحذف</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
