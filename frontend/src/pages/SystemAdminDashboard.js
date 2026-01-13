@@ -1001,7 +1001,7 @@ export default function SystemAdminDashboard() {
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="letsencrypt">Let's Encrypt (تلقائي ومجاني)</SelectItem>
+                                <SelectItem value="letsencrypt">Let&apos;s Encrypt (تلقائي ومجاني)</SelectItem>
                                 <SelectItem value="manual">رفع شهادة يدوياً</SelectItem>
                               </SelectContent>
                             </Select>
