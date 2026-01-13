@@ -14,7 +14,7 @@ import json
 
 from database import (
     get_postgres_session, SystemSetting, AuditLog, User,
-    PurchaseOrder, Project, BudgetCategory, Supplier
+    PurchaseOrder, Project, BudgetCategory, Supplier, MaterialRequest
 )
 
 # Create router
