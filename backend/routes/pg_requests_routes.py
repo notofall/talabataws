@@ -386,7 +386,7 @@ async def reject_request(
 @pg_requests_router.post("/requests/{request_id}/reject-manager")
 async def reject_request_by_manager(
     request_id: str,
-    rejection_data: MaterialRequestUpdate,
+    rejection_data: RejectRequestData,
     current_user: User = Depends(get_current_user_pg),
     session: AsyncSession = Depends(get_postgres_session)
 ):
@@ -406,7 +406,7 @@ async def reject_request_by_manager(
         raise HTTPException(status_code=400, detail="لا يمكن رفض هذا الطلب")
     
     req.status = "rejected_by_manager"
-    req.rejection_reason = rejection_data.rejection_reason
+    req.rejection_reason = rejection_data.reason
     req.updated_at = datetime.utcnow()
     
     await log_audit_pg(
