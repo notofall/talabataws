@@ -1,0 +1,5457 @@
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, UploadFile, File, Body
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.responses import StreamingResponse
+from dotenv import load_dotenv
+from starlette.middleware.cors import CORSMiddleware
+from motor.motor_asyncio import AsyncIOMotorClient
+import os
+import logging
+import io
+from pathlib import Path
+from pydantic import BaseModel, Field, EmailStr
+from typing import List, Optional
+import uuid
+from datetime import datetime, timezone, timedelta
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+import pandas as pd
+
+ROOT_DIR = Path(__file__).parent
+load_dotenv(ROOT_DIR / '.env')
+
+# MongoDB connection
+mongo_url = os.environ['MONGO_URL']
+client = AsyncIOMotorClient(mongo_url)
+db = client[os.environ['DB_NAME']]
+
+# Helper function to safely create index
+async def safe_create_index(collection, keys, **kwargs):
+    """Safely create index, ignoring conflicts with existing indexes"""
+    try:
+        await collection.create_index(keys, **kwargs)
+    except Exception as e:
+        error_str = str(e)
+        # Ignore index conflict errors - the index already exists
+        if any(x in error_str for x in ["IndexKeySpecsConflict", "86", "already exists", "IndexOptionsConflict"]):
+            pass  # Index exists, that's fine
+        else:
+            print(f"⚠️ Index warning for {collection.name}: {e}")
+
+# Create database indexes for better performance with high load
+async def create_indexes():
+    """Create indexes for optimized queries with 500+ daily operations and 20+ concurrent users"""
+    try:
+        # Users collection indexes
+        await safe_create_index(db.users, "id", unique=True)
+        await safe_create_index(db.users, "email", unique=True)
+        await safe_create_index(db.users, "role")
+        await safe_create_index(db.users, "supervisor_prefix")
+        await safe_create_index(db.users, [("role", 1), ("created_at", -1)])
+        
+        # Material requests indexes
+        await safe_create_index(db.material_requests, "id", unique=True)
+        await safe_create_index(db.material_requests, "supervisor_id")
+        await safe_create_index(db.material_requests, "engineer_id")
+        await safe_create_index(db.material_requests, "status")
+        await safe_create_index(db.material_requests, "created_at")
+        await safe_create_index(db.material_requests, "request_number")
+        await safe_create_index(db.material_requests, "project_id")
+        await safe_create_index(db.material_requests, [("supervisor_id", 1), ("request_seq", -1)])
+        await safe_create_index(db.material_requests, [("status", 1), ("created_at", -1)])
+        await safe_create_index(db.material_requests, [("project_id", 1), ("status", 1), ("created_at", -1)])
+        await safe_create_index(db.material_requests, [("engineer_id", 1), ("status", 1)])
+        await safe_create_index(db.material_requests, "$**", name="text_search_idx")
+        
+        # Purchase orders indexes
+        await safe_create_index(db.purchase_orders, "id", unique=True)
+        await safe_create_index(db.purchase_orders, "request_id")
+        await safe_create_index(db.purchase_orders, "manager_id")
+        await safe_create_index(db.purchase_orders, "status")
+        await safe_create_index(db.purchase_orders, "created_at")
+        await safe_create_index(db.purchase_orders, "supplier_id")
+        await safe_create_index(db.purchase_orders, "supplier_name")
+        await safe_create_index(db.purchase_orders, "project_name")
+        await safe_create_index(db.purchase_orders, "category_id")
+        await safe_create_index(db.purchase_orders, "supplier_receipt_number")
+        await safe_create_index(db.purchase_orders, [("status", 1), ("created_at", -1)])
+        await safe_create_index(db.purchase_orders, [("manager_id", 1), ("status", 1)])
+        await safe_create_index(db.purchase_orders, [("project_name", 1), ("created_at", -1)])
+        await safe_create_index(db.purchase_orders, [("supplier_id", 1), ("created_at", -1)])
+        await safe_create_index(db.purchase_orders, [("category_id", 1), ("total_amount", 1)])
+        
+        # Suppliers indexes
+        await safe_create_index(db.suppliers, "id", unique=True)
+        await safe_create_index(db.suppliers, "name")
+        await safe_create_index(db.suppliers, [("name", 1), ("created_at", -1)])
+        
+        # Delivery records indexes
+        await safe_create_index(db.delivery_records, "id", unique=True)
+        await safe_create_index(db.delivery_records, "order_id")
+        await safe_create_index(db.delivery_records, "delivery_date")
+        await safe_create_index(db.delivery_records, [("order_id", 1), ("delivery_date", -1)])
+        await safe_create_index(db.delivery_records, "delivered_by")
+        
+        # Budget categories indexes
+        await safe_create_index(db.budget_categories, "id", unique=True)
+        await safe_create_index(db.budget_categories, "project_id")
+        await safe_create_index(db.budget_categories, "created_by")
+        await safe_create_index(db.budget_categories, [("project_id", 1), ("name", 1)])
+        
+        # Default budget categories indexes
+        await safe_create_index(db.default_budget_categories, "id", unique=True)
+        await safe_create_index(db.default_budget_categories, "created_by")
+        
+        # Projects indexes
+        await safe_create_index(db.projects, "id", unique=True)
+        await safe_create_index(db.projects, "status")
+        await safe_create_index(db.projects, "created_by")
+        await safe_create_index(db.projects, "name")
+        await safe_create_index(db.projects, [("status", 1), ("created_at", -1)])
+        
+        # Audit logs indexes
+        await safe_create_index(db.audit_logs, "id", unique=True)
+        await safe_create_index(db.audit_logs, [("entity_type", 1), ("entity_id", 1)])
+        await safe_create_index(db.audit_logs, "timestamp")
+        await safe_create_index(db.audit_logs, "user_id")
+        await safe_create_index(db.audit_logs, [("entity_type", 1), ("timestamp", -1)])
+        
+        # Attachments indexes
+        await safe_create_index(db.attachments, "id", unique=True)
+        await safe_create_index(db.attachments, [("entity_type", 1), ("entity_id", 1)])
+        
+        # System Settings indexes
+        await safe_create_index(db.system_settings, "id", unique=True)
+        await safe_create_index(db.system_settings, "key", unique=True)
+        
+        # Price Catalog indexes
+        await safe_create_index(db.price_catalog, "id", unique=True)
+        await safe_create_index(db.price_catalog, "name")
+        await safe_create_index(db.price_catalog, "supplier_id")
+        await safe_create_index(db.price_catalog, "category_id")
+        await safe_create_index(db.price_catalog, "is_active")
+        await safe_create_index(db.price_catalog, [("name", 1), ("is_active", 1)])
+        await safe_create_index(db.price_catalog, "$**", name="price_catalog_text_idx")
+        
+        # Item Aliases indexes - using safe_create_index to handle conflicts
+        await safe_create_index(db.item_aliases, "id", unique=True)
+        await safe_create_index(db.item_aliases, "catalog_item_id")
+        
+        # Handle alias_name index - drop old conflicting index if exists, then create new one
+        try:
+            # First, try to drop the old non-unique index that causes conflicts
+            existing_indexes = await db.item_aliases.index_information()
+            if "alias_name_1" in existing_indexes:
+                await db.item_aliases.drop_index("alias_name_1")
+                print("ℹ️ Dropped old alias_name_1 index")
+        except Exception:
+            pass  # Index might not exist or can't be dropped, that's fine
+        
+        # Create the correct unique index with explicit name
+        await safe_create_index(db.item_aliases, [("alias_name", 1)], unique=True, name="alias_name_unique")
+        
+        print("✅ Database indexes created successfully")
+    except Exception as e:
+        print(f"⚠️ Index creation warning: {e}")
+
+# JWT Settings
+SECRET_KEY = os.environ.get('SECRET_KEY', 'your-secret-key-change-in-production')
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
+
+# Password hashing
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# Security
+security = HTTPBearer()
+
+# Create the main app
+app = FastAPI(title="نظام إدارة طلبات المواد")
+
+# Health check endpoint at root level (for Kubernetes)
+@app.get("/health")
+async def root_health_check():
+    """Health check endpoint for Kubernetes liveness/readiness probes"""
+    return {"status": "healthy"}
+
+# Create a router with the /api prefix
+api_router = APIRouter(prefix="/api")
+
+# ==================== MODELS ====================
+
+class UserRole:
+    SUPERVISOR = "supervisor"
+    ENGINEER = "engineer"
+    PROCUREMENT_MANAGER = "procurement_manager"
+    PRINTER = "printer"  # موظف الطباعة
+    DELIVERY_TRACKER = "delivery_tracker"  # متابع التوريد
+    GENERAL_MANAGER = "general_manager"  # المدير العام - للموافقة على الطلبات الكبيرة
+
+class RequestStatus:
+    PENDING_ENGINEER = "pending_engineer"
+    APPROVED_BY_ENGINEER = "approved_by_engineer"
+    REJECTED_BY_ENGINEER = "rejected_by_engineer"
+    REJECTED_BY_MANAGER = "rejected_by_manager"  # مرفوض من مدير المشتريات - يعود للمهندس
+    PURCHASE_ORDER_ISSUED = "purchase_order_issued"
+    PARTIALLY_ORDERED = "partially_ordered"  # تم إصدار بعض أوامر الشراء
+
+class PurchaseOrderStatus:
+    PENDING_APPROVAL = "pending_approval"  # بانتظار اعتماد مدير المشتريات
+    PENDING_GM_APPROVAL = "pending_gm_approval"  # بانتظار موافقة المدير العام (للطلبات فوق الحد)
+    APPROVED = "approved"  # معتمد - جاهز للطباعة
+    PRINTED = "printed"  # تمت الطباعة
+    SHIPPED = "shipped"  # تم الشحن
+    DELIVERED = "delivered"  # تم التسليم
+    PARTIALLY_DELIVERED = "partially_delivered"  # تسليم جزئي
+
+# User Models
+class UserCreate(BaseModel):
+    name: str
+    email: EmailStr
+    password: str
+    role: str  # supervisor, engineer, procurement_manager
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+class UserResponse(BaseModel):
+    id: str
+    name: str
+    email: str
+    role: str
+    supervisor_prefix: Optional[str] = None  # حرف المشرف (A, B, C...)
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserResponse
+
+# Password Models
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+# User Management Models - إدارة المستخدمين
+class UserCreateByAdmin(BaseModel):
+    """نموذج إنشاء مستخدم بواسطة مدير المشتريات"""
+    name: str
+    email: EmailStr
+    password: str
+    role: str
+    assigned_projects: Optional[List[str]] = []  # قائمة معرفات المشاريع
+    assigned_engineers: Optional[List[str]] = []  # قائمة معرفات المهندسين (للمشرفين)
+
+class UserUpdateByAdmin(BaseModel):
+    """نموذج تحديث مستخدم"""
+    name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    role: Optional[str] = None
+    is_active: Optional[bool] = None
+    assigned_projects: Optional[List[str]] = None
+    assigned_engineers: Optional[List[str]] = None
+
+class AdminResetPassword(BaseModel):
+    """إعادة تعيين كلمة المرور بواسطة المدير"""
+    new_password: str
+
+class SetupFirstAdmin(BaseModel):
+    """إعداد أول مدير مشتريات"""
+    name: str
+    email: EmailStr
+    password: str
+
+class UserFullResponse(BaseModel):
+    """استجابة كاملة للمستخدم"""
+    id: str
+    name: str
+    email: str
+    role: str
+    is_active: bool = True
+    supervisor_prefix: Optional[str] = None
+    assigned_projects: List[str] = []
+    assigned_engineers: List[str] = []
+    created_at: Optional[str] = None
+
+# Supplier Models
+class SupplierCreate(BaseModel):
+    name: str
+    contact_person: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+    notes: Optional[str] = None
+
+class SupplierResponse(BaseModel):
+    id: str
+    name: str
+    contact_person: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+    notes: Optional[str] = None
+    created_at: str
+
+# Material Item Model (single item in a request)
+class MaterialItem(BaseModel):
+    name: str
+    quantity: int
+    unit: str = "قطعة"  # الوحدة: قطعة، طن، متر، كيس، الخ
+    estimated_price: Optional[float] = None  # السعر التقديري (اختياري)
+
+# Purchase Order Item with Price
+class PurchaseOrderItem(BaseModel):
+    name: str
+    quantity: int
+    unit: str = "قطعة"
+    unit_price: float = 0  # سعر الوحدة
+    total_price: float = 0  # السعر الإجمالي
+    delivered_quantity: int = 0  # الكمية المستلمة
+
+# Material Request Models
+class MaterialRequestCreate(BaseModel):
+    items: List[MaterialItem]
+    project_id: str  # معرف المشروع
+    reason: str
+    engineer_id: str
+    expected_delivery_date: Optional[str] = None  # تاريخ الحاجة المتوقع
+
+class MaterialRequestUpdate(BaseModel):
+    status: str
+    rejection_reason: Optional[str] = None
+
+class MaterialRequestResponse(BaseModel):
+    id: str
+    request_number: Optional[str] = None  # رقم الطلب المتسلسل للمشرف (A1, A2, B1...)
+    request_seq: Optional[int] = None  # الرقم التسلسلي فقط
+    items: List[MaterialItem]
+    project_id: Optional[str] = None
+    project_name: str
+    reason: str
+    supervisor_id: str
+    supervisor_name: str
+    engineer_id: str
+    engineer_name: str
+    status: str
+    rejection_reason: Optional[str] = None
+    expected_delivery_date: Optional[str] = None  # تاريخ الحاجة المتوقع
+    created_at: str
+    updated_at: str
+
+# Purchase Order Models
+class PurchaseOrderCreate(BaseModel):
+    request_id: str
+    supplier_id: Optional[str] = None  # معرف المورد من القائمة
+    supplier_name: str  # اسم المورد (يدوي أو من القائمة)
+    selected_items: List[int]  # قائمة فهارس الأصناف المختارة من الطلب الأصلي
+    item_prices: Optional[List[dict]] = None  # أسعار الأصناف [{"index": 0, "unit_price": 100}] - اختياري
+    category_id: Optional[str] = None  # تصنيف الميزانية
+    notes: Optional[str] = None
+    terms_conditions: Optional[str] = None  # الشروط والأحكام
+    expected_delivery_date: Optional[str] = None  # تاريخ التسليم المتوقع
+
+class PurchaseOrderUpdate(BaseModel):
+    """تحديث أمر الشراء - جميع الحقول اختيارية"""
+    supplier_id: Optional[str] = None
+    supplier_name: Optional[str] = None
+    item_prices: Optional[List[dict]] = None  # أسعار الأصناف [{"name": "...", "unit_price": 100}]
+    category_id: Optional[str] = None
+    notes: Optional[str] = None
+    terms_conditions: Optional[str] = None
+    expected_delivery_date: Optional[str] = None
+    supplier_invoice_number: Optional[str] = None  # رقم فاتورة المورد
+
+class PurchaseOrderResponse(BaseModel):
+    id: str
+    order_number: Optional[str] = None  # رقم أمر الشراء التسلسلي (PO-001, PO-002...)
+    order_seq: Optional[int] = None  # الرقم التسلسلي
+    request_id: str
+    request_number: Optional[str] = None  # رقم الطلب المتسلسل (A1, A2, B1...)
+    items: List[dict]  # Changed to dict to include prices
+    project_name: str
+    project_id: Optional[str] = None
+    supplier_id: Optional[str] = None
+    supplier_name: str
+    category_id: Optional[str] = None  # تصنيف الميزانية
+    category_name: Optional[str] = None  # اسم التصنيف
+    notes: Optional[str] = None
+    terms_conditions: Optional[str] = None
+    manager_id: str
+    manager_name: str
+    supervisor_name: Optional[str] = None
+    engineer_name: Optional[str] = None
+    status: str  # pending_approval, approved, printed, shipped, delivered
+    needs_gm_approval: Optional[bool] = False  # هل يحتاج موافقة المدير العام
+    gm_approved_by_name: Optional[str] = None  # اسم المدير العام الذي وافق
+    total_amount: float = 0  # المبلغ الإجمالي
+    expected_delivery_date: Optional[str] = None
+    created_at: str
+    approved_at: Optional[str] = None
+    gm_approved_at: Optional[str] = None
+    printed_at: Optional[str] = None
+    shipped_at: Optional[str] = None
+    delivered_at: Optional[str] = None
+    delivery_notes: Optional[str] = None
+    supplier_receipt_number: Optional[str] = None  # رقم استلام المورد
+    supplier_invoice_number: Optional[str] = None  # رقم فاتورة المورد
+    received_by_id: Optional[str] = None  # معرف المستلم
+    received_by_name: Optional[str] = None  # اسم المستلم
+    updated_at: Optional[str] = None  # تاريخ آخر تحديث
+
+# Delivery Record Model
+class DeliveryRecord(BaseModel):
+    order_id: str
+    items_delivered: List[dict]  # [{"name": "...", "quantity_delivered": 5}]
+    delivery_date: str
+    received_by: str  # اسم المستلم
+    notes: Optional[str] = None
+
+# Default Budget Category Models - التصنيفات الافتراضية (العامة)
+class DefaultBudgetCategoryCreate(BaseModel):
+    name: str  # اسم التصنيف (سباكة، كهرباء، رخام...)
+    default_budget: float = 0  # الميزانية الافتراضية (اختياري)
+
+class DefaultBudgetCategoryUpdate(BaseModel):
+    name: Optional[str] = None
+    default_budget: Optional[float] = None
+
+# Budget Category Models - تصنيفات الميزانية
+class BudgetCategoryCreate(BaseModel):
+    name: str  # اسم التصنيف (سباكة، كهرباء، رخام...)
+    project_id: str  # معرف المشروع
+    estimated_budget: float  # الميزانية التقديرية
+
+class BudgetCategoryUpdate(BaseModel):
+    name: Optional[str] = None
+    estimated_budget: Optional[float] = None
+
+class BudgetCategoryResponse(BaseModel):
+    id: str
+    name: str
+    project_name: str
+    project_id: Optional[str] = None
+    estimated_budget: float
+    actual_spent: float = 0  # المصروف الفعلي (يُحسب من أوامر الشراء)
+    remaining: float = 0  # المتبقي
+    variance_percentage: float = 0  # نسبة الفرق
+    created_by: str
+    created_by_name: str
+    created_at: str
+
+# Project Models - إدارة المشاريع
+class ProjectCreate(BaseModel):
+    name: str  # اسم المشروع
+    owner_name: str  # اسم مالك المشروع
+    description: Optional[str] = None
+    location: Optional[str] = None
+
+class ProjectUpdate(BaseModel):
+    name: Optional[str] = None
+    owner_name: Optional[str] = None
+    description: Optional[str] = None
+    location: Optional[str] = None
+    status: Optional[str] = None  # active, completed, on_hold
+
+class ProjectResponse(BaseModel):
+    id: str
+    name: str
+    owner_name: str
+    description: Optional[str] = None
+    location: Optional[str] = None
+    status: str = "active"
+    created_by: str
+    created_by_name: str
+    created_at: str
+    total_requests: int = 0
+    total_orders: int = 0
+    total_budget: float = 0
+    total_spent: float = 0
+
+# Audit Trail Model - سجل المراجعة
+class AuditLogResponse(BaseModel):
+    id: str
+    entity_type: str  # project, request, order, category
+    entity_id: str
+    action: str  # create, update, delete, approve, reject, ship, deliver
+    changes: Optional[dict] = None  # التغييرات {field: {old: x, new: y}}
+    user_id: str
+    user_name: str
+    user_role: str
+    timestamp: str
+    description: str  # وصف مختصر للإجراء
+
+# Attachment Models - المرفقات
+class AttachmentResponse(BaseModel):
+    id: str
+    entity_type: str  # request, order
+    entity_id: str
+    filename: str
+    original_filename: str
+    file_size: int
+    file_type: str
+    uploaded_by: str
+    uploaded_by_name: str
+    uploaded_at: str
+
+# ==================== SYSTEM SETTINGS MODELS ====================
+
+class SystemSettingUpdate(BaseModel):
+    value: str  # القيمة كنص (يتم تحويلها حسب نوع الإعداد)
+
+class SystemSettingResponse(BaseModel):
+    id: str
+    key: str
+    value: str
+    description: str
+    updated_by: Optional[str] = None
+    updated_by_name: Optional[str] = None
+    updated_at: Optional[str] = None
+
+# ==================== PRICE CATALOG MODELS ====================
+
+class PriceCatalogCreate(BaseModel):
+    name: str  # اسم الصنف الرسمي
+    description: Optional[str] = None
+    unit: str = "قطعة"  # الوحدة
+    supplier_id: Optional[str] = None  # المورد المفضل
+    supplier_name: Optional[str] = None
+    price: float  # السعر المعتمد
+    currency: str = "SAR"  # العملة
+    validity_until: Optional[str] = None  # تاريخ انتهاء السعر
+    category_id: Optional[str] = None  # تصنيف الميزانية
+
+class PriceCatalogUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    unit: Optional[str] = None
+    supplier_id: Optional[str] = None
+    supplier_name: Optional[str] = None
+    price: Optional[float] = None
+    currency: Optional[str] = None
+    validity_until: Optional[str] = None
+    category_id: Optional[str] = None
+    is_active: Optional[bool] = None
+
+class PriceCatalogResponse(BaseModel):
+    id: str
+    name: str
+    description: Optional[str] = None
+    unit: str
+    supplier_id: Optional[str] = None
+    supplier_name: Optional[str] = None
+    price: float
+    currency: str
+    validity_until: Optional[str] = None
+    category_id: Optional[str] = None
+    category_name: Optional[str] = None
+    is_active: bool = True
+    created_by: str
+    created_by_name: str
+    created_at: str
+    updated_at: Optional[str] = None
+
+# ==================== ITEM ALIASES MODELS ====================
+
+class ItemAliasCreate(BaseModel):
+    alias_name: str  # الاسم الذي أدخله المشرف
+    catalog_item_id: str  # معرف الصنف في الكتالوج
+
+class ItemAliasResponse(BaseModel):
+    id: str
+    alias_name: str  # الاسم البديل
+    catalog_item_id: str  # معرف الصنف في الكتالوج
+    catalog_item_name: Optional[str] = None  # اسم الصنف الرسمي
+    usage_count: int = 0  # عدد مرات الاستخدام
+    created_by: str
+    created_by_name: str
+    created_at: str
+
+# ==================== HELPER FUNCTIONS ====================
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password: str) -> str:
+    return pwd_context.hash(password)
+
+def create_access_token(data: dict) -> str:
+    to_encode = data.copy()
+    expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    try:
+        token = credentials.credentials
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("sub")
+        if user_id is None:
+            raise HTTPException(status_code=401, detail="رمز الدخول غير صالح")
+        
+        user = await db.users.find_one({"id": user_id}, {"_id": 0, "password": 0})
+        if user is None:
+            raise HTTPException(status_code=401, detail="المستخدم غير موجود")
+        return user
+    except JWTError:
+        raise HTTPException(status_code=401, detail="رمز الدخول غير صالح")
+
+# System Settings Helper Functions
+async def init_system_settings():
+    """تهيئة إعدادات النظام الافتراضية"""
+    default_settings = [
+        {
+            "key": "approval_limit",
+            "value": "20000",
+            "description": "حد الموافقة - الطلبات فوق هذا المبلغ تحتاج موافقة المدير العام (ريال سعودي)"
+        },
+        {
+            "key": "currency",
+            "value": "SAR",
+            "description": "العملة الافتراضية"
+        },
+        {
+            "key": "auto_learn_aliases",
+            "value": "true",
+            "description": "التعلم التلقائي للأسماء البديلة عند الربط"
+        }
+    ]
+    
+    for setting in default_settings:
+        existing = await db.system_settings.find_one({"key": setting["key"]})
+        if not existing:
+            setting["id"] = str(uuid.uuid4())
+            setting["created_at"] = datetime.now(timezone.utc).isoformat()
+            await db.system_settings.insert_one(setting)
+
+async def get_system_setting(key: str, default: str = None) -> str:
+    """الحصول على قيمة إعداد من إعدادات النظام"""
+    setting = await db.system_settings.find_one({"key": key}, {"_id": 0})
+    if setting:
+        return setting.get("value", default)
+    return default
+
+async def get_approval_limit() -> float:
+    """الحصول على حد الموافقة"""
+    limit_str = await get_system_setting("approval_limit", "20000")
+    try:
+        return float(limit_str)
+    except ValueError:
+        return 20000.0
+
+async def migrate_order_numbers():
+    """إضافة أرقام تسلسلية للأوامر القديمة التي لا تملك رقم"""
+    # البحث عن الأوامر التي ليس لها رقم تسلسلي
+    orders_without_number = await db.purchase_orders.find(
+        {"order_number": {"$exists": False}},
+        {"_id": 0, "id": 1, "created_at": 1}
+    ).sort("created_at", 1).to_list(10000)
+    
+    if not orders_without_number:
+        return
+    
+    logging.info(f"Found {len(orders_without_number)} orders without order_number, migrating...")
+    
+    # البدء من آخر رقم تسلسلي موجود
+    last_order = await db.purchase_orders.find_one(
+        {"order_seq": {"$exists": True}},
+        {"order_seq": 1},
+        sort=[("order_seq", -1)]
+    )
+    
+    next_seq = (last_order.get("order_seq", 0) if last_order else 0) + 1
+    
+    for order in orders_without_number:
+        # Format: 8 أرقام (PO-00000001)
+        order_number = f"PO-{next_seq:08d}"
+        await db.purchase_orders.update_one(
+            {"id": order["id"]},
+            {"$set": {"order_number": order_number, "order_seq": next_seq}}
+        )
+        next_seq += 1
+    
+    logging.info(f"Migrated {len(orders_without_number)} orders with sequential numbers")
+
+# Audit Trail Helper Function
+async def log_audit(
+    entity_type: str,
+    entity_id: str,
+    action: str,
+    user: dict,
+    description: str,
+    changes: dict = None
+):
+    """تسجيل حدث في سجل المراجعة"""
+    audit_doc = {
+        "id": str(uuid.uuid4()),
+        "entity_type": entity_type,
+        "entity_id": entity_id,
+        "action": action,
+        "changes": changes,
+        "user_id": user["id"],
+        "user_name": user["name"],
+        "user_role": user["role"],
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "description": description
+    }
+    await db.audit_logs.insert_one(audit_doc)
+
+# ==================== EMAIL SERVICE ====================
+
+async def get_supervisor_prefix(supervisor_id: str) -> str:
+    """Get or assign the supervisor's prefix letter (A, B, C...)"""
+    supervisor = await db.users.find_one({"id": supervisor_id}, {"_id": 0})
+    if not supervisor:
+        return "X"
+    
+    # If supervisor already has a prefix, return it
+    if supervisor.get("supervisor_prefix"):
+        return supervisor["supervisor_prefix"]
+    
+    # Assign a new prefix based on the number of supervisors with prefixes
+    existing_prefixes = await db.users.distinct("supervisor_prefix", {"role": UserRole.SUPERVISOR, "supervisor_prefix": {"$exists": True, "$ne": None}})
+    
+    # Generate next letter (A, B, C, ..., Z, AA, AB, ...)
+    alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    used_count = len(existing_prefixes)
+    
+    if used_count < 26:
+        new_prefix = alphabet[used_count]
+    else:
+        # For more than 26 supervisors: AA, AB, AC...
+        first_letter = alphabet[(used_count - 26) // 26]
+        second_letter = alphabet[(used_count - 26) % 26]
+        new_prefix = first_letter + second_letter
+    
+    # Save the prefix to the supervisor
+    await db.users.update_one(
+        {"id": supervisor_id},
+        {"$set": {"supervisor_prefix": new_prefix}}
+    )
+    
+    return new_prefix
+
+async def get_next_request_number(supervisor_id: str) -> tuple:
+    """Get the next sequential request number for a supervisor (e.g., A1, A2, B1...)"""
+    # Get supervisor prefix
+    prefix = await get_supervisor_prefix(supervisor_id)
+    
+    # Find the highest request sequence for this supervisor
+    last_request = await db.material_requests.find_one(
+        {"supervisor_id": supervisor_id},
+        {"request_seq": 1},
+        sort=[("request_seq", -1)]
+    )
+    
+    # Get next sequence number
+    if last_request and last_request.get("request_seq"):
+        next_seq = last_request["request_seq"] + 1
+    else:
+        next_seq = 1
+    
+    return prefix + str(next_seq), next_seq
+
+async def get_next_order_number() -> str:
+    """Get the next sequential order number for purchase orders (e.g., PO-00000001, PO-00000002...)"""
+    # Find the highest order sequence
+    last_order = await db.purchase_orders.find_one(
+        {"order_seq": {"$exists": True}},
+        {"order_seq": 1},
+        sort=[("order_seq", -1)]
+    )
+    
+    # Get next sequence number
+    if last_order and last_order.get("order_seq"):
+        next_seq = last_order["order_seq"] + 1
+    else:
+        # إذا لم توجد أوامر بتسلسل، نبدأ من 1
+        # لكن نتحقق من عدد الأوامر الموجودة لتجنب التكرار
+        total_orders = await db.purchase_orders.count_documents({})
+        next_seq = total_orders + 1
+    
+    # Format: PO-00000001 (8 أرقام - يدعم حتى 99,999,999)
+    return f"PO-{next_seq:08d}", next_seq
+
+async def send_email_notification(to_email: str, subject: str, content: str):
+    """Send email notification using SendGrid"""
+    sendgrid_api_key = os.environ.get('SENDGRID_API_KEY')
+    sender_email = os.environ.get('SENDER_EMAIL')
+    
+    if not sendgrid_api_key or not sender_email:
+        logging.warning("SendGrid not configured, skipping email")
+        return False
+    
+    try:
+        from sendgrid import SendGridAPIClient
+        from sendgrid.helpers.mail import Mail
+        
+        message = Mail(
+            from_email=sender_email,
+            to_emails=to_email,
+            subject=subject,
+            html_content=content
+        )
+        sg = SendGridAPIClient(sendgrid_api_key)
+        response = sg.send(message)
+        return response.status_code == 202
+    except Exception as e:
+        logging.error(f"Failed to send email: {e}")
+        return False
+
+# ==================== AUTH ROUTES ====================
+
+# التسجيل المباشر معطل - يجب على المدير إنشاء المستخدمين
+@api_router.post("/auth/register", response_model=TokenResponse)
+async def register(user_data: UserCreate):
+    """التسجيل معطل - استخدم صفحة الإعداد الأولي أو اطلب من المدير إنشاء حساب"""
+    raise HTTPException(
+        status_code=403, 
+        detail="التسجيل المباشر غير متاح. يرجى التواصل مع مدير المشتريات لإنشاء حساب"
+    )
+
+@api_router.post("/auth/login", response_model=TokenResponse)
+async def login(credentials: UserLogin):
+    user = await db.users.find_one({"email": credentials.email})
+    if not user or not verify_password(credentials.password, user["password"]):
+        raise HTTPException(status_code=401, detail="البريد الإلكتروني أو كلمة المرور غير صحيحة")
+    
+    # Check if user is active
+    if not user.get("is_active", True):
+        raise HTTPException(status_code=403, detail="تم تعطيل حسابك. تواصل مع مدير النظام")
+    
+    access_token = create_access_token({"sub": user["id"]})
+    
+    return TokenResponse(
+        access_token=access_token,
+        user=UserResponse(
+            id=user["id"],
+            name=user["name"],
+            email=user["email"],
+            role=user["role"]
+        )
+    )
+
+@api_router.get("/auth/me", response_model=UserResponse)
+async def get_me(current_user: dict = Depends(get_current_user)):
+    return UserResponse(**current_user)
+
+@api_router.post("/auth/change-password")
+async def change_password(
+    password_data: ChangePasswordRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """تغيير كلمة المرور للمستخدم الحالي"""
+    # Get user with password
+    user = await db.users.find_one({"id": current_user["id"]})
+    if not user:
+        raise HTTPException(status_code=404, detail="المستخدم غير موجود")
+    
+    # Verify current password
+    if not verify_password(password_data.current_password, user["password"]):
+        raise HTTPException(status_code=400, detail="كلمة المرور الحالية غير صحيحة")
+    
+    # Validate new password
+    if len(password_data.new_password) < 6:
+        raise HTTPException(status_code=400, detail="كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل")
+    
+    # Hash and update new password
+    new_hashed_password = get_password_hash(password_data.new_password)
+    await db.users.update_one(
+        {"id": current_user["id"]},
+        {"$set": {"password": new_hashed_password}}
+    )
+    
+    # Log audit
+    await log_audit(
+        entity_type="user",
+        entity_id=current_user["id"],
+        action="change_password",
+        user=current_user,
+        description="تم تغيير كلمة المرور"
+    )
+    
+    return {"message": "تم تغيير كلمة المرور بنجاح"}
+
+@api_router.post("/auth/forgot-password")
+async def forgot_password(request: ForgotPasswordRequest):
+    """طلب استعادة كلمة المرور - يرسل كلمة مرور جديدة عبر البريد"""
+    # Find user by email
+    user = await db.users.find_one({"email": request.email})
+    if not user:
+        # Return success even if user not found for security
+        return {"message": "إذا كان البريد مسجلاً، ستصلك كلمة المرور الجديدة"}
+    
+    # Generate random password
+    import random
+    import string
+    new_password = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
+    
+    # Hash and update password
+    hashed_password = get_password_hash(new_password)
+    await db.users.update_one(
+        {"email": request.email},
+        {"$set": {"password": hashed_password}}
+    )
+    
+    # Send email with new password
+    email_content = f"""
+    <div dir="rtl" style="font-family: Arial, sans-serif; padding: 20px; background: #f9fafb; border-radius: 8px;">
+        <h2 style="color: #ea580c; margin-bottom: 20px;">استعادة كلمة المرور</h2>
+        <p style="font-size: 16px; color: #374151;">مرحباً {user['name']},</p>
+        <p style="font-size: 14px; color: #6b7280;">تم إنشاء كلمة مرور جديدة لحسابك:</p>
+        <div style="background: #fff; padding: 15px; border-radius: 8px; margin: 20px 0; text-align: center; border: 2px solid #ea580c;">
+            <p style="font-size: 24px; font-weight: bold; color: #1f2937; letter-spacing: 3px; margin: 0;">{new_password}</p>
+        </div>
+        <p style="font-size: 14px; color: #6b7280;">يرجى تسجيل الدخول وتغيير كلمة المرور فوراً.</p>
+        <hr style="margin: 20px 0; border: none; border-top: 1px solid #e5e7eb;">
+        <p style="font-size: 12px; color: #9ca3af;">نظام إدارة طلبات المواد</p>
+    </div>
+    """
+    
+    email_sent = await send_email_notification(
+        request.email,
+        "استعادة كلمة المرور - نظام إدارة طلبات المواد",
+        email_content
+    )
+    
+    if email_sent:
+        return {"message": "تم إرسال كلمة المرور الجديدة إلى بريدك الإلكتروني"}
+    else:
+        # If email failed, still return success but log it
+        logging.warning(f"Email not configured - New password for {request.email}: {new_password}")
+        return {"message": "تم إنشاء كلمة مرور جديدة. إذا لم تصلك الرسالة، تواصل مع الإدارة.", "temp_password": new_password}
+
+# ==================== USERS ROUTES ====================
+
+@api_router.get("/users/engineers", response_model=List[UserResponse])
+async def get_engineers(current_user: dict = Depends(get_current_user)):
+    engineers = await db.users.find(
+        {"role": UserRole.ENGINEER},
+        {"_id": 0, "password": 0}
+    ).to_list(100)
+    return [UserResponse(**eng) for eng in engineers]
+
+@api_router.get("/users", response_model=List[UserResponse])
+async def get_all_users(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    
+    users = await db.users.find({}, {"_id": 0, "password": 0}).to_list(100)
+    return [UserResponse(**u) for u in users]
+
+# ==================== USER MANAGEMENT (ADMIN) ROUTES ====================
+
+@api_router.get("/setup/check")
+async def check_setup_required():
+    """التحقق مما إذا كان النظام يحتاج إعداد أولي"""
+    manager_count = await db.users.count_documents({"role": UserRole.PROCUREMENT_MANAGER})
+    return {"setup_required": manager_count == 0}
+
+@api_router.post("/setup/first-admin")
+async def create_first_admin(admin_data: SetupFirstAdmin):
+    """إنشاء أول مدير مشتريات - متاح فقط إذا لم يوجد مدير"""
+    # Check if any manager exists
+    manager_count = await db.users.count_documents({"role": UserRole.PROCUREMENT_MANAGER})
+    if manager_count > 0:
+        raise HTTPException(status_code=400, detail="تم إعداد النظام مسبقاً")
+    
+    # Validate email
+    existing = await db.users.find_one({"email": admin_data.email})
+    if existing:
+        raise HTTPException(status_code=400, detail="البريد الإلكتروني مسجل مسبقاً")
+    
+    # Validate password
+    if len(admin_data.password) < 6:
+        raise HTTPException(status_code=400, detail="كلمة المرور يجب أن تكون 6 أحرف على الأقل")
+    
+    # Create admin user
+    user_id = str(uuid.uuid4())
+    hashed_password = get_password_hash(admin_data.password)
+    now = datetime.now(timezone.utc).isoformat()
+    
+    user_doc = {
+        "id": user_id,
+        "name": admin_data.name,
+        "email": admin_data.email,
+        "password": hashed_password,
+        "role": UserRole.PROCUREMENT_MANAGER,
+        "is_active": True,
+        "assigned_projects": [],
+        "assigned_engineers": [],
+        "created_at": now
+    }
+    
+    await db.users.insert_one(user_doc)
+    
+    access_token = create_access_token({"sub": user_id})
+    
+    return TokenResponse(
+        access_token=access_token,
+        user=UserResponse(
+            id=user_id,
+            name=admin_data.name,
+            email=admin_data.email,
+            role=UserRole.PROCUREMENT_MANAGER
+        )
+    )
+
+@api_router.get("/admin/users")
+async def get_all_users_admin(current_user: dict = Depends(get_current_user)):
+    """الحصول على جميع المستخدمين - مدير المشتريات فقط"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    
+    users = await db.users.find({}, {"_id": 0, "password": 0}).to_list(500)
+    
+    # Enrich with project and engineer names
+    projects = await db.projects.find({}, {"_id": 0, "id": 1, "name": 1}).to_list(500)
+    projects_map = {p["id"]: p["name"] for p in projects}
+    
+    engineers = await db.users.find({"role": UserRole.ENGINEER}, {"_id": 0, "id": 1, "name": 1}).to_list(100)
+    engineers_map = {e["id"]: e["name"] for e in engineers}
+    
+    result = []
+    for u in users:
+        user_data = {
+            "id": u.get("id"),
+            "name": u.get("name"),
+            "email": u.get("email"),
+            "role": u.get("role"),
+            "is_active": u.get("is_active", True),
+            "supervisor_prefix": u.get("supervisor_prefix"),
+            "assigned_projects": u.get("assigned_projects", []),
+            "assigned_engineers": u.get("assigned_engineers", []),
+            "created_at": u.get("created_at"),
+            "assigned_project_names": [projects_map.get(pid, "") for pid in u.get("assigned_projects", [])],
+            "assigned_engineer_names": [engineers_map.get(eid, "") for eid in u.get("assigned_engineers", [])]
+        }
+        result.append(user_data)
+    
+    return result
+
+@api_router.post("/admin/users")
+async def create_user_by_admin(
+    user_data: UserCreateByAdmin,
+    current_user: dict = Depends(get_current_user)
+):
+    """إنشاء مستخدم جديد - مدير المشتريات فقط"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    
+    # Check if email exists
+    existing = await db.users.find_one({"email": user_data.email})
+    if existing:
+        raise HTTPException(status_code=400, detail="البريد الإلكتروني مسجل مسبقاً")
+    
+    # Validate role
+    valid_roles = [UserRole.SUPERVISOR, UserRole.ENGINEER, UserRole.PROCUREMENT_MANAGER, 
+                   UserRole.PRINTER, UserRole.DELIVERY_TRACKER, UserRole.GENERAL_MANAGER]
+    if user_data.role not in valid_roles:
+        raise HTTPException(status_code=400, detail="الدور غير صالح")
+    
+    # Validate password
+    if len(user_data.password) < 6:
+        raise HTTPException(status_code=400, detail="كلمة المرور يجب أن تكون 6 أحرف على الأقل")
+    
+    # Create user
+    user_id = str(uuid.uuid4())
+    hashed_password = get_password_hash(user_data.password)
+    now = datetime.now(timezone.utc).isoformat()
+    
+    user_doc = {
+        "id": user_id,
+        "name": user_data.name,
+        "email": user_data.email,
+        "password": hashed_password,
+        "role": user_data.role,
+        "is_active": True,
+        "assigned_projects": user_data.assigned_projects or [],
+        "assigned_engineers": user_data.assigned_engineers or [],
+        "created_at": now
+    }
+    
+    # Assign supervisor prefix if supervisor
+    if user_data.role == UserRole.SUPERVISOR:
+        existing_prefixes = await db.users.distinct("supervisor_prefix", {
+            "role": UserRole.SUPERVISOR, 
+            "supervisor_prefix": {"$exists": True, "$ne": None}
+        })
+        available_prefixes = [chr(i) for i in range(65, 91)]  # A-Z
+        for prefix in existing_prefixes:
+            if prefix in available_prefixes:
+                available_prefixes.remove(prefix)
+        if available_prefixes:
+            user_doc["supervisor_prefix"] = available_prefixes[0]
+    
+    await db.users.insert_one(user_doc)
+    
+    # Log audit
+    await log_audit(
+        entity_type="user",
+        entity_id=user_id,
+        action="create_user",
+        user=current_user,
+        description=f"تم إنشاء مستخدم جديد: {user_data.name} ({user_data.role})"
+    )
+    
+    return {
+        "message": "تم إنشاء المستخدم بنجاح",
+        "user": {
+            "id": user_id,
+            "name": user_data.name,
+            "email": user_data.email,
+            "role": user_data.role
+        }
+    }
+
+@api_router.put("/admin/users/{user_id}")
+async def update_user_by_admin(
+    user_id: str,
+    user_data: UserUpdateByAdmin,
+    current_user: dict = Depends(get_current_user)
+):
+    """تحديث مستخدم - مدير المشتريات فقط"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    
+    # Find user
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="المستخدم غير موجود")
+    
+    # Build update dict
+    update_data = {}
+    
+    if user_data.name is not None:
+        update_data["name"] = user_data.name
+    
+    if user_data.email is not None and user_data.email != user["email"]:
+        existing = await db.users.find_one({"email": user_data.email})
+        if existing:
+            raise HTTPException(status_code=400, detail="البريد الإلكتروني مسجل مسبقاً")
+        update_data["email"] = user_data.email
+    
+    if user_data.role is not None:
+        valid_roles = [UserRole.SUPERVISOR, UserRole.ENGINEER, UserRole.PROCUREMENT_MANAGER, 
+                       UserRole.PRINTER, UserRole.DELIVERY_TRACKER, UserRole.GENERAL_MANAGER]
+        if user_data.role not in valid_roles:
+            raise HTTPException(status_code=400, detail="الدور غير صالح")
+        update_data["role"] = user_data.role
+    
+    if user_data.is_active is not None:
+        update_data["is_active"] = user_data.is_active
+    
+    if user_data.assigned_projects is not None:
+        update_data["assigned_projects"] = user_data.assigned_projects
+    
+    if user_data.assigned_engineers is not None:
+        update_data["assigned_engineers"] = user_data.assigned_engineers
+    
+    if update_data:
+        await db.users.update_one({"id": user_id}, {"$set": update_data})
+        
+        # Log audit
+        await log_audit(
+            entity_type="user",
+            entity_id=user_id,
+            action="update_user",
+            user=current_user,
+            description=f"تم تحديث المستخدم: {user['name']}"
+        )
+    
+    return {"message": "تم تحديث المستخدم بنجاح"}
+
+@api_router.post("/admin/users/{user_id}/reset-password")
+async def admin_reset_user_password(
+    user_id: str,
+    password_data: AdminResetPassword,
+    current_user: dict = Depends(get_current_user)
+):
+    """إعادة تعيين كلمة مرور مستخدم - مدير المشتريات فقط"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    
+    # Find user
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="المستخدم غير موجود")
+    
+    # Validate password
+    if len(password_data.new_password) < 6:
+        raise HTTPException(status_code=400, detail="كلمة المرور يجب أن تكون 6 أحرف على الأقل")
+    
+    # Update password
+    hashed_password = get_password_hash(password_data.new_password)
+    await db.users.update_one({"id": user_id}, {"$set": {"password": hashed_password}})
+    
+    # Log audit
+    await log_audit(
+        entity_type="user",
+        entity_id=user_id,
+        action="admin_reset_password",
+        user=current_user,
+        description=f"تم إعادة تعيين كلمة مرور المستخدم: {user['name']}"
+    )
+    
+    return {"message": "تم إعادة تعيين كلمة المرور بنجاح"}
+
+@api_router.put("/admin/users/{user_id}/toggle-active")
+async def toggle_user_active(
+    user_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """تفعيل/تعطيل حساب مستخدم - مدير المشتريات فقط"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    
+    # Find user
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="المستخدم غير موجود")
+    
+    # Prevent disabling self
+    if user_id == current_user["id"]:
+        raise HTTPException(status_code=400, detail="لا يمكنك تعطيل حسابك")
+    
+    # Toggle active status
+    new_status = not user.get("is_active", True)
+    await db.users.update_one({"id": user_id}, {"$set": {"is_active": new_status}})
+    
+    # Log audit
+    action_desc = "تم تفعيل حساب" if new_status else "تم تعطيل حساب"
+    await log_audit(
+        entity_type="user",
+        entity_id=user_id,
+        action="toggle_user_active",
+        user=current_user,
+        description=f"{action_desc} المستخدم: {user['name']}"
+    )
+    
+    return {
+        "message": f"تم {'تفعيل' if new_status else 'تعطيل'} الحساب بنجاح",
+        "is_active": new_status
+    }
+
+@api_router.delete("/admin/users/{user_id}")
+async def delete_user_by_admin(
+    user_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """حذف مستخدم - مدير المشتريات فقط"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    
+    # Find user
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="المستخدم غير موجود")
+    
+    # Prevent deleting self
+    if user_id == current_user["id"]:
+        raise HTTPException(status_code=400, detail="لا يمكنك حذف حسابك")
+    
+    # Delete user
+    await db.users.delete_one({"id": user_id})
+    
+    # Log audit
+    await log_audit(
+        entity_type="user",
+        entity_id=user_id,
+        action="delete_user",
+        user=current_user,
+        description=f"تم حذف المستخدم: {user['name']}"
+    )
+    
+    return {"message": "تم حذف المستخدم بنجاح"}
+
+# ==================== PROJECTS ROUTES ====================
+
+@api_router.post("/projects")
+async def create_project(
+    project_data: ProjectCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """إنشاء مشروع جديد - المشرف فقط"""
+    if current_user["role"] != UserRole.SUPERVISOR:
+        raise HTTPException(status_code=403, detail="فقط المشرف يمكنه إنشاء المشاريع")
+    
+    project_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    
+    project_doc = {
+        "id": project_id,
+        "name": project_data.name,
+        "owner_name": project_data.owner_name,
+        "description": project_data.description,
+        "location": project_data.location,
+        "status": "active",
+        "created_by": current_user["id"],
+        "created_by_name": current_user["name"],
+        "created_at": now
+    }
+    
+    await db.projects.insert_one(project_doc)
+    
+    # نسخ التصنيفات الافتراضية تلقائياً للمشروع الجديد
+    default_categories = await db.default_budget_categories.find({}, {"_id": 0}).to_list(100)
+    categories_added = 0
+    for default_cat in default_categories:
+        category_id = str(uuid.uuid4())
+        category_doc = {
+            "id": category_id,
+            "name": default_cat["name"],
+            "project_id": project_id,
+            "project_name": project_data.name,
+            "estimated_budget": default_cat["default_budget"],
+            "created_by": default_cat["created_by"],
+            "created_by_name": default_cat["created_by_name"],
+            "created_at": now
+        }
+        await db.budget_categories.insert_one(category_doc)
+        categories_added += 1
+    
+    # Log audit
+    await log_audit(
+        entity_type="project",
+        entity_id=project_id,
+        action="create",
+        user=current_user,
+        description=f"إنشاء مشروع جديد: {project_data.name} (مع {categories_added} تصنيف)"
+    )
+    
+    return {
+        **{k: v for k, v in project_doc.items() if k != "_id"},
+        "total_requests": 0,
+        "total_orders": 0,
+        "total_budget": 0,
+        "total_spent": 0,
+        "categories_added": categories_added
+    }
+
+@api_router.get("/projects")
+async def get_projects(
+    status: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """الحصول على قائمة المشاريع"""
+    query = {}
+    if status:
+        query["status"] = status
+    
+    projects = await db.projects.find(query, {"_id": 0}).sort("created_at", -1).to_list(200)
+    
+    # Calculate stats for each project
+    result = []
+    for p in projects:
+        # Get request count
+        request_count = await db.material_requests.count_documents({"project_id": p["id"]})
+        
+        # Get order count and total spent
+        pipeline = [
+            {"$match": {"project_id": p["id"]}},
+            {"$group": {"_id": None, "count": {"$sum": 1}, "total": {"$sum": "$total_amount"}}}
+        ]
+        order_stats = await db.purchase_orders.aggregate(pipeline).to_list(1)
+        order_count = order_stats[0]["count"] if order_stats else 0
+        total_spent = order_stats[0]["total"] if order_stats else 0
+        
+        # Get total budget from categories
+        budget_pipeline = [
+            {"$match": {"project_id": p["id"]}},
+            {"$group": {"_id": None, "total": {"$sum": "$estimated_budget"}}}
+        ]
+        budget_stats = await db.budget_categories.aggregate(budget_pipeline).to_list(1)
+        total_budget = budget_stats[0]["total"] if budget_stats else 0
+        
+        result.append({
+            **p,
+            "total_requests": request_count,
+            "total_orders": order_count,
+            "total_budget": total_budget,
+            "total_spent": total_spent
+        })
+    
+    return result
+
+@api_router.get("/projects/{project_id}")
+async def get_project(
+    project_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """الحصول على تفاصيل مشروع"""
+    project = await db.projects.find_one({"id": project_id}, {"_id": 0})
+    if not project:
+        raise HTTPException(status_code=404, detail="المشروع غير موجود")
+    
+    # Get stats
+    request_count = await db.material_requests.count_documents({"project_id": project_id})
+    
+    pipeline = [
+        {"$match": {"project_id": project_id}},
+        {"$group": {"_id": None, "count": {"$sum": 1}, "total": {"$sum": "$total_amount"}}}
+    ]
+    order_stats = await db.purchase_orders.aggregate(pipeline).to_list(1)
+    
+    budget_pipeline = [
+        {"$match": {"project_id": project_id}},
+        {"$group": {"_id": None, "total": {"$sum": "$estimated_budget"}}}
+    ]
+    budget_stats = await db.budget_categories.aggregate(budget_pipeline).to_list(1)
+    
+    return {
+        **project,
+        "total_requests": request_count,
+        "total_orders": order_stats[0]["count"] if order_stats else 0,
+        "total_budget": budget_stats[0]["total"] if budget_stats else 0,
+        "total_spent": order_stats[0]["total"] if order_stats else 0
+    }
+
+@api_router.put("/projects/{project_id}")
+async def update_project(
+    project_id: str,
+    update_data: ProjectUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """تحديث مشروع - المشرف فقط"""
+    if current_user["role"] != UserRole.SUPERVISOR:
+        raise HTTPException(status_code=403, detail="فقط المشرف يمكنه تعديل المشاريع")
+    
+    project = await db.projects.find_one({"id": project_id}, {"_id": 0})
+    if not project:
+        raise HTTPException(status_code=404, detail="المشروع غير موجود")
+    
+    update_fields = {}
+    changes = {}
+    
+    for field in ["name", "owner_name", "description", "location", "status"]:
+        new_value = getattr(update_data, field)
+        if new_value is not None and project.get(field) != new_value:
+            changes[field] = {"old": project.get(field), "new": new_value}
+            update_fields[field] = new_value
+    
+    if update_fields:
+        await db.projects.update_one({"id": project_id}, {"$set": update_fields})
+        
+        await log_audit(
+            entity_type="project",
+            entity_id=project_id,
+            action="update",
+            user=current_user,
+            description=f"تحديث المشروع: {project['name']}",
+            changes=changes
+        )
+    
+    return {"message": "تم تحديث المشروع بنجاح"}
+
+@api_router.delete("/projects/{project_id}")
+async def delete_project(
+    project_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """حذف مشروع - المشرف فقط"""
+    if current_user["role"] != UserRole.SUPERVISOR:
+        raise HTTPException(status_code=403, detail="فقط المشرف يمكنه حذف المشاريع")
+    
+    # Check if project has requests
+    request_count = await db.material_requests.count_documents({"project_id": project_id})
+    if request_count > 0:
+        raise HTTPException(status_code=400, detail=f"لا يمكن حذف المشروع لوجود {request_count} طلبات مرتبطة به")
+    
+    project = await db.projects.find_one({"id": project_id}, {"_id": 0})
+    if not project:
+        raise HTTPException(status_code=404, detail="المشروع غير موجود")
+    
+    await db.projects.delete_one({"id": project_id})
+    
+    await log_audit(
+        entity_type="project",
+        entity_id=project_id,
+        action="delete",
+        user=current_user,
+        description=f"حذف المشروع: {project['name']}"
+    )
+    
+    return {"message": "تم حذف المشروع بنجاح"}
+
+# ==================== DEFAULT BUDGET CATEGORIES ROUTES ====================
+# التصنيفات الافتراضية (العامة) التي تُنسخ تلقائياً لكل مشروع جديد
+
+@api_router.get("/default-budget-categories")
+async def get_default_budget_categories(current_user: dict = Depends(get_current_user)):
+    """الحصول على التصنيفات الافتراضية"""
+    categories = await db.default_budget_categories.find({}, {"_id": 0}).sort("created_at", 1).to_list(100)
+    return categories
+
+@api_router.post("/default-budget-categories")
+async def create_default_budget_category(
+    category_data: DefaultBudgetCategoryCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """إنشاء تصنيف افتراضي جديد - مدير المشتريات فقط"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه إدارة التصنيفات الافتراضية")
+    
+    # Check if category with same name exists
+    existing = await db.default_budget_categories.find_one({"name": category_data.name})
+    if existing:
+        raise HTTPException(status_code=400, detail="يوجد تصنيف بنفس الاسم")
+    
+    category_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    
+    category_doc = {
+        "id": category_id,
+        "name": category_data.name,
+        "default_budget": category_data.default_budget,
+        "created_by": current_user["id"],
+        "created_by_name": current_user["name"],
+        "created_at": now
+    }
+    
+    await db.default_budget_categories.insert_one(category_doc)
+    
+    await log_audit(
+        entity_type="default_category",
+        entity_id=category_id,
+        action="create",
+        user=current_user,
+        description=f"إنشاء تصنيف افتراضي: {category_data.name}"
+    )
+    
+    return {k: v for k, v in category_doc.items() if k != "_id"}
+
+@api_router.put("/default-budget-categories/{category_id}")
+async def update_default_budget_category(
+    category_id: str,
+    update_data: DefaultBudgetCategoryUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """تحديث تصنيف افتراضي - مدير المشتريات فقط"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه تعديل التصنيفات الافتراضية")
+    
+    category = await db.default_budget_categories.find_one({"id": category_id}, {"_id": 0})
+    if not category:
+        raise HTTPException(status_code=404, detail="التصنيف غير موجود")
+    
+    update_fields = {}
+    if update_data.name is not None:
+        update_fields["name"] = update_data.name
+    if update_data.default_budget is not None:
+        update_fields["default_budget"] = update_data.default_budget
+    
+    if update_fields:
+        await db.default_budget_categories.update_one(
+            {"id": category_id},
+            {"$set": update_fields}
+        )
+    
+    return {"message": "تم تحديث التصنيف الافتراضي بنجاح"}
+
+@api_router.delete("/default-budget-categories/{category_id}")
+async def delete_default_budget_category(
+    category_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """حذف تصنيف افتراضي - مدير المشتريات فقط"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه حذف التصنيفات الافتراضية")
+    
+    category = await db.default_budget_categories.find_one({"id": category_id}, {"_id": 0})
+    if not category:
+        raise HTTPException(status_code=404, detail="التصنيف غير موجود")
+    
+    await db.default_budget_categories.delete_one({"id": category_id})
+    
+    await log_audit(
+        entity_type="default_category",
+        entity_id=category_id,
+        action="delete",
+        user=current_user,
+        description=f"حذف تصنيف افتراضي: {category['name']}"
+    )
+    
+    return {"message": "تم حذف التصنيف الافتراضي بنجاح"}
+
+@api_router.post("/default-budget-categories/apply-to-project/{project_id}")
+async def apply_default_categories_to_project(
+    project_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """تطبيق التصنيفات الافتراضية على مشروع موجود - مدير المشتريات فقط"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه تطبيق التصنيفات")
+    
+    project = await db.projects.find_one({"id": project_id}, {"_id": 0})
+    if not project:
+        raise HTTPException(status_code=404, detail="المشروع غير موجود")
+    
+    # Get default categories
+    default_categories = await db.default_budget_categories.find({}, {"_id": 0}).to_list(100)
+    if not default_categories:
+        raise HTTPException(status_code=400, detail="لا توجد تصنيفات افتراضية")
+    
+    # Get existing categories for this project
+    existing_names = set()
+    existing = await db.budget_categories.find({"project_id": project_id}, {"name": 1}).to_list(100)
+    for cat in existing:
+        existing_names.add(cat["name"])
+    
+    now = datetime.now(timezone.utc).isoformat()
+    added_count = 0
+    
+    for default_cat in default_categories:
+        # Skip if category with same name already exists
+        if default_cat["name"] in existing_names:
+            continue
+        
+        category_id = str(uuid.uuid4())
+        category_doc = {
+            "id": category_id,
+            "name": default_cat["name"],
+            "project_id": project_id,
+            "project_name": project["name"],
+            "estimated_budget": default_cat["default_budget"],
+            "created_by": current_user["id"],
+            "created_by_name": current_user["name"],
+            "created_at": now
+        }
+        await db.budget_categories.insert_one(category_doc)
+        added_count += 1
+    
+    return {"message": f"تم إضافة {added_count} تصنيف للمشروع", "added_count": added_count}
+
+# ==================== BUDGET CATEGORIES ROUTES ====================
+
+@api_router.post("/budget-categories")
+async def create_budget_category(
+    category_data: BudgetCategoryCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """إنشاء تصنيف ميزانية جديد - مدير المشتريات فقط"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه إدارة التصنيفات")
+    
+    # Get project name
+    project = await db.projects.find_one({"id": category_data.project_id}, {"_id": 0})
+    if not project:
+        raise HTTPException(status_code=404, detail="المشروع غير موجود")
+    
+    category_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    
+    category_doc = {
+        "id": category_id,
+        "name": category_data.name,
+        "project_id": category_data.project_id,
+        "project_name": project["name"],
+        "estimated_budget": category_data.estimated_budget,
+        "created_by": current_user["id"],
+        "created_by_name": current_user["name"],
+        "created_at": now
+    }
+    
+    await db.budget_categories.insert_one(category_doc)
+    
+    await log_audit(
+        entity_type="category",
+        entity_id=category_id,
+        action="create",
+        user=current_user,
+        description=f"إنشاء تصنيف ميزانية: {category_data.name} للمشروع {project['name']}"
+    )
+    
+    # Return without _id
+    return {
+        "id": category_id,
+        "name": category_data.name,
+        "project_id": category_data.project_id,
+        "project_name": project["name"],
+        "estimated_budget": category_data.estimated_budget,
+        "created_by": current_user["id"],
+        "created_by_name": current_user["name"],
+        "created_at": now,
+        "actual_spent": 0,
+        "remaining": category_data.estimated_budget,
+        "variance_percentage": 0
+    }
+
+@api_router.get("/budget-categories")
+async def get_budget_categories(
+    project_id: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """الحصول على تصنيفات الميزانية مع المصروف الفعلي"""
+    query = {}
+    if project_id:
+        query["project_id"] = project_id
+    
+    categories = await db.budget_categories.find(query, {"_id": 0}).sort("created_at", -1).to_list(200)
+    
+    # Calculate actual spent for each category
+    result = []
+    for cat in categories:
+        # Get total spent from purchase orders in this category
+        pipeline = [
+            {"$match": {"category_id": cat["id"]}},
+            {"$group": {"_id": None, "total": {"$sum": "$total_amount"}}}
+        ]
+        spent_result = await db.purchase_orders.aggregate(pipeline).to_list(1)
+        actual_spent = spent_result[0]["total"] if spent_result else 0
+        
+        remaining = cat["estimated_budget"] - actual_spent
+        variance_percentage = ((actual_spent - cat["estimated_budget"]) / cat["estimated_budget"] * 100) if cat["estimated_budget"] > 0 else 0
+        
+        result.append({
+            **cat,
+            "actual_spent": actual_spent,
+            "remaining": remaining,
+            "variance_percentage": round(variance_percentage, 2)
+        })
+    
+    return result
+
+@api_router.get("/budget-categories/by-project")
+async def get_budget_categories_grouped(current_user: dict = Depends(get_current_user)):
+    """الحصول على التصنيفات مجمعة حسب المشروع"""
+    categories = await db.budget_categories.find({}, {"_id": 0}).sort("project_name", 1).to_list(500)
+    
+    # Group by project
+    projects = {}
+    for cat in categories:
+        project = cat["project_name"]
+        if project not in projects:
+            projects[project] = {
+                "project_name": project,
+                "total_estimated": 0,
+                "total_spent": 0,
+                "categories": []
+            }
+        
+        # Get actual spent
+        pipeline = [
+            {"$match": {"category_id": cat["id"]}},
+            {"$group": {"_id": None, "total": {"$sum": "$total_amount"}}}
+        ]
+        spent_result = await db.purchase_orders.aggregate(pipeline).to_list(1)
+        actual_spent = spent_result[0]["total"] if spent_result else 0
+        
+        cat["actual_spent"] = actual_spent
+        cat["remaining"] = cat["estimated_budget"] - actual_spent
+        
+        projects[project]["categories"].append(cat)
+        projects[project]["total_estimated"] += cat["estimated_budget"]
+        projects[project]["total_spent"] += actual_spent
+    
+    return list(projects.values())
+
+@api_router.put("/budget-categories/{category_id}")
+async def update_budget_category(
+    category_id: str,
+    update_data: BudgetCategoryUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """تحديث تصنيف ميزانية - مدير المشتريات فقط"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه إدارة التصنيفات")
+    
+    category = await db.budget_categories.find_one({"id": category_id}, {"_id": 0})
+    if not category:
+        raise HTTPException(status_code=404, detail="التصنيف غير موجود")
+    
+    update_fields = {}
+    if update_data.name is not None:
+        update_fields["name"] = update_data.name
+    if update_data.estimated_budget is not None:
+        update_fields["estimated_budget"] = update_data.estimated_budget
+    
+    if update_fields:
+        await db.budget_categories.update_one(
+            {"id": category_id},
+            {"$set": update_fields}
+        )
+    
+    return {"message": "تم تحديث التصنيف بنجاح"}
+
+@api_router.delete("/budget-categories/{category_id}")
+async def delete_budget_category(
+    category_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """حذف تصنيف ميزانية - مدير المشتريات فقط"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه إدارة التصنيفات")
+    
+    # Check if any purchase orders use this category
+    po_count = await db.purchase_orders.count_documents({"category_id": category_id})
+    if po_count > 0:
+        raise HTTPException(status_code=400, detail=f"لا يمكن حذف التصنيف لوجود {po_count} أوامر شراء مرتبطة به")
+    
+    result = await db.budget_categories.delete_one({"id": category_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="التصنيف غير موجود")
+    
+    return {"message": "تم حذف التصنيف بنجاح"}
+
+@api_router.get("/budget-reports")
+async def get_budget_reports(
+    project_id: Optional[str] = None,
+    project_name: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """تقرير المقارنة بين الميزانية التقديرية والفعلية"""
+    query = {}
+    if project_id:
+        query["project_id"] = project_id
+    elif project_name:
+        query["project_name"] = project_name
+    
+    categories = await db.budget_categories.find(query, {"_id": 0}).to_list(500)
+    
+    # Get project info if filtering by project
+    project_info = None
+    if project_id:
+        project_info = await db.projects.find_one({"id": project_id}, {"_id": 0})
+    
+    report = {
+        "project": project_info,
+        "total_estimated": 0,
+        "total_spent": 0,
+        "total_remaining": 0,
+        "categories": [],
+        "over_budget": [],  # التصنيفات التي تجاوزت الميزانية
+        "under_budget": []  # التصنيفات ضمن الميزانية
+    }
+    
+    for cat in categories:
+        # Get actual spent
+        pipeline = [
+            {"$match": {"category_id": cat["id"]}},
+            {"$group": {"_id": None, "total": {"$sum": "$total_amount"}}}
+        ]
+        spent_result = await db.purchase_orders.aggregate(pipeline).to_list(1)
+        actual_spent = spent_result[0]["total"] if spent_result else 0
+        
+        remaining = cat["estimated_budget"] - actual_spent
+        variance = actual_spent - cat["estimated_budget"]
+        variance_percentage = (variance / cat["estimated_budget"] * 100) if cat["estimated_budget"] > 0 else 0
+        
+        cat_report = {
+            "id": cat["id"],
+            "name": cat["name"],
+            "project_id": cat.get("project_id"),
+            "project_name": cat.get("project_name"),
+            "estimated_budget": cat["estimated_budget"],
+            "actual_spent": actual_spent,
+            "remaining": remaining,
+            "variance": variance,
+            "variance_percentage": round(variance_percentage, 2),
+            "status": "over_budget" if remaining < 0 else "under_budget"
+        }
+        
+        report["categories"].append(cat_report)
+        report["total_estimated"] += cat["estimated_budget"]
+        report["total_spent"] += actual_spent
+        
+        if remaining < 0:
+            report["over_budget"].append(cat_report)
+        else:
+            report["under_budget"].append(cat_report)
+    
+    report["total_remaining"] = report["total_estimated"] - report["total_spent"]
+    report["overall_variance_percentage"] = round(
+        ((report["total_spent"] - report["total_estimated"]) / report["total_estimated"] * 100) 
+        if report["total_estimated"] > 0 else 0, 2
+    )
+    
+    return report
+
+# ==================== SUPPLIERS ROUTES ====================
+
+@api_router.post("/suppliers", response_model=SupplierResponse)
+async def create_supplier(
+    supplier_data: SupplierCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """إنشاء مورد جديد - مدير المشتريات فقط"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه إضافة موردين")
+    
+    supplier_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    
+    supplier_doc = {
+        "id": supplier_id,
+        "name": supplier_data.name,
+        "contact_person": supplier_data.contact_person,
+        "phone": supplier_data.phone,
+        "email": supplier_data.email,
+        "address": supplier_data.address,
+        "notes": supplier_data.notes,
+        "created_at": now
+    }
+    
+    await db.suppliers.insert_one(supplier_doc)
+    return SupplierResponse(**{k: v for k, v in supplier_doc.items() if k != "_id"})
+
+@api_router.get("/suppliers", response_model=List[SupplierResponse])
+async def get_suppliers(current_user: dict = Depends(get_current_user)):
+    """الحصول على قائمة الموردين"""
+    suppliers = await db.suppliers.find({}, {"_id": 0}).sort("name", 1).to_list(200)
+    return [SupplierResponse(**s) for s in suppliers]
+
+@api_router.get("/suppliers/{supplier_id}", response_model=SupplierResponse)
+async def get_supplier(supplier_id: str, current_user: dict = Depends(get_current_user)):
+    """الحصول على بيانات مورد محدد"""
+    supplier = await db.suppliers.find_one({"id": supplier_id}, {"_id": 0})
+    if not supplier:
+        raise HTTPException(status_code=404, detail="المورد غير موجود")
+    return SupplierResponse(**supplier)
+
+@api_router.put("/suppliers/{supplier_id}", response_model=SupplierResponse)
+async def update_supplier(
+    supplier_id: str,
+    supplier_data: SupplierCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """تحديث بيانات مورد"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه تعديل الموردين")
+    
+    supplier = await db.suppliers.find_one({"id": supplier_id}, {"_id": 0})
+    if not supplier:
+        raise HTTPException(status_code=404, detail="المورد غير موجود")
+    
+    update_data = {
+        "name": supplier_data.name,
+        "contact_person": supplier_data.contact_person,
+        "phone": supplier_data.phone,
+        "email": supplier_data.email,
+        "address": supplier_data.address,
+        "notes": supplier_data.notes
+    }
+    
+    await db.suppliers.update_one({"id": supplier_id}, {"$set": update_data})
+    updated = await db.suppliers.find_one({"id": supplier_id}, {"_id": 0})
+    return SupplierResponse(**updated)
+
+@api_router.delete("/suppliers/{supplier_id}")
+async def delete_supplier(supplier_id: str, current_user: dict = Depends(get_current_user)):
+    """حذف مورد"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه حذف الموردين")
+    
+    result = await db.suppliers.delete_one({"id": supplier_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="المورد غير موجود")
+    return {"message": "تم حذف المورد بنجاح"}
+
+# ==================== MATERIAL REQUESTS ROUTES ====================
+
+@api_router.post("/requests", response_model=MaterialRequestResponse)
+async def create_material_request(
+    request_data: MaterialRequestCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["role"] != UserRole.SUPERVISOR:
+        raise HTTPException(status_code=403, detail="فقط المشرفين يمكنهم إنشاء طلبات")
+    
+    # Get project info
+    project = await db.projects.find_one({"id": request_data.project_id}, {"_id": 0})
+    if not project:
+        raise HTTPException(status_code=400, detail="المشروع غير موجود")
+    
+    # Get engineer info
+    engineer = await db.users.find_one({"id": request_data.engineer_id}, {"_id": 0})
+    if not engineer or engineer["role"] != UserRole.ENGINEER:
+        raise HTTPException(status_code=400, detail="المهندس غير موجود")
+    
+    request_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    
+    # Get next sequential request number for this supervisor (e.g., A1, A2, B1...)
+    request_number, request_seq = await get_next_request_number(current_user["id"])
+    
+    # Convert items to dict format
+    items_list = [item.model_dump() for item in request_data.items]
+    
+    request_doc = {
+        "id": request_id,
+        "request_number": request_number,
+        "request_seq": request_seq,
+        "items": items_list,
+        "project_id": request_data.project_id,
+        "project_name": project["name"],
+        "reason": request_data.reason,
+        "supervisor_id": current_user["id"],
+        "supervisor_name": current_user["name"],
+        "engineer_id": request_data.engineer_id,
+        "engineer_name": engineer["name"],
+        "status": RequestStatus.PENDING_ENGINEER,
+        "rejection_reason": None,
+        "expected_delivery_date": request_data.expected_delivery_date,
+        "created_at": now,
+        "updated_at": now
+    }
+    
+    await db.material_requests.insert_one(request_doc)
+    
+    # Log audit
+    await log_audit(
+        entity_type="request",
+        entity_id=request_id,
+        action="create",
+        user=current_user,
+        description=f"إنشاء طلب مواد جديد #{request_number} للمشروع {project['name']}"
+    )
+    
+    # Build items list for email
+    items_html = "".join([f"<li>{item.name} - {item.quantity} {item.unit}</li>" for item in request_data.items])
+    
+    # Send email notification to engineer
+    email_content = f"""
+    <div dir="rtl" style="font-family: Arial, sans-serif;">
+        <h2>طلب مواد جديد - رقم {request_number}</h2>
+        <p>مرحباً {engineer['name']},</p>
+        <p>تم استلام طلب مواد جديد يحتاج لاعتمادك:</p>
+        <p><strong>رقم الطلب:</strong> {request_number}</p>
+        <p><strong>المواد المطلوبة:</strong></p>
+        <ul>{items_html}</ul>
+        <p><strong>المشروع:</strong> {project['name']}</p>
+        <p><strong>السبب:</strong> {request_data.reason}</p>
+        <p><strong>المشرف:</strong> {current_user['name']}</p>
+    </div>
+    """
+    await send_email_notification(
+        engineer["email"],
+        f"طلب مواد جديد #{request_number} يحتاج اعتمادك",
+        email_content
+    )
+    
+    return MaterialRequestResponse(**{k: v for k, v in request_doc.items() if k != "_id"})
+
+@api_router.get("/requests", response_model=List[MaterialRequestResponse])
+async def get_requests(current_user: dict = Depends(get_current_user)):
+    query = {}
+    
+    if current_user["role"] == UserRole.SUPERVISOR:
+        query["supervisor_id"] = current_user["id"]
+    elif current_user["role"] == UserRole.ENGINEER:
+        query["engineer_id"] = current_user["id"]
+    elif current_user["role"] == UserRole.PROCUREMENT_MANAGER:
+        # مدير المشتريات يرى جميع الطلبات لمتابعة سير العمل
+        pass  # No filter - see all requests
+    
+    # Limit to 500 results for performance (with indexes, this is fast)
+    requests = await db.material_requests.find(query, {"_id": 0}).sort("created_at", -1).to_list(500)
+    return [MaterialRequestResponse(**r) for r in requests]
+
+@api_router.get("/requests/all", response_model=List[MaterialRequestResponse])
+async def get_all_requests(current_user: dict = Depends(get_current_user)):
+    """Get all requests for viewing (all users can see all requests) - limited to 500"""
+    requests = await db.material_requests.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    return [MaterialRequestResponse(**r) for r in requests]
+
+# Model for updating request
+class MaterialRequestEdit(BaseModel):
+    items: List[MaterialItem]
+    project_id: Optional[str] = None  # معرف المشروع (اختياري للطلبات القديمة)
+    reason: str
+    engineer_id: str
+
+@api_router.put("/requests/{request_id}/edit", response_model=MaterialRequestResponse)
+async def edit_request(
+    request_id: str,
+    edit_data: MaterialRequestEdit,
+    current_user: dict = Depends(get_current_user)
+):
+    """Edit a request - only supervisor can edit and only before engineer approval"""
+    if current_user["role"] != UserRole.SUPERVISOR:
+        raise HTTPException(status_code=403, detail="فقط المشرفين يمكنهم تعديل الطلبات")
+    
+    request = await db.material_requests.find_one({"id": request_id}, {"_id": 0})
+    if not request:
+        raise HTTPException(status_code=404, detail="الطلب غير موجود")
+    
+    if request["supervisor_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="لا يمكنك تعديل طلب مشرف آخر")
+    
+    if request["status"] != RequestStatus.PENDING_ENGINEER:
+        raise HTTPException(status_code=400, detail="لا يمكن تعديل الطلب بعد اعتماده أو رفضه")
+    
+    # Get new engineer info if changed
+    engineer = await db.users.find_one({"id": edit_data.engineer_id}, {"_id": 0})
+    if not engineer or engineer["role"] != UserRole.ENGINEER:
+        raise HTTPException(status_code=400, detail="المهندس غير موجود")
+    
+    now = datetime.now(timezone.utc).isoformat()
+    
+    # Convert items to dict format
+    items_list = [item.model_dump() for item in edit_data.items]
+    
+    update_data = {
+        "items": items_list,
+        "reason": edit_data.reason,
+        "engineer_id": edit_data.engineer_id,
+        "engineer_name": engineer["name"],
+        "updated_at": now
+    }
+    
+    # Get project info if project_id provided
+    if edit_data.project_id:
+        project = await db.projects.find_one({"id": edit_data.project_id}, {"_id": 0})
+        if project:
+            update_data["project_id"] = edit_data.project_id
+            update_data["project_name"] = project["name"]
+    
+    await db.material_requests.update_one(
+        {"id": request_id},
+        {"$set": update_data}
+    )
+    
+    updated_request = await db.material_requests.find_one({"id": request_id}, {"_id": 0})
+    return MaterialRequestResponse(**updated_request)
+
+@api_router.get("/requests/{request_id}", response_model=MaterialRequestResponse)
+async def get_request(request_id: str, current_user: dict = Depends(get_current_user)):
+    request = await db.material_requests.find_one({"id": request_id}, {"_id": 0})
+    if not request:
+        raise HTTPException(status_code=404, detail="الطلب غير موجود")
+    return MaterialRequestResponse(**request)
+
+@api_router.put("/requests/{request_id}/approve")
+async def approve_request(request_id: str, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != UserRole.ENGINEER:
+        raise HTTPException(status_code=403, detail="فقط المهندسين يمكنهم اعتماد الطلبات")
+    
+    request = await db.material_requests.find_one({"id": request_id}, {"_id": 0})
+    if not request:
+        raise HTTPException(status_code=404, detail="الطلب غير موجود")
+    
+    if request["engineer_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="هذا الطلب غير موجه لك")
+    
+    if request["status"] != RequestStatus.PENDING_ENGINEER:
+        raise HTTPException(status_code=400, detail="هذا الطلب تم اعتماده أو رفضه مسبقاً")
+    
+    await db.material_requests.update_one(
+        {"id": request_id},
+        {"$set": {
+            "status": RequestStatus.APPROVED_BY_ENGINEER,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    # Notify procurement manager
+    managers = await db.users.find({"role": UserRole.PROCUREMENT_MANAGER}, {"_id": 0}).to_list(10)
+    for manager in managers:
+        # Build items list for email
+        items_html = "".join([f"<li>{item['name']} - {item['quantity']} {item.get('unit', 'قطعة')}</li>" for item in request.get('items', [])])
+        email_content = f"""
+        <div dir="rtl" style="font-family: Arial, sans-serif;">
+            <h2>طلب مواد معتمد</h2>
+            <p>مرحباً {manager['name']},</p>
+            <p>تم اعتماد طلب مواد ويحتاج لإصدار أمر شراء:</p>
+            <p><strong>المواد:</strong></p>
+            <ul>{items_html}</ul>
+            <p><strong>المشروع:</strong> {request['project_name']}</p>
+            <p><strong>المهندس المعتمد:</strong> {current_user['name']}</p>
+        </div>
+        """
+        await send_email_notification(
+            manager["email"],
+            "طلب مواد معتمد يحتاج أمر شراء",
+            email_content
+        )
+    
+    return {"message": "تم اعتماد الطلب بنجاح"}
+
+@api_router.put("/requests/{request_id}/reject")
+async def reject_request(
+    request_id: str,
+    rejection_data: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["role"] != UserRole.ENGINEER:
+        raise HTTPException(status_code=403, detail="فقط المهندسين يمكنهم رفض الطلبات")
+    
+    request = await db.material_requests.find_one({"id": request_id}, {"_id": 0})
+    if not request:
+        raise HTTPException(status_code=404, detail="الطلب غير موجود")
+    
+    if request["engineer_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="هذا الطلب غير موجه لك")
+    
+    if request["status"] != RequestStatus.PENDING_ENGINEER:
+        raise HTTPException(status_code=400, detail="هذا الطلب تم اعتماده أو رفضه مسبقاً")
+    
+    await db.material_requests.update_one(
+        {"id": request_id},
+        {"$set": {
+            "status": RequestStatus.REJECTED_BY_ENGINEER,
+            "rejection_reason": rejection_data.get("reason", ""),
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    # Notify supervisor
+    supervisor = await db.users.find_one({"id": request["supervisor_id"]}, {"_id": 0})
+    if supervisor:
+        # Build items list for email
+        items_html = "".join([f"<li>{item['name']} - {item['quantity']} {item.get('unit', 'قطعة')}</li>" for item in request.get('items', [])])
+        email_content = f"""
+        <div dir="rtl" style="font-family: Arial, sans-serif;">
+            <h2>تم رفض طلب المواد</h2>
+            <p>مرحباً {supervisor['name']},</p>
+            <p>تم رفض طلب المواد الخاص بك:</p>
+            <p><strong>المواد:</strong></p>
+            <ul>{items_html}</ul>
+            <p><strong>سبب الرفض:</strong> {rejection_data.get('reason', 'لم يتم تحديد السبب')}</p>
+        </div>
+        """
+        await send_email_notification(
+            supervisor["email"],
+            "تم رفض طلب المواد",
+            email_content
+        )
+    
+    return {"message": "تم رفض الطلب"}
+
+# رفض الطلب من مدير المشتريات - يعود للمهندس للتعديل
+@api_router.post("/requests/{request_id}/reject-by-manager")
+async def reject_request_by_manager(
+    request_id: str,
+    rejection_data: dict = Body(...),
+    current_user: dict = Depends(get_current_user)
+):
+    """رفض طلب المواد من مدير المشتريات - يعود للمهندس للتعديل"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه رفض الطلبات")
+    
+    request = await db.material_requests.find_one({"id": request_id}, {"_id": 0})
+    if not request:
+        raise HTTPException(status_code=404, detail="الطلب غير موجود")
+    
+    # يمكن رفض الطلبات المعتمدة من المهندس فقط
+    if request["status"] not in [RequestStatus.APPROVED_BY_ENGINEER, RequestStatus.PARTIALLY_ORDERED]:
+        raise HTTPException(status_code=400, detail="لا يمكن رفض هذا الطلب - يجب أن يكون معتمداً من المهندس أولاً")
+    
+    rejection_reason = rejection_data.get("reason", "").strip()
+    if not rejection_reason:
+        raise HTTPException(status_code=400, detail="يرجى إدخال سبب الرفض")
+    
+    await db.material_requests.update_one(
+        {"id": request_id},
+        {"$set": {
+            "status": RequestStatus.REJECTED_BY_MANAGER,
+            "manager_rejection_reason": rejection_reason,
+            "rejected_by_manager_id": current_user["id"],
+            "rejected_by_manager_name": current_user["name"],
+            "rejected_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    # Log audit
+    await log_audit(
+        entity_type="request",
+        entity_id=request_id,
+        action="reject_by_manager",
+        user=current_user,
+        description=f"رفض الطلب - السبب: {rejection_reason}"
+    )
+    
+    # Notify engineer
+    engineer = await db.users.find_one({"id": request.get("engineer_id")}, {"_id": 0})
+    if engineer:
+        items_html = "".join([f"<li>{item['name']} - {item['quantity']} {item.get('unit', 'قطعة')}</li>" for item in request.get('items', [])])
+        email_content = f"""
+        <div dir="rtl" style="font-family: Arial, sans-serif;">
+            <h2>تم إرجاع طلب المواد للتعديل</h2>
+            <p>مرحباً {engineer['name']},</p>
+            <p>تم إرجاع طلب المواد التالي من مدير المشتريات ويحتاج إلى تعديل:</p>
+            <p><strong>المشروع:</strong> {request.get('project_name', '-')}</p>
+            <p><strong>المواد:</strong></p>
+            <ul>{items_html}</ul>
+            <p><strong>سبب الإرجاع:</strong> {rejection_reason}</p>
+            <p>يرجى مراجعة الطلب وإعادة إرساله بعد التعديل.</p>
+        </div>
+        """
+        await send_email_notification(
+            engineer["email"],
+            "طلب مواد يحتاج إلى تعديل",
+            email_content
+        )
+    
+    return {"message": "تم رفض الطلب وإعادته للمهندس للتعديل"}
+
+# إعادة إرسال الطلب المرفوض من المهندس
+@api_router.post("/requests/{request_id}/resubmit")
+async def resubmit_request(
+    request_id: str,
+    resubmit_data: dict = Body(default={}),
+    current_user: dict = Depends(get_current_user)
+):
+    """إعادة إرسال طلب مرفوض من مدير المشتريات"""
+    if current_user["role"] != UserRole.ENGINEER:
+        raise HTTPException(status_code=403, detail="فقط المهندس يمكنه إعادة إرسال الطلب")
+    
+    request = await db.material_requests.find_one({"id": request_id}, {"_id": 0})
+    if not request:
+        raise HTTPException(status_code=404, detail="الطلب غير موجود")
+    
+    # يمكن إعادة إرسال الطلبات المرفوضة من مدير المشتريات فقط
+    if request["status"] != RequestStatus.REJECTED_BY_MANAGER:
+        raise HTTPException(status_code=400, detail="لا يمكن إعادة إرسال هذا الطلب - يجب أن يكون مرفوضاً من مدير المشتريات")
+    
+    # التحقق من أن المهندس هو صاحب الطلب
+    if request.get("engineer_id") != current_user["id"]:
+        raise HTTPException(status_code=403, detail="لا يمكنك إعادة إرسال طلب ليس لك")
+    
+    now = datetime.now(timezone.utc).isoformat()
+    
+    # تحديث الطلب بتاريخ جديد وحالة جديدة
+    await db.material_requests.update_one(
+        {"id": request_id},
+        {"$set": {
+            "status": RequestStatus.APPROVED_BY_ENGINEER,  # يعود معتمداً من المهندس
+            "resubmitted_at": now,
+            "resubmit_count": request.get("resubmit_count", 0) + 1,
+            "updated_at": now,
+            "previous_rejection_reason": request.get("manager_rejection_reason", ""),
+            # مسح بيانات الرفض السابقة
+            "manager_rejection_reason": None,
+            "rejected_by_manager_id": None,
+            "rejected_by_manager_name": None,
+            "rejected_at": None
+        }}
+    )
+    
+    # Log audit
+    await log_audit(
+        entity_type="request",
+        entity_id=request_id,
+        action="resubmit",
+        user=current_user,
+        description=f"إعادة إرسال الطلب بعد التعديل"
+    )
+    
+    return {"message": "تم إعادة إرسال الطلب بنجاح"}
+
+# ==================== PURCHASE ORDERS ROUTES ====================
+
+@api_router.post("/purchase-orders", response_model=PurchaseOrderResponse)
+async def create_purchase_order(
+    order_data: PurchaseOrderCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه إصدار أوامر الشراء")
+    
+    # Get request
+    request = await db.material_requests.find_one({"id": order_data.request_id}, {"_id": 0})
+    if not request:
+        raise HTTPException(status_code=404, detail="الطلب غير موجود")
+    
+    # Allow creating PO for approved or partially ordered requests
+    if request["status"] not in [RequestStatus.APPROVED_BY_ENGINEER, RequestStatus.PARTIALLY_ORDERED]:
+        raise HTTPException(status_code=400, detail="الطلب غير معتمد من المهندس")
+    
+    # Get selected items from the request
+    all_items = request.get("items", [])
+    if not order_data.selected_items:
+        raise HTTPException(status_code=400, detail="الرجاء اختيار صنف واحد على الأقل")
+    
+    # Build items with prices
+    selected_items = []
+    total_amount = 0
+    item_prices_map = {}
+    catalog_items_map = {}
+    
+    # Create price and catalog lookup from item_prices
+    if order_data.item_prices:
+        for price_item in order_data.item_prices:
+            idx = price_item.get("index", -1)
+            item_prices_map[idx] = price_item.get("unit_price", 0)
+            if price_item.get("catalog_item_id"):
+                catalog_items_map[idx] = price_item.get("catalog_item_id")
+    
+    for idx in order_data.selected_items:
+        if 0 <= idx < len(all_items):
+            item = all_items[idx].copy() if isinstance(all_items[idx], dict) else all_items[idx]
+            if isinstance(item, dict):
+                item_data = item
+            else:
+                item_data = item.model_dump() if hasattr(item, 'model_dump') else dict(item)
+            
+            # Add price information
+            unit_price = item_prices_map.get(idx, 0)
+            quantity = item_data.get("quantity", 0)
+            item_total = unit_price * quantity
+            
+            item_data["unit_price"] = unit_price
+            item_data["total_price"] = item_total
+            item_data["delivered_quantity"] = 0
+            item_data["catalog_item_id"] = catalog_items_map.get(idx)  # ربط الصنف بالكتالوج
+            
+            selected_items.append(item_data)
+            total_amount += item_total
+        else:
+            raise HTTPException(status_code=400, detail=f"فهرس الصنف {idx} غير صالح")
+    
+    if not selected_items:
+        raise HTTPException(status_code=400, detail="الرجاء اختيار صنف واحد على الأقل")
+    
+    order_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    
+    # Get category name if category_id is provided
+    category_name = None
+    if order_data.category_id:
+        category = await db.budget_categories.find_one({"id": order_data.category_id}, {"_id": 0})
+        if category:
+            category_name = category.get("name")
+    
+    # التحقق من حد الموافقة - هل يحتاج موافقة المدير العام؟
+    approval_limit = await get_approval_limit()
+    needs_gm_approval = total_amount > approval_limit
+    initial_status = PurchaseOrderStatus.PENDING_GM_APPROVAL if needs_gm_approval else PurchaseOrderStatus.PENDING_APPROVAL
+    
+    # توليد رقم أمر الشراء التسلسلي
+    order_number, order_seq = await get_next_order_number()
+    
+    order_doc = {
+        "id": order_id,
+        "order_number": order_number,  # رقم أمر الشراء التسلسلي (PO-001, PO-002...)
+        "order_seq": order_seq,  # الرقم التسلسلي للترتيب
+        "request_id": order_data.request_id,
+        "request_number": request.get("request_number"),  # رقم الطلب المتسلسل
+        "items": selected_items,
+        "project_name": request["project_name"],
+        "project_id": request.get("project_id"),
+        "supplier_id": order_data.supplier_id,
+        "supplier_name": order_data.supplier_name,
+        "category_id": order_data.category_id,  # تصنيف الميزانية
+        "category_name": category_name,  # اسم التصنيف
+        "notes": order_data.notes,
+        "terms_conditions": order_data.terms_conditions,
+        "manager_id": current_user["id"],
+        "manager_name": current_user["name"],
+        "supervisor_name": request.get("supervisor_name", ""),
+        "engineer_name": request.get("engineer_name", ""),
+        "status": initial_status,
+        "needs_gm_approval": needs_gm_approval,  # علامة تحديد إذا كان يحتاج موافقة المدير العام
+        "total_amount": total_amount,
+        "expected_delivery_date": order_data.expected_delivery_date,
+        "created_at": now,
+        "approved_at": None,
+        "gm_approved_at": None,
+        "gm_approved_by": None,
+        "gm_approved_by_name": None,
+        "printed_at": None,
+        "shipped_at": None,
+        "delivered_at": None,
+        "delivery_notes": None
+    }
+    
+    await db.purchase_orders.insert_one(order_doc)
+    
+    # Check if all items have been ordered
+    existing_orders = await db.purchase_orders.find({"request_id": order_data.request_id}, {"_id": 0}).to_list(100)
+    ordered_item_indices = set()
+    for order in existing_orders:
+        for item in order.get("items", []):
+            # Find the index of this item in the original request
+            for i, req_item in enumerate(all_items):
+                if req_item["name"] == item["name"] and req_item["quantity"] == item["quantity"]:
+                    ordered_item_indices.add(i)
+                    break
+    
+    # Update request status based on how many items have been ordered
+    if len(ordered_item_indices) >= len(all_items):
+        new_status = RequestStatus.PURCHASE_ORDER_ISSUED
+    else:
+        new_status = RequestStatus.PARTIALLY_ORDERED
+    
+    await db.material_requests.update_one(
+        {"id": order_data.request_id},
+        {"$set": {
+            "status": new_status,
+            "updated_at": now
+        }}
+    )
+    
+    # Notify supervisor and engineer
+    supervisor = await db.users.find_one({"id": request["supervisor_id"]}, {"_id": 0})
+    engineer = await db.users.find_one({"id": request["engineer_id"]}, {"_id": 0})
+    
+    # Build items list for email
+    items_html = "".join([f"<li>{item['name']} - {item['quantity']} {item.get('unit', 'قطعة')}</li>" for item in selected_items])
+    
+    for user in [supervisor, engineer]:
+        if user:
+            email_content = f"""
+            <div dir="rtl" style="font-family: Arial, sans-serif;">
+                <h2>تم إصدار أمر شراء</h2>
+                <p>مرحباً {user['name']},</p>
+                <p>تم إصدار أمر شراء للطلب:</p>
+                <p><strong>المواد:</strong></p>
+                <ul>{items_html}</ul>
+                <p><strong>المورد:</strong> {order_data.supplier_name}</p>
+            </div>
+            """
+            await send_email_notification(
+                user["email"],
+                "تم إصدار أمر شراء",
+                email_content
+            )
+    
+    return PurchaseOrderResponse(**{k: v for k, v in order_doc.items() if k != "_id"})
+
+@api_router.put("/purchase-orders/{order_id}")
+async def update_purchase_order(
+    order_id: str,
+    update_data: PurchaseOrderUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """تعديل أمر الشراء - مدير المشتريات فقط"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه تعديل أوامر الشراء")
+    
+    order = await db.purchase_orders.find_one({"id": order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="أمر الشراء غير موجود")
+    
+    # Prepare update fields
+    update_fields = {}
+    
+    if update_data.supplier_name:
+        update_fields["supplier_name"] = update_data.supplier_name
+    
+    if update_data.supplier_id:
+        update_fields["supplier_id"] = update_data.supplier_id
+    
+    if update_data.category_id:
+        category = await db.budget_categories.find_one({"id": update_data.category_id}, {"_id": 0})
+        if category:
+            update_fields["category_id"] = update_data.category_id
+            update_fields["category_name"] = category["name"]
+    
+    if update_data.notes is not None:
+        update_fields["notes"] = update_data.notes
+    
+    if update_data.terms_conditions is not None:
+        update_fields["terms_conditions"] = update_data.terms_conditions
+    
+    if update_data.expected_delivery_date:
+        update_fields["expected_delivery_date"] = update_data.expected_delivery_date
+    
+    if update_data.supplier_invoice_number is not None:
+        update_fields["supplier_invoice_number"] = update_data.supplier_invoice_number
+    
+    # Update item prices if provided
+    if update_data.item_prices:
+        items = order.get("items", [])
+        total_amount = 0
+        
+        # Create a map of item name to price for easier lookup
+        price_map = {}
+        for price_item in update_data.item_prices:
+            item_name = price_item.get("name", "")
+            item_index = price_item.get("index")
+            unit_price = price_item.get("unit_price", 0)
+            
+            if item_name:
+                price_map[item_name] = unit_price
+            elif item_index is not None and item_index < len(items):
+                items[item_index]["unit_price"] = unit_price
+                items[item_index]["total_price"] = unit_price * items[item_index].get("quantity", 0)
+        
+        # Apply prices by name
+        for item in items:
+            if item.get("name") in price_map:
+                unit_price = price_map[item["name"]]
+                item["unit_price"] = unit_price
+                item["total_price"] = unit_price * item.get("quantity", 0)
+            total_amount += item.get("total_price", 0)
+        
+        update_fields["items"] = items
+        update_fields["total_amount"] = total_amount
+        
+        # التحقق من حد الموافقة بعد تعديل الأسعار
+        approval_limit = await get_approval_limit()
+        if total_amount > approval_limit:
+            # إذا تجاوز الحد، يجب تغيير الحالة لتحتاج موافقة المدير العام
+            update_fields["needs_gm_approval"] = True
+            # إذا كان الأمر معتمد أو بانتظار الاعتماد، يُعاد للمدير العام
+            if order.get("status") in [PurchaseOrderStatus.PENDING_APPROVAL, PurchaseOrderStatus.APPROVED]:
+                update_fields["status"] = PurchaseOrderStatus.PENDING_GM_APPROVAL
+        else:
+            update_fields["needs_gm_approval"] = False
+    
+    if not update_fields:
+        raise HTTPException(status_code=400, detail="لا توجد بيانات للتحديث")
+    
+    update_fields["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    await db.purchase_orders.update_one(
+        {"id": order_id},
+        {"$set": update_fields}
+    )
+    
+    # Log audit
+    await log_audit(
+        entity_type="purchase_order",
+        entity_id=order_id,
+        action="update",
+        user=current_user,
+        description="تم تعديل أمر الشراء"
+    )
+    
+    updated_order = await db.purchase_orders.find_one({"id": order_id}, {"_id": 0})
+    return PurchaseOrderResponse(**updated_order)
+
+@api_router.put("/purchase-orders/{order_id}/approve")
+async def approve_purchase_order(order_id: str, current_user: dict = Depends(get_current_user)):
+    """اعتماد أمر الشراء من مدير المشتريات"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه اعتماد أوامر الشراء")
+    
+    order = await db.purchase_orders.find_one({"id": order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="أمر الشراء غير موجود")
+    
+    if order["status"] != PurchaseOrderStatus.PENDING_APPROVAL:
+        raise HTTPException(status_code=400, detail="أمر الشراء تم اعتماده مسبقاً أو يحتاج موافقة المدير العام")
+    
+    # التحقق من حد الموافقة قبل الاعتماد
+    total_amount = order.get("total_amount", 0)
+    approval_limit = await get_approval_limit()
+    
+    if total_amount > approval_limit:
+        # تحويل الأمر للمدير العام للموافقة
+        await db.purchase_orders.update_one(
+            {"id": order_id},
+            {"$set": {
+                "status": PurchaseOrderStatus.PENDING_GM_APPROVAL,
+                "needs_gm_approval": True
+            }}
+        )
+        return {
+            "message": f"قيمة الأمر ({total_amount:,.0f} ر.س) تتجاوز حد الموافقة ({approval_limit:,.0f} ر.س). تم تحويله للمدير العام للموافقة.",
+            "requires_gm_approval": True
+        }
+    
+    now = datetime.now(timezone.utc).isoformat()
+    
+    await db.purchase_orders.update_one(
+        {"id": order_id},
+        {"$set": {
+            "status": PurchaseOrderStatus.APPROVED,
+            "approved_at": now
+        }}
+    )
+    
+    # Notify printers
+    printers = await db.users.find({"role": UserRole.PRINTER}, {"_id": 0}).to_list(10)
+    items_html = "".join([f"<li>{item['name']} - {item['quantity']} {item.get('unit', 'قطعة')}</li>" for item in order.get('items', [])])
+    
+    for printer in printers:
+        email_content = f"""
+        <div dir="rtl" style="font-family: Arial, sans-serif;">
+            <h2>أمر شراء جاهز للطباعة</h2>
+            <p>مرحباً {printer['name']},</p>
+            <p>تم اعتماد أمر شراء جديد ويحتاج للطباعة:</p>
+            <p><strong>المواد:</strong></p>
+            <ul>{items_html}</ul>
+            <p><strong>المورد:</strong> {order['supplier_name']}</p>
+            <p><strong>المشروع:</strong> {order['project_name']}</p>
+        </div>
+        """
+        await send_email_notification(
+            printer["email"],
+            "أمر شراء جاهز للطباعة",
+            email_content
+        )
+    
+    return {"message": "تم اعتماد أمر الشراء بنجاح"}
+
+@api_router.put("/purchase-orders/{order_id}/print")
+async def mark_purchase_order_printed(order_id: str, current_user: dict = Depends(get_current_user)):
+    """تسجيل طباعة أمر الشراء من موظف الطباعة"""
+    if current_user["role"] != UserRole.PRINTER:
+        raise HTTPException(status_code=403, detail="فقط موظف الطباعة يمكنه تسجيل الطباعة")
+    
+    order = await db.purchase_orders.find_one({"id": order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="أمر الشراء غير موجود")
+    
+    if order["status"] != PurchaseOrderStatus.APPROVED:
+        raise HTTPException(status_code=400, detail="أمر الشراء غير معتمد أو تمت طباعته مسبقاً")
+    
+    now = datetime.now(timezone.utc).isoformat()
+    
+    await db.purchase_orders.update_one(
+        {"id": order_id},
+        {"$set": {
+            "status": PurchaseOrderStatus.PRINTED,
+            "printed_at": now
+        }}
+    )
+    
+    return {"message": "تم تسجيل طباعة أمر الشراء بنجاح"}
+
+# ==================== DELIVERY TRACKING ROUTES ====================
+
+@api_router.put("/purchase-orders/{order_id}/ship")
+async def mark_order_shipped(order_id: str, current_user: dict = Depends(get_current_user)):
+    """تسجيل شحن أمر الشراء"""
+    if current_user["role"] not in [UserRole.PROCUREMENT_MANAGER, UserRole.PRINTER]:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    
+    order = await db.purchase_orders.find_one({"id": order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="أمر الشراء غير موجود")
+    
+    if order["status"] not in [PurchaseOrderStatus.PRINTED, PurchaseOrderStatus.APPROVED]:
+        raise HTTPException(status_code=400, detail="أمر الشراء يجب أن يكون مطبوعاً أو معتمداً")
+    
+    now = datetime.now(timezone.utc).isoformat()
+    
+    await db.purchase_orders.update_one(
+        {"id": order_id},
+        {"$set": {
+            "status": PurchaseOrderStatus.SHIPPED,
+            "shipped_at": now
+        }}
+    )
+    
+    return {"message": "تم تسجيل شحن أمر الشراء بنجاح"}
+
+@api_router.put("/purchase-orders/{order_id}/deliver")
+async def record_delivery(
+    order_id: str,
+    delivery_data: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    """تسجيل استلام المواد - المشرف أو المهندس"""
+    if current_user["role"] not in [UserRole.SUPERVISOR, UserRole.ENGINEER, UserRole.PROCUREMENT_MANAGER]:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بتسجيل الاستلام")
+    
+    order = await db.purchase_orders.find_one({"id": order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="أمر الشراء غير موجود")
+    
+    now = datetime.now(timezone.utc).isoformat()
+    
+    # Update delivered quantities for items
+    items = order.get("items", [])
+    items_delivered = delivery_data.get("items_delivered", [])
+    all_delivered = True
+    
+    for delivered_item in items_delivered:
+        for item in items:
+            if item["name"] == delivered_item.get("name"):
+                item["delivered_quantity"] = item.get("delivered_quantity", 0) + delivered_item.get("quantity_delivered", 0)
+                if item["delivered_quantity"] < item["quantity"]:
+                    all_delivered = False
+                break
+    
+    # Check if all items are fully delivered
+    for item in items:
+        if item.get("delivered_quantity", 0) < item.get("quantity", 0):
+            all_delivered = False
+            break
+    
+    new_status = PurchaseOrderStatus.DELIVERED if all_delivered else PurchaseOrderStatus.PARTIALLY_DELIVERED
+    
+    # Create delivery record
+    delivery_record = {
+        "id": str(uuid.uuid4()),
+        "order_id": order_id,
+        "items_delivered": items_delivered,
+        "delivery_date": delivery_data.get("delivery_date", now),
+        "received_by": delivery_data.get("received_by", current_user["name"]),
+        "notes": delivery_data.get("notes", ""),
+        "recorded_by": current_user["id"],
+        "recorded_at": now
+    }
+    
+    await db.delivery_records.insert_one(delivery_record)
+    
+    await db.purchase_orders.update_one(
+        {"id": order_id},
+        {"$set": {
+            "items": items,
+            "status": new_status,
+            "delivered_at": now if all_delivered else order.get("delivered_at"),
+            "delivery_notes": delivery_data.get("notes", "")
+        }}
+    )
+    
+    return {
+        "message": "تم تسجيل الاستلام بنجاح",
+        "status": new_status,
+        "all_delivered": all_delivered
+    }
+
+@api_router.get("/purchase-orders/{order_id}/deliveries")
+async def get_order_deliveries(order_id: str, current_user: dict = Depends(get_current_user)):
+    """الحصول على سجلات التسليم لأمر شراء"""
+    deliveries = await db.delivery_records.find(
+        {"order_id": order_id}, 
+        {"_id": 0}
+    ).sort("recorded_at", -1).to_list(50)
+    
+    return deliveries
+
+@api_router.get("/purchase-orders/pending-delivery")
+async def get_pending_delivery_orders(current_user: dict = Depends(get_current_user)):
+    """الأوامر التي تحتاج استلام - للمشرف والمهندس"""
+    if current_user["role"] not in [UserRole.SUPERVISOR, UserRole.ENGINEER]:
+        return []
+    
+    query = {"status": {"$in": [PurchaseOrderStatus.SHIPPED, PurchaseOrderStatus.PARTIALLY_DELIVERED]}}
+    orders = await db.purchase_orders.find(query, {"_id": 0}).sort("created_at", -1).to_list(100)
+    
+    result = []
+    for o in orders:
+        o.setdefault("total_amount", 0)
+        o.setdefault("supplier_id", None)
+        o.setdefault("terms_conditions", None)
+        o.setdefault("expected_delivery_date", None)
+        o.setdefault("approved_at", None)
+        o.setdefault("printed_at", None)
+        o.setdefault("shipped_at", None)
+        o.setdefault("delivered_at", None)
+        o.setdefault("delivery_notes", None)
+        o.setdefault("supplier_receipt_number", None)
+        o.setdefault("received_by_id", None)
+        o.setdefault("received_by_name", None)
+        result.append(PurchaseOrderResponse(**o))
+    
+    return result
+
+@api_router.get("/purchase-orders", response_model=List[PurchaseOrderResponse])
+async def get_purchase_orders(current_user: dict = Depends(get_current_user)):
+    query = {}
+    if current_user["role"] == UserRole.PROCUREMENT_MANAGER:
+        query["manager_id"] = current_user["id"]
+    elif current_user["role"] == UserRole.PRINTER:
+        # موظف الطباعة يرى فقط الأوامر المعتمدة والمطبوعة والمشحونة
+        query["status"] = {"$in": [PurchaseOrderStatus.APPROVED, PurchaseOrderStatus.PRINTED, PurchaseOrderStatus.SHIPPED]}
+    # المشرف والمهندس يستخدمون endpoint منفصل للاستلام
+    
+    orders = await db.purchase_orders.find(query, {"_id": 0}).sort("created_at", -1).to_list(500)
+    
+    # Batch fetch all related requests to avoid N+1 query problem
+    orders_needing_request_data = [o for o in orders if "supervisor_name" not in o or "engineer_name" not in o or "request_number" not in o]
+    request_ids = list(set([o.get("request_id") for o in orders_needing_request_data if o.get("request_id")]))
+    
+    requests_map = {}
+    if request_ids:
+        requests_list = await db.material_requests.find(
+            {"id": {"$in": request_ids}}, 
+            {"_id": 0, "id": 1, "supervisor_name": 1, "engineer_name": 1, "request_number": 1}
+        ).to_list(None)
+        requests_map = {r["id"]: r for r in requests_list}
+    
+    # Batch fetch category names
+    category_ids = list(set([o.get("category_id") for o in orders if o.get("category_id")]))
+    categories_map = {}
+    if category_ids:
+        categories_list = await db.budget_categories.find(
+            {"id": {"$in": category_ids}},
+            {"_id": 0, "id": 1, "name": 1}
+        ).to_list(None)
+        categories_map = {c["id"]: c["name"] for c in categories_list}
+    
+    # Process orders with batch-fetched data
+    result = []
+    for o in orders:
+        # Set defaults for missing fields
+        o.setdefault("status", PurchaseOrderStatus.APPROVED)
+        o.setdefault("approved_at", None)
+        o.setdefault("printed_at", None)
+        o.setdefault("shipped_at", None)
+        o.setdefault("delivered_at", None)
+        o.setdefault("delivery_notes", None)
+        o.setdefault("total_amount", 0)
+        o.setdefault("supplier_id", None)
+        o.setdefault("terms_conditions", None)
+        o.setdefault("expected_delivery_date", None)
+        o.setdefault("category_id", None)
+        o.setdefault("supplier_receipt_number", None)
+        o.setdefault("received_by_id", None)
+        o.setdefault("received_by_name", None)
+        
+        # Add category name
+        o["category_name"] = categories_map.get(o.get("category_id"), None)
+        
+        # Use batch-fetched request data
+        if "supervisor_name" not in o or "engineer_name" not in o or "request_number" not in o:
+            request = requests_map.get(o.get("request_id"), {})
+            o["supervisor_name"] = request.get("supervisor_name", o.get("supervisor_name", ""))
+            o["engineer_name"] = request.get("engineer_name", o.get("engineer_name", ""))
+            o["request_number"] = request.get("request_number", o.get("request_number"))
+        
+        result.append(PurchaseOrderResponse(**o))
+    
+    return result
+
+# Get remaining items for a request (not yet ordered)
+@api_router.get("/requests/{request_id}/remaining-items")
+async def get_remaining_items(request_id: str, current_user: dict = Depends(get_current_user)):
+    """الحصول على الأصناف المتبقية التي لم يتم إصدار أوامر شراء لها"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    
+    request = await db.material_requests.find_one({"id": request_id}, {"_id": 0})
+    if not request:
+        raise HTTPException(status_code=404, detail="الطلب غير موجود")
+    
+    all_items = request.get("items", [])
+    
+    # Get all purchase orders for this request (limited to 50 - reasonable max for single request)
+    existing_orders = await db.purchase_orders.find(
+        {"request_id": request_id}, 
+        {"_id": 0, "items": 1}
+    ).to_list(50)
+    
+    # Track which items have been ordered
+    ordered_items = []
+    for order in existing_orders:
+        ordered_items.extend(order.get("items", []))
+    
+    # Find remaining items
+    remaining_items = []
+    for idx, item in enumerate(all_items):
+        item_ordered = False
+        for ordered in ordered_items:
+            if ordered["name"] == item["name"] and ordered["quantity"] == item["quantity"]:
+                item_ordered = True
+                break
+        if not item_ordered:
+            remaining_items.append({"index": idx, **item})
+    
+    return {"remaining_items": remaining_items, "all_items": [{"index": i, **item} for i, item in enumerate(all_items)]}
+
+# ==================== DELIVERY TRACKER ROUTES ====================
+
+@api_router.get("/delivery-tracker/orders")
+async def get_orders_for_tracking(current_user: dict = Depends(get_current_user)):
+    """الحصول على أوامر الشراء التي تحتاج متابعة - لمتابع التوريد"""
+    if current_user["role"] not in [UserRole.DELIVERY_TRACKER, UserRole.PROCUREMENT_MANAGER]:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    
+    # Get orders that are shipped but not fully delivered
+    query = {"status": {"$in": [PurchaseOrderStatus.SHIPPED, PurchaseOrderStatus.PARTIALLY_DELIVERED, PurchaseOrderStatus.APPROVED, PurchaseOrderStatus.PRINTED]}}
+    orders = await db.purchase_orders.find(query, {"_id": 0}).sort("created_at", -1).to_list(500)
+    
+    # Batch fetch category names
+    category_ids = list(set([o.get("category_id") for o in orders if o.get("category_id")]))
+    categories_map = {}
+    if category_ids:
+        categories_list = await db.budget_categories.find({"id": {"$in": category_ids}}, {"_id": 0, "id": 1, "name": 1}).to_list(None)
+        categories_map = {c["id"]: c["name"] for c in categories_list}
+    
+    result = []
+    for o in orders:
+        o.setdefault("status", PurchaseOrderStatus.APPROVED)
+        o.setdefault("total_amount", 0)
+        o.setdefault("supplier_receipt_number", None)
+        o.setdefault("received_by_id", None)
+        o.setdefault("received_by_name", None)
+        o["category_name"] = categories_map.get(o.get("category_id"))
+        result.append(o)
+    
+    return result
+
+@api_router.put("/delivery-tracker/orders/{order_id}/confirm-receipt")
+async def confirm_receipt(
+    order_id: str,
+    receipt_data: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    """تأكيد استلام أمر الشراء مع رقم استلام المورد"""
+    if current_user["role"] not in [UserRole.DELIVERY_TRACKER, UserRole.PROCUREMENT_MANAGER, UserRole.SUPERVISOR]:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    
+    order = await db.purchase_orders.find_one({"id": order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="أمر الشراء غير موجود")
+    
+    supplier_receipt_number = receipt_data.get("supplier_receipt_number")
+    delivery_notes = receipt_data.get("delivery_notes", "")
+    items_delivered = receipt_data.get("items_delivered", [])
+    
+    if not supplier_receipt_number:
+        raise HTTPException(status_code=400, detail="الرجاء إدخال رقم استلام المورد")
+    
+    now = datetime.now(timezone.utc).isoformat()
+    
+    # Update delivered quantities in items
+    updated_items = order.get("items", [])
+    all_delivered = True
+    
+    for delivered_item in items_delivered:
+        item_name = delivered_item.get("name")
+        qty_delivered = delivered_item.get("quantity_delivered", 0)
+        
+        for item in updated_items:
+            if item.get("name") == item_name:
+                current_delivered = item.get("delivered_quantity", 0)
+                item["delivered_quantity"] = current_delivered + qty_delivered
+                if item["delivered_quantity"] < item.get("quantity", 0):
+                    all_delivered = False
+                break
+    
+    # Determine new status
+    has_any_delivery = any(item.get("delivered_quantity", 0) > 0 for item in updated_items)
+    if all_delivered:
+        new_status = PurchaseOrderStatus.DELIVERED
+    elif has_any_delivery:
+        new_status = PurchaseOrderStatus.PARTIALLY_DELIVERED
+    else:
+        new_status = order["status"]
+    
+    # Update order
+    update_data = {
+        "items": updated_items,
+        "status": new_status,
+        "supplier_receipt_number": supplier_receipt_number,
+        "delivery_notes": delivery_notes,
+        "received_by_id": current_user["id"],
+        "received_by_name": current_user["name"],
+        "delivered_at": now if new_status == PurchaseOrderStatus.DELIVERED else order.get("delivered_at")
+    }
+    
+    await db.purchase_orders.update_one({"id": order_id}, {"$set": update_data})
+    
+    # Log audit
+    await log_audit(
+        entity_type="order",
+        entity_id=order_id,
+        action="confirm_receipt",
+        user=current_user,
+        description=f"تأكيد استلام أمر الشراء - رقم استلام المورد: {supplier_receipt_number}"
+    )
+    
+    # Create delivery record
+    delivery_record = {
+        "id": str(uuid.uuid4()),
+        "order_id": order_id,
+        "items_delivered": items_delivered,
+        "supplier_receipt_number": supplier_receipt_number,
+        "delivery_date": now,
+        "received_by": current_user["name"],
+        "received_by_id": current_user["id"],
+        "notes": delivery_notes
+    }
+    await db.delivery_records.insert_one(delivery_record)
+    
+    return {
+        "message": "تم تأكيد الاستلام بنجاح",
+        "status": new_status,
+        "supplier_receipt_number": supplier_receipt_number
+    }
+
+@api_router.get("/delivery-tracker/stats")
+async def get_delivery_stats(current_user: dict = Depends(get_current_user)):
+    """إحصائيات متابعة التوريد"""
+    if current_user["role"] not in [UserRole.DELIVERY_TRACKER, UserRole.PROCUREMENT_MANAGER]:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    
+    # Count orders by status
+    shipped_count = await db.purchase_orders.count_documents({"status": PurchaseOrderStatus.SHIPPED})
+    partial_count = await db.purchase_orders.count_documents({"status": PurchaseOrderStatus.PARTIALLY_DELIVERED})
+    delivered_count = await db.purchase_orders.count_documents({"status": PurchaseOrderStatus.DELIVERED})
+    approved_count = await db.purchase_orders.count_documents({"status": PurchaseOrderStatus.APPROVED})
+    printed_count = await db.purchase_orders.count_documents({"status": PurchaseOrderStatus.PRINTED})
+    
+    return {
+        "pending_delivery": shipped_count + partial_count,
+        "shipped": shipped_count,
+        "partially_delivered": partial_count,
+        "delivered": delivered_count,
+        "awaiting_shipment": approved_count + printed_count
+    }
+
+# ==================== DELETE ORDERS & REQUESTS ROUTES ====================
+
+@api_router.delete("/purchase-orders/{order_id}")
+async def delete_purchase_order(
+    order_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """حذف أمر شراء - مدير المشتريات فقط"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه حذف أوامر الشراء")
+    
+    # Find the order
+    order = await db.purchase_orders.find_one({"id": order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="أمر الشراء غير موجود")
+    
+    # Delete the order
+    await db.purchase_orders.delete_one({"id": order_id})
+    
+    # Delete related delivery records
+    await db.delivery_records.delete_many({"order_id": order_id})
+    
+    # Log audit
+    await log_audit(
+        entity_type="order",
+        entity_id=order_id,
+        action="delete",
+        user=current_user,
+        description=f"حذف أمر الشراء - المورد: {order.get('supplier_name', 'غير محدد')}"
+    )
+    
+    # Check if there are other orders for the same request
+    # If no more orders, update request status back to approved
+    request_id = order.get("request_id")
+    if request_id:
+        remaining_orders = await db.purchase_orders.count_documents({"request_id": request_id})
+        if remaining_orders == 0:
+            await db.material_requests.update_one(
+                {"id": request_id},
+                {"$set": {"status": RequestStatus.APPROVED_BY_ENGINEER}}
+            )
+    
+    return {"message": "تم حذف أمر الشراء بنجاح"}
+
+@api_router.delete("/requests/{request_id}")
+async def delete_material_request(
+    request_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """حذف طلب مواد - مدير المشتريات فقط"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه حذف الطلبات")
+    
+    # Find the request
+    request = await db.material_requests.find_one({"id": request_id}, {"_id": 0})
+    if not request:
+        raise HTTPException(status_code=404, detail="الطلب غير موجود")
+    
+    # Delete related purchase orders first
+    orders = await db.purchase_orders.find({"request_id": request_id}, {"_id": 0, "id": 1}).to_list(100)
+    order_ids = [o["id"] for o in orders]
+    
+    if order_ids:
+        await db.purchase_orders.delete_many({"request_id": request_id})
+        await db.delivery_records.delete_many({"order_id": {"$in": order_ids}})
+    
+    # Delete the request
+    await db.material_requests.delete_one({"id": request_id})
+    
+    # Log audit
+    await log_audit(
+        entity_type="request",
+        entity_id=request_id,
+        action="delete",
+        user=current_user,
+        description=f"حذف طلب المواد - المشروع: {request.get('project_name', 'غير محدد')}"
+    )
+    
+    return {
+        "message": "تم حذف الطلب بنجاح",
+        "deleted_orders": len(order_ids)
+    }
+
+@api_router.delete("/admin/clean-all-data")
+async def clean_all_data(
+    keep_user_email: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """حذف جميع البيانات ما عدا مستخدم معين - مدير المشتريات فقط"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه تنظيف البيانات")
+    
+    # Find the user to keep
+    user_to_keep = await db.users.find_one({"email": keep_user_email}, {"_id": 0})
+    if not user_to_keep:
+        raise HTTPException(status_code=404, detail=f"المستخدم {keep_user_email} غير موجود")
+    
+    deleted_counts = {
+        "users": 0,
+        "requests": 0,
+        "orders": 0,
+        "deliveries": 0,
+        "projects": 0,
+        "suppliers": 0,
+        "categories": 0,
+        "default_categories": 0,
+        "catalog_items": 0,
+        "item_aliases": 0,
+        "audit_logs": 0
+    }
+    
+    # Delete all users except the one to keep
+    result = await db.users.delete_many({"email": {"$ne": keep_user_email}})
+    deleted_counts["users"] = result.deleted_count
+    
+    # Delete all material requests
+    result = await db.material_requests.delete_many({})
+    deleted_counts["requests"] = result.deleted_count
+    
+    # Delete all purchase orders
+    result = await db.purchase_orders.delete_many({})
+    deleted_counts["orders"] = result.deleted_count
+    
+    # Delete all delivery records
+    result = await db.delivery_records.delete_many({})
+    deleted_counts["deliveries"] = result.deleted_count
+    
+    # Delete all projects
+    result = await db.projects.delete_many({})
+    deleted_counts["projects"] = result.deleted_count
+    
+    # Delete all suppliers
+    result = await db.suppliers.delete_many({})
+    deleted_counts["suppliers"] = result.deleted_count
+    
+    # Delete all budget categories
+    result = await db.budget_categories.delete_many({})
+    deleted_counts["categories"] = result.deleted_count
+    
+    # Delete all default budget categories
+    result = await db.default_budget_categories.delete_many({})
+    deleted_counts["default_categories"] = result.deleted_count
+    
+    # Delete all catalog items
+    result = await db.price_catalog.delete_many({})
+    deleted_counts["catalog_items"] = result.deleted_count
+    
+    # Delete all item aliases
+    result = await db.item_aliases.delete_many({})
+    deleted_counts["item_aliases"] = result.deleted_count
+    
+    # Delete all audit logs
+    result = await db.audit_logs.delete_many({})
+    deleted_counts["audit_logs"] = result.deleted_count
+    
+    # Log the action (this log will be the first in the clean system)
+    await log_audit(
+        entity_type="system",
+        entity_id="clean",
+        action="clean_all_data",
+        user=current_user,
+        description=f"تم تنظيف جميع البيانات - المستخدم المحتفظ به: {keep_user_email}"
+    )
+    
+    return {
+        "message": "تم تنظيف جميع البيانات بنجاح",
+        "kept_user": keep_user_email,
+        "deleted": deleted_counts
+    }
+
+# ==================== AUDIT TRAIL ROUTES ====================
+
+@api_router.get("/audit-logs")
+async def get_audit_logs(
+    entity_type: Optional[str] = None,
+    entity_id: Optional[str] = None,
+    user_id: Optional[str] = None,
+    limit: int = 100,
+    current_user: dict = Depends(get_current_user)
+):
+    """الحصول على سجل المراجعة"""
+    query = {}
+    if entity_type:
+        query["entity_type"] = entity_type
+    if entity_id:
+        query["entity_id"] = entity_id
+    if user_id:
+        query["user_id"] = user_id
+    
+    logs = await db.audit_logs.find(query, {"_id": 0}).sort("timestamp", -1).limit(limit).to_list(limit)
+    return logs
+
+@api_router.get("/audit-logs/entity/{entity_type}/{entity_id}")
+async def get_entity_audit_logs(
+    entity_type: str,
+    entity_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """الحصول على سجل المراجعة لكيان محدد"""
+    logs = await db.audit_logs.find(
+        {"entity_type": entity_type, "entity_id": entity_id},
+        {"_id": 0}
+    ).sort("timestamp", -1).to_list(100)
+    return logs
+
+# ==================== ATTACHMENTS ROUTES ====================
+
+import os
+import shutil
+
+UPLOAD_DIR = "/app/uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+@api_router.post("/attachments/{entity_type}/{entity_id}")
+async def upload_attachment(
+    entity_type: str,
+    entity_id: str,
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user)
+):
+    """رفع مرفق لطلب أو أمر شراء"""
+    if entity_type not in ["request", "order"]:
+        raise HTTPException(status_code=400, detail="نوع الكيان غير صالح")
+    
+    # Validate entity exists
+    if entity_type == "request":
+        entity = await db.material_requests.find_one({"id": entity_id})
+    else:
+        entity = await db.purchase_orders.find_one({"id": entity_id})
+    
+    if not entity:
+        raise HTTPException(status_code=404, detail="الكيان غير موجود")
+    
+    # Generate unique filename
+    attachment_id = str(uuid.uuid4())
+    file_ext = os.path.splitext(file.filename)[1]
+    filename = f"{attachment_id}{file_ext}"
+    file_path = os.path.join(UPLOAD_DIR, filename)
+    
+    # Save file
+    try:
+        with open(file_path, "wb") as buffer:
+            content = await file.read()
+            buffer.write(content)
+        file_size = len(content)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"فشل في حفظ الملف: {str(e)}")
+    
+    # Save attachment record
+    attachment_doc = {
+        "id": attachment_id,
+        "entity_type": entity_type,
+        "entity_id": entity_id,
+        "filename": filename,
+        "original_filename": file.filename,
+        "file_size": file_size,
+        "file_type": file.content_type or "application/octet-stream",
+        "uploaded_by": current_user["id"],
+        "uploaded_by_name": current_user["name"],
+        "uploaded_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.attachments.insert_one(attachment_doc)
+    
+    await log_audit(
+        entity_type=entity_type,
+        entity_id=entity_id,
+        action="attachment_upload",
+        user=current_user,
+        description=f"رفع مرفق: {file.filename}"
+    )
+    
+    return {k: v for k, v in attachment_doc.items() if k != "_id"}
+
+@api_router.get("/attachments/{entity_type}/{entity_id}")
+async def get_attachments(
+    entity_type: str,
+    entity_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """الحصول على مرفقات كيان"""
+    attachments = await db.attachments.find(
+        {"entity_type": entity_type, "entity_id": entity_id},
+        {"_id": 0}
+    ).sort("uploaded_at", -1).to_list(50)
+    return attachments
+
+@api_router.delete("/attachments/{attachment_id}")
+async def delete_attachment(
+    attachment_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """حذف مرفق"""
+    attachment = await db.attachments.find_one({"id": attachment_id}, {"_id": 0})
+    if not attachment:
+        raise HTTPException(status_code=404, detail="المرفق غير موجود")
+    
+    # Only uploader or manager can delete
+    if attachment["uploaded_by"] != current_user["id"] and current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بحذف هذا المرفق")
+    
+    # Delete file
+    file_path = os.path.join(UPLOAD_DIR, attachment["filename"])
+    if os.path.exists(file_path):
+        os.remove(file_path)
+    
+    await db.attachments.delete_one({"id": attachment_id})
+    
+    await log_audit(
+        entity_type=attachment["entity_type"],
+        entity_id=attachment["entity_id"],
+        action="attachment_delete",
+        user=current_user,
+        description=f"حذف مرفق: {attachment['original_filename']}"
+    )
+    
+    return {"message": "تم حذف المرفق بنجاح"}
+
+from fastapi.responses import FileResponse
+
+@api_router.get("/attachments/download/{attachment_id}")
+async def download_attachment(
+    attachment_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """تحميل مرفق"""
+    attachment = await db.attachments.find_one({"id": attachment_id}, {"_id": 0})
+    if not attachment:
+        raise HTTPException(status_code=404, detail="المرفق غير موجود")
+    
+    file_path = os.path.join(UPLOAD_DIR, attachment["filename"])
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="الملف غير موجود")
+    
+    return FileResponse(
+        file_path,
+        filename=attachment["original_filename"],
+        media_type=attachment["file_type"]
+    )
+
+# ==================== ADVANCED REPORTS ====================
+
+@api_router.get("/reports/project/{project_id}")
+async def get_project_report(
+    project_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """تقرير مفصل للمشروع"""
+    project = await db.projects.find_one({"id": project_id}, {"_id": 0})
+    if not project:
+        raise HTTPException(status_code=404, detail="المشروع غير موجود")
+    
+    # Get all requests for project
+    requests = await db.material_requests.find({"project_id": project_id}, {"_id": 0}).to_list(1000)
+    
+    # Get all orders for project
+    orders = await db.purchase_orders.find({"project_id": project_id}, {"_id": 0}).to_list(1000)
+    
+    # Get budget categories
+    categories = await db.budget_categories.find({"project_id": project_id}, {"_id": 0}).to_list(100)
+    
+    # Calculate budget stats per category
+    budget_breakdown = []
+    for cat in categories:
+        pipeline = [
+            {"$match": {"category_id": cat["id"]}},
+            {"$group": {"_id": None, "total": {"$sum": "$total_amount"}}}
+        ]
+        spent_result = await db.purchase_orders.aggregate(pipeline).to_list(1)
+        actual_spent = spent_result[0]["total"] if spent_result else 0
+        
+        budget_breakdown.append({
+            "category_name": cat["name"],
+            "estimated_budget": cat["estimated_budget"],
+            "actual_spent": actual_spent,
+            "remaining": cat["estimated_budget"] - actual_spent,
+            "percentage_used": round((actual_spent / cat["estimated_budget"] * 100) if cat["estimated_budget"] > 0 else 0, 2)
+        })
+    
+    # Spending by supplier
+    supplier_pipeline = [
+        {"$match": {"project_id": project_id}},
+        {"$group": {"_id": "$supplier_name", "total": {"$sum": "$total_amount"}, "count": {"$sum": 1}}}
+    ]
+    supplier_spending = await db.purchase_orders.aggregate(supplier_pipeline).to_list(100)
+    
+    # Orders by status
+    status_pipeline = [
+        {"$match": {"project_id": project_id}},
+        {"$group": {"_id": "$status", "count": {"$sum": 1}, "total": {"$sum": "$total_amount"}}}
+    ]
+    status_breakdown = await db.purchase_orders.aggregate(status_pipeline).to_list(20)
+    
+    # Monthly spending
+    monthly_pipeline = [
+        {"$match": {"project_id": project_id}},
+        {"$addFields": {"month": {"$substr": ["$created_at", 0, 7]}}},
+        {"$group": {"_id": "$month", "total": {"$sum": "$total_amount"}, "count": {"$sum": 1}}},
+        {"$sort": {"_id": 1}}
+    ]
+    monthly_spending = await db.purchase_orders.aggregate(monthly_pipeline).to_list(24)
+    
+    return {
+        "project": project,
+        "summary": {
+            "total_requests": len(requests),
+            "total_orders": len(orders),
+            "total_budget": sum(c["estimated_budget"] for c in categories),
+            "total_spent": sum(o.get("total_amount", 0) for o in orders),
+            "pending_requests": len([r for r in requests if r["status"] == "pending"]),
+            "approved_orders": len([o for o in orders if o["status"] == "approved"]),
+            "delivered_orders": len([o for o in orders if o["status"] == "delivered"])
+        },
+        "budget_breakdown": budget_breakdown,
+        "supplier_spending": [{"supplier": s["_id"], "total": s["total"], "orders": s["count"]} for s in supplier_spending],
+        "status_breakdown": [{"status": s["_id"], "count": s["count"], "total": s["total"]} for s in status_breakdown],
+        "monthly_spending": [{"month": m["_id"], "total": m["total"], "orders": m["count"]} for m in monthly_spending]
+    }
+
+@api_router.get("/reports/spending-analysis")
+async def get_spending_analysis(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """تحليل الإنفاق الشامل"""
+    match_query = {}
+    if start_date or end_date:
+        match_query["created_at"] = {}
+        if start_date:
+            match_query["created_at"]["$gte"] = start_date
+        if end_date:
+            match_query["created_at"]["$lte"] = end_date
+    
+    # Spending by project
+    project_pipeline = [
+        {"$match": match_query} if match_query else {"$match": {}},
+        {"$group": {"_id": "$project_name", "total": {"$sum": "$total_amount"}, "count": {"$sum": 1}}}
+    ]
+    project_spending = await db.purchase_orders.aggregate(project_pipeline).to_list(100)
+    
+    # Spending by supplier
+    supplier_pipeline = [
+        {"$match": match_query} if match_query else {"$match": {}},
+        {"$group": {"_id": "$supplier_name", "total": {"$sum": "$total_amount"}, "count": {"$sum": 1}}}
+    ]
+    supplier_spending = await db.purchase_orders.aggregate(supplier_pipeline).to_list(100)
+    
+    # Spending by category
+    category_pipeline = [
+        {"$match": {**match_query, "category_id": {"$ne": None}}} if match_query else {"$match": {"category_id": {"$ne": None}}},
+        {"$lookup": {"from": "budget_categories", "localField": "category_id", "foreignField": "id", "as": "category"}},
+        {"$unwind": {"path": "$category", "preserveNullAndEmptyArrays": True}},
+        {"$group": {"_id": "$category.name", "total": {"$sum": "$total_amount"}, "count": {"$sum": 1}}}
+    ]
+    category_spending = await db.purchase_orders.aggregate(category_pipeline).to_list(100)
+    
+    # Monthly trend
+    monthly_pipeline = [
+        {"$match": match_query} if match_query else {"$match": {}},
+        {"$addFields": {"month": {"$substr": ["$created_at", 0, 7]}}},
+        {"$group": {"_id": "$month", "total": {"$sum": "$total_amount"}, "count": {"$sum": 1}}},
+        {"$sort": {"_id": 1}}
+    ]
+    monthly_trend = await db.purchase_orders.aggregate(monthly_pipeline).to_list(24)
+    
+    # Total stats
+    total_orders = await db.purchase_orders.count_documents(match_query or {})
+    total_pipeline = [
+        {"$match": match_query} if match_query else {"$match": {}},
+        {"$group": {"_id": None, "total": {"$sum": "$total_amount"}}}
+    ]
+    total_result = await db.purchase_orders.aggregate(total_pipeline).to_list(1)
+    total_spent = total_result[0]["total"] if total_result else 0
+    
+    return {
+        "total_orders": total_orders,
+        "total_spent": total_spent,
+        "average_order_value": round(total_spent / total_orders, 2) if total_orders > 0 else 0,
+        "by_project": [{"project": p["_id"], "total": p["total"], "orders": p["count"]} for p in project_spending],
+        "by_supplier": [{"supplier": s["_id"], "total": s["total"], "orders": s["count"]} for s in supplier_spending],
+        "by_category": [{"category": c["_id"] or "بدون تصنيف", "total": c["total"], "orders": c["count"]} for c in category_spending],
+        "monthly_trend": [{"month": m["_id"], "total": m["total"], "orders": m["count"]} for m in monthly_trend]
+    }
+
+# ==================== DASHBOARD STATS ====================
+
+@api_router.get("/dashboard/stats")
+async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
+    stats = {}
+    
+    if current_user["role"] == UserRole.SUPERVISOR:
+        total = await db.material_requests.count_documents({"supervisor_id": current_user["id"]})
+        pending = await db.material_requests.count_documents({
+            "supervisor_id": current_user["id"],
+            "status": RequestStatus.PENDING_ENGINEER
+        })
+        approved = await db.material_requests.count_documents({
+            "supervisor_id": current_user["id"],
+            "status": {"$in": [RequestStatus.APPROVED_BY_ENGINEER, RequestStatus.PURCHASE_ORDER_ISSUED, RequestStatus.PARTIALLY_ORDERED]}
+        })
+        rejected = await db.material_requests.count_documents({
+            "supervisor_id": current_user["id"],
+            "status": RequestStatus.REJECTED_BY_ENGINEER
+        })
+        stats = {"total": total, "pending": pending, "approved": approved, "rejected": rejected}
+    
+    elif current_user["role"] == UserRole.ENGINEER:
+        total = await db.material_requests.count_documents({"engineer_id": current_user["id"]})
+        pending = await db.material_requests.count_documents({
+            "engineer_id": current_user["id"],
+            "status": RequestStatus.PENDING_ENGINEER
+        })
+        approved = await db.material_requests.count_documents({
+            "engineer_id": current_user["id"],
+            "status": {"$in": [RequestStatus.APPROVED_BY_ENGINEER, RequestStatus.PURCHASE_ORDER_ISSUED, RequestStatus.PARTIALLY_ORDERED]}
+        })
+        stats = {"total": total, "pending": pending, "approved": approved}
+    
+    elif current_user["role"] == UserRole.PROCUREMENT_MANAGER:
+        pending_orders = await db.material_requests.count_documents({
+            "status": {"$in": [RequestStatus.APPROVED_BY_ENGINEER, RequestStatus.PARTIALLY_ORDERED]}
+        })
+        total_orders = await db.purchase_orders.count_documents({"manager_id": current_user["id"]})
+        pending_approval = await db.purchase_orders.count_documents({
+            "manager_id": current_user["id"],
+            "status": PurchaseOrderStatus.PENDING_APPROVAL
+        })
+        approved_orders = await db.purchase_orders.count_documents({
+            "manager_id": current_user["id"],
+            "status": {"$in": [PurchaseOrderStatus.APPROVED, PurchaseOrderStatus.PRINTED]}
+        })
+        stats = {
+            "pending_orders": pending_orders,
+            "total_orders": total_orders,
+            "pending_approval": pending_approval,
+            "approved_orders": approved_orders
+        }
+    
+    elif current_user["role"] == UserRole.PRINTER:
+        pending_print = await db.purchase_orders.count_documents({
+            "status": PurchaseOrderStatus.APPROVED
+        })
+        printed = await db.purchase_orders.count_documents({
+            "status": PurchaseOrderStatus.PRINTED
+        })
+        stats = {"pending_print": pending_print, "printed": printed}
+    
+    return stats
+
+# ==================== HIGH PERFORMANCE PAGINATED APIs ====================
+# These APIs support pagination, filtering, and are optimized for 20+ concurrent users
+
+class PaginatedResponse(BaseModel):
+    items: List[dict]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+    has_next: bool
+    has_prev: bool
+
+@api_router.get("/v2/requests")
+async def get_requests_paginated(
+    page: int = 1,
+    page_size: int = 20,
+    status: Optional[str] = None,
+    project_id: Optional[str] = None,
+    search: Optional[str] = None,
+    sort_by: str = "created_at",
+    sort_order: str = "desc",
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Paginated requests API - optimized for high load
+    - Supports filtering by status, project
+    - Supports text search
+    - Server-side pagination
+    """
+    query = {}
+    
+    # Role-based filtering
+    if current_user["role"] == UserRole.SUPERVISOR:
+        query["supervisor_id"] = current_user["id"]
+    elif current_user["role"] == UserRole.ENGINEER:
+        query["engineer_id"] = current_user["id"]
+    
+    # Optional filters
+    if status:
+        if status == "approved":
+            query["status"] = {"$in": [RequestStatus.APPROVED_BY_ENGINEER, RequestStatus.PARTIALLY_ORDERED]}
+        elif status == "pending":
+            query["status"] = RequestStatus.PENDING_ENGINEER
+        elif status == "ordered":
+            query["status"] = RequestStatus.PURCHASE_ORDER_ISSUED
+        else:
+            query["status"] = status
+    
+    if project_id:
+        query["project_id"] = project_id
+    
+    if search:
+        query["$or"] = [
+            {"request_number": {"$regex": search, "$options": "i"}},
+            {"items.name": {"$regex": search, "$options": "i"}},
+            {"project_name": {"$regex": search, "$options": "i"}},
+            {"supervisor_name": {"$regex": search, "$options": "i"}}
+        ]
+    
+    # Get total count
+    total = await db.material_requests.count_documents(query)
+    
+    # Calculate pagination
+    page_size = min(page_size, 100)  # Max 100 per page
+    total_pages = max(1, (total + page_size - 1) // page_size)
+    page = max(1, min(page, total_pages))
+    skip = (page - 1) * page_size
+    
+    # Sort direction
+    sort_dir = -1 if sort_order == "desc" else 1
+    
+    # Fetch paginated data
+    requests = await db.material_requests.find(
+        query, 
+        {"_id": 0}
+    ).sort(sort_by, sort_dir).skip(skip).limit(page_size).to_list(page_size)
+    
+    return {
+        "items": requests,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": total_pages,
+        "has_next": page < total_pages,
+        "has_prev": page > 1
+    }
+
+@api_router.get("/v2/purchase-orders")
+async def get_purchase_orders_paginated(
+    page: int = 1,
+    page_size: int = 20,
+    status: Optional[str] = None,
+    project_name: Optional[str] = None,
+    supplier_name: Optional[str] = None,
+    search: Optional[str] = None,
+    sort_by: str = "created_at",
+    sort_order: str = "desc",
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Paginated purchase orders API - optimized for high load
+    - Supports filtering by status, project, supplier
+    - Supports comprehensive search
+    - Server-side pagination with batch fetching
+    """
+    query = {}
+    
+    # Role-based filtering
+    if current_user["role"] == UserRole.PROCUREMENT_MANAGER:
+        query["manager_id"] = current_user["id"]
+    elif current_user["role"] == UserRole.PRINTER:
+        query["status"] = {"$in": [PurchaseOrderStatus.APPROVED, PurchaseOrderStatus.PRINTED, PurchaseOrderStatus.SHIPPED]}
+    
+    # Optional filters
+    if status:
+        if status == "approved":
+            query["status"] = {"$in": [PurchaseOrderStatus.APPROVED, PurchaseOrderStatus.PRINTED, PurchaseOrderStatus.PENDING_APPROVAL]}
+        elif status == "shipped":
+            query["status"] = {"$in": [PurchaseOrderStatus.SHIPPED, PurchaseOrderStatus.PARTIALLY_DELIVERED]}
+        elif status == "delivered":
+            query["status"] = PurchaseOrderStatus.DELIVERED
+        else:
+            query["status"] = status
+    
+    if project_name:
+        query["project_name"] = {"$regex": project_name, "$options": "i"}
+    
+    if supplier_name:
+        query["supplier_name"] = {"$regex": supplier_name, "$options": "i"}
+    
+    if search:
+        query["$or"] = [
+            {"id": {"$regex": search, "$options": "i"}},
+            {"request_id": {"$regex": search, "$options": "i"}},
+            {"project_name": {"$regex": search, "$options": "i"}},
+            {"supplier_name": {"$regex": search, "$options": "i"}},
+            {"supplier_receipt_number": {"$regex": search, "$options": "i"}}
+        ]
+    
+    # Get total count
+    total = await db.purchase_orders.count_documents(query)
+    
+    # Calculate pagination
+    page_size = min(page_size, 100)
+    total_pages = max(1, (total + page_size - 1) // page_size)
+    page = max(1, min(page, total_pages))
+    skip = (page - 1) * page_size
+    
+    # Sort direction
+    sort_dir = -1 if sort_order == "desc" else 1
+    
+    # Fetch paginated data
+    orders = await db.purchase_orders.find(
+        query, 
+        {"_id": 0}
+    ).sort(sort_by, sort_dir).skip(skip).limit(page_size).to_list(page_size)
+    
+    # Batch fetch related data
+    request_ids = list(set([o.get("request_id") for o in orders if o.get("request_id")]))
+    category_ids = list(set([o.get("category_id") for o in orders if o.get("category_id")]))
+    
+    requests_map = {}
+    if request_ids:
+        requests_list = await db.material_requests.find(
+            {"id": {"$in": request_ids}}, 
+            {"_id": 0, "id": 1, "supervisor_name": 1, "engineer_name": 1, "request_number": 1}
+        ).to_list(None)
+        requests_map = {r["id"]: r for r in requests_list}
+    
+    categories_map = {}
+    if category_ids:
+        categories_list = await db.budget_categories.find(
+            {"id": {"$in": category_ids}},
+            {"_id": 0, "id": 1, "name": 1}
+        ).to_list(None)
+        categories_map = {c["id"]: c["name"] for c in categories_list}
+    
+    # Process orders
+    result = []
+    for o in orders:
+        o.setdefault("status", PurchaseOrderStatus.APPROVED)
+        o.setdefault("total_amount", 0)
+        o["category_name"] = categories_map.get(o.get("category_id"), None)
+        
+        if "supervisor_name" not in o or "engineer_name" not in o:
+            request = requests_map.get(o.get("request_id"), {})
+            o["supervisor_name"] = request.get("supervisor_name", o.get("supervisor_name", ""))
+            o["engineer_name"] = request.get("engineer_name", o.get("engineer_name", ""))
+            o["request_number"] = request.get("request_number", o.get("request_number"))
+        
+        result.append(o)
+    
+    return {
+        "items": result,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": total_pages,
+        "has_next": page < total_pages,
+        "has_prev": page > 1
+    }
+
+@api_router.get("/v2/dashboard/stats")
+async def get_dashboard_stats_optimized(current_user: dict = Depends(get_current_user)):
+    """
+    Optimized dashboard stats using aggregation pipelines
+    Much faster than multiple count queries for high load
+    """
+    stats = {}
+    
+    if current_user["role"] == UserRole.SUPERVISOR:
+        # Use aggregation for all counts in one query
+        pipeline = [
+            {"$match": {"supervisor_id": current_user["id"]}},
+            {"$group": {
+                "_id": "$status",
+                "count": {"$sum": 1}
+            }}
+        ]
+        status_counts = await db.material_requests.aggregate(pipeline).to_list(None)
+        status_map = {s["_id"]: s["count"] for s in status_counts}
+        
+        stats = {
+            "total_requests": sum(status_map.values()),
+            "pending": status_map.get(RequestStatus.PENDING_ENGINEER, 0),
+            "approved": status_map.get(RequestStatus.APPROVED_BY_ENGINEER, 0) + status_map.get(RequestStatus.PARTIALLY_ORDERED, 0),
+            "ordered": status_map.get(RequestStatus.PURCHASE_ORDER_ISSUED, 0)
+        }
+        
+        # Pending deliveries
+        pending_delivery = await db.purchase_orders.count_documents({
+            "supervisor_id": current_user["id"],
+            "status": {"$in": [PurchaseOrderStatus.SHIPPED, PurchaseOrderStatus.PARTIALLY_DELIVERED]}
+        })
+        stats["pending_delivery"] = pending_delivery
+        
+    elif current_user["role"] == UserRole.ENGINEER:
+        pipeline = [
+            {"$match": {"engineer_id": current_user["id"]}},
+            {"$group": {
+                "_id": "$status",
+                "count": {"$sum": 1}
+            }}
+        ]
+        status_counts = await db.material_requests.aggregate(pipeline).to_list(None)
+        status_map = {s["_id"]: s["count"] for s in status_counts}
+        
+        stats = {
+            "pending_approval": status_map.get(RequestStatus.PENDING_ENGINEER, 0),
+            "approved": status_map.get(RequestStatus.APPROVED_BY_ENGINEER, 0),
+            "total_requests": sum(status_map.values())
+        }
+        
+    elif current_user["role"] == UserRole.PROCUREMENT_MANAGER:
+        # Requests stats
+        req_pipeline = [
+            {"$group": {
+                "_id": "$status",
+                "count": {"$sum": 1}
+            }}
+        ]
+        req_counts = await db.material_requests.aggregate(req_pipeline).to_list(None)
+        req_map = {s["_id"]: s["count"] for s in req_counts}
+        
+        # Orders stats
+        order_pipeline = [
+            {"$match": {"manager_id": current_user["id"]}},
+            {"$group": {
+                "_id": "$status",
+                "count": {"$sum": 1}
+            }}
+        ]
+        order_counts = await db.purchase_orders.aggregate(order_pipeline).to_list(None)
+        order_map = {s["_id"]: s["count"] for s in order_counts}
+        
+        stats = {
+            "pending_orders": req_map.get(RequestStatus.APPROVED_BY_ENGINEER, 0) + req_map.get(RequestStatus.PARTIALLY_ORDERED, 0),
+            "total_orders": sum(order_map.values()),
+            "pending_approval": order_map.get(PurchaseOrderStatus.PENDING_APPROVAL, 0),
+            "approved_orders": order_map.get(PurchaseOrderStatus.APPROVED, 0) + order_map.get(PurchaseOrderStatus.PRINTED, 0),
+            "shipped_orders": order_map.get(PurchaseOrderStatus.SHIPPED, 0) + order_map.get(PurchaseOrderStatus.PARTIALLY_DELIVERED, 0),
+            "delivered_orders": order_map.get(PurchaseOrderStatus.DELIVERED, 0)
+        }
+        
+    elif current_user["role"] == UserRole.PRINTER:
+        order_pipeline = [
+            {"$match": {"status": {"$in": [PurchaseOrderStatus.APPROVED, PurchaseOrderStatus.PRINTED]}}},
+            {"$group": {
+                "_id": "$status",
+                "count": {"$sum": 1}
+            }}
+        ]
+        order_counts = await db.purchase_orders.aggregate(order_pipeline).to_list(None)
+        order_map = {s["_id"]: s["count"] for s in order_counts}
+        
+        stats = {
+            "pending_print": order_map.get(PurchaseOrderStatus.APPROVED, 0),
+            "printed": order_map.get(PurchaseOrderStatus.PRINTED, 0)
+        }
+        
+    elif current_user["role"] == UserRole.DELIVERY_TRACKER:
+        order_pipeline = [
+            {"$group": {
+                "_id": "$status",
+                "count": {"$sum": 1}
+            }}
+        ]
+        order_counts = await db.purchase_orders.aggregate(order_pipeline).to_list(None)
+        order_map = {s["_id"]: s["count"] for s in order_counts}
+        
+        stats = {
+            "pending_delivery": order_map.get(PurchaseOrderStatus.PRINTED, 0),
+            "shipped": order_map.get(PurchaseOrderStatus.SHIPPED, 0),
+            "partially_delivered": order_map.get(PurchaseOrderStatus.PARTIALLY_DELIVERED, 0),
+            "delivered": order_map.get(PurchaseOrderStatus.DELIVERED, 0),
+            "awaiting_shipment": order_map.get(PurchaseOrderStatus.APPROVED, 0) + order_map.get(PurchaseOrderStatus.PRINTED, 0)
+        }
+    
+    return stats
+
+@api_router.get("/v2/search")
+async def global_search(
+    q: str,
+    limit: int = 20,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Global search across requests and purchase orders
+    Returns combined results for quick navigation
+    """
+    results = {
+        "requests": [],
+        "orders": []
+    }
+    
+    if len(q) < 2:
+        return results
+    
+    search_limit = min(limit, 50)
+    
+    # Search requests
+    request_query = {"$or": [
+        {"request_number": {"$regex": q, "$options": "i"}},
+        {"items.name": {"$regex": q, "$options": "i"}},
+        {"project_name": {"$regex": q, "$options": "i"}}
+    ]}
+    
+    requests = await db.material_requests.find(
+        request_query,
+        {"_id": 0, "id": 1, "request_number": 1, "project_name": 1, "status": 1, "created_at": 1}
+    ).limit(search_limit).to_list(search_limit)
+    results["requests"] = requests
+    
+    # Search orders
+    order_query = {"$or": [
+        {"id": {"$regex": q, "$options": "i"}},
+        {"project_name": {"$regex": q, "$options": "i"}},
+        {"supplier_name": {"$regex": q, "$options": "i"}},
+        {"supplier_receipt_number": {"$regex": q, "$options": "i"}}
+    ]}
+    
+    orders = await db.purchase_orders.find(
+        order_query,
+        {"_id": 0, "id": 1, "project_name": 1, "supplier_name": 1, "status": 1, "total_amount": 1, "created_at": 1}
+    ).limit(search_limit).to_list(search_limit)
+    results["orders"] = orders
+    
+    return results
+
+# ==================== BACKUP & RESTORE SYSTEM ====================
+# نظام النسخ الاحتياطي والاستعادة - لمدير المشتريات فقط
+
+@api_router.get("/backup/export")
+async def export_backup(current_user: dict = Depends(get_current_user)):
+    """
+    تصدير نسخة احتياطية كاملة من النظام
+    مدير المشتريات فقط
+    """
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه تصدير النسخة الاحتياطية")
+    
+    now = datetime.now(timezone.utc).isoformat()
+    
+    backup_data = {
+        "backup_info": {
+            "created_at": now,
+            "created_by": current_user["name"],
+            "created_by_id": current_user["id"],
+            "version": "2.0"
+        },
+        "users": await db.users.find({}, {"_id": 0}).to_list(None),
+        "projects": await db.projects.find({}, {"_id": 0}).to_list(None),
+        "material_requests": await db.material_requests.find({}, {"_id": 0}).to_list(None),
+        "purchase_orders": await db.purchase_orders.find({}, {"_id": 0}).to_list(None),
+        "suppliers": await db.suppliers.find({}, {"_id": 0}).to_list(None),
+        "budget_categories": await db.budget_categories.find({}, {"_id": 0}).to_list(None),
+        "default_budget_categories": await db.default_budget_categories.find({}, {"_id": 0}).to_list(None),
+        "delivery_records": await db.delivery_records.find({}, {"_id": 0}).to_list(None),
+        "audit_logs": await db.audit_logs.find({}, {"_id": 0}).to_list(None),
+    }
+    
+    # Log audit
+    await log_audit(
+        entity_type="backup",
+        entity_id="export",
+        action="export",
+        user=current_user,
+        description="تصدير نسخة احتياطية كاملة"
+    )
+    
+    return backup_data
+
+@api_router.post("/backup/import")
+async def import_backup(
+    backup_data: dict,
+    clear_existing: bool = False,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    استيراد نسخة احتياطية
+    مدير المشتريات فقط
+    clear_existing: إذا كان True سيحذف البيانات الموجودة قبل الاستيراد
+    """
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه استيراد النسخة الاحتياطية")
+    
+    if "backup_info" not in backup_data:
+        raise HTTPException(status_code=400, detail="ملف النسخة الاحتياطية غير صالح")
+    
+    import_stats = {
+        "users": 0,
+        "projects": 0,
+        "material_requests": 0,
+        "purchase_orders": 0,
+        "suppliers": 0,
+        "budget_categories": 0,
+        "default_budget_categories": 0,
+        "delivery_records": 0,
+        "skipped": 0,
+        "errors": []
+    }
+    
+    # Clear existing data if requested
+    if clear_existing:
+        await db.projects.delete_many({})
+        await db.material_requests.delete_many({})
+        await db.purchase_orders.delete_many({})
+        await db.suppliers.delete_many({})
+        await db.budget_categories.delete_many({})
+        await db.default_budget_categories.delete_many({})
+        await db.delivery_records.delete_many({})
+    
+    # Import collections
+    collections_to_import = [
+        ("users", db.users, ["id", "email"]),
+        ("projects", db.projects, ["id"]),
+        ("material_requests", db.material_requests, ["id"]),
+        ("purchase_orders", db.purchase_orders, ["id"]),
+        ("suppliers", db.suppliers, ["id"]),
+        ("budget_categories", db.budget_categories, ["id"]),
+        ("default_budget_categories", db.default_budget_categories, ["id"]),
+        ("delivery_records", db.delivery_records, ["id"]),
+    ]
+    
+    for collection_name, collection, unique_fields in collections_to_import:
+        if collection_name in backup_data:
+            for doc in backup_data[collection_name]:
+                try:
+                    # Check if document already exists
+                    query = {field: doc.get(field) for field in unique_fields if doc.get(field)}
+                    if query:
+                        existing = await collection.find_one(query)
+                        if existing:
+                            import_stats["skipped"] += 1
+                            continue
+                    
+                    await collection.insert_one(doc)
+                    import_stats[collection_name] += 1
+                except Exception as e:
+                    import_stats["errors"].append(f"{collection_name}: {str(e)[:50]}")
+    
+    # Log audit
+    await log_audit(
+        entity_type="backup",
+        entity_id="import",
+        action="import",
+        user=current_user,
+        description=f"استيراد نسخة احتياطية - {sum([import_stats[k] for k in import_stats if isinstance(import_stats[k], int)])} سجل"
+    )
+    
+    return {
+        "message": "تم استيراد النسخة الاحتياطية بنجاح",
+        "stats": import_stats,
+        "backup_info": backup_data.get("backup_info", {})
+    }
+
+@api_router.get("/backup/stats")
+async def get_backup_stats(current_user: dict = Depends(get_current_user)):
+    """
+    إحصائيات البيانات الحالية
+    مدير المشتريات فقط
+    """
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه عرض إحصائيات النسخ الاحتياطي")
+    
+    stats = {
+        "users": await db.users.count_documents({}),
+        "projects": await db.projects.count_documents({}),
+        "material_requests": await db.material_requests.count_documents({}),
+        "purchase_orders": await db.purchase_orders.count_documents({}),
+        "suppliers": await db.suppliers.count_documents({}),
+        "budget_categories": await db.budget_categories.count_documents({}),
+        "default_budget_categories": await db.default_budget_categories.count_documents({}),
+        "delivery_records": await db.delivery_records.count_documents({}),
+        "audit_logs": await db.audit_logs.count_documents({}),
+    }
+    
+    stats["total_records"] = sum(stats.values())
+    
+    return stats
+
+# Health check
+@api_router.get("/health")
+async def health_check():
+    return {"status": "healthy"}
+@api_router.post("/admin/reset-database")
+async def reset_database(current_user: dict = Depends(get_current_user)):
+    """
+    تنظيف قاعدة البيانات بالكامل - للمدير فقط
+    ⚠️ تحذير: سيحذف جميع البيانات!
+    """
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه تنظيف قاعدة البيانات")
+    
+    # Delete all collections data
+    collections_to_clear = [
+        "users",
+        "material_requests", 
+        "purchase_orders",
+        "suppliers",
+        "delivery_records",
+        "budget_categories",
+        "projects",
+        "audit_logs",
+        "attachments"
+    ]
+    
+    deleted_counts = {}
+    for collection_name in collections_to_clear:
+        collection = db[collection_name]
+        result = await collection.delete_many({})
+        deleted_counts[collection_name] = result.deleted_count
+    
+    return {
+        "message": "تم تنظيف قاعدة البيانات بنجاح",
+        "deleted": deleted_counts
+    }
+
+@api_router.post("/admin/clean-data-keep-users")
+async def clean_data_keep_users(current_user: dict = Depends(get_current_user)):
+    """
+    تنظيف جميع البيانات مع الحفاظ على المستخدمين والتصنيفات الافتراضية
+    """
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه تنظيف البيانات")
+    
+    # Collections to clear (keep users and default_budget_categories)
+    collections_to_clear = [
+        "material_requests", 
+        "purchase_orders",
+        "suppliers",
+        "delivery_records",
+        "budget_categories",
+        "projects",
+        "audit_logs",
+        "attachments"
+    ]
+    
+    deleted_counts = {}
+    for collection_name in collections_to_clear:
+        collection = db[collection_name]
+        result = await collection.delete_many({})
+        deleted_counts[collection_name] = result.deleted_count
+    
+    # Get counts of preserved data
+    users_count = await db.users.count_documents({})
+    default_cats_count = await db.default_budget_categories.count_documents({})
+    
+    return {
+        "message": "تم تنظيف البيانات بنجاح مع الحفاظ على المستخدمين والتصنيفات الافتراضية",
+        "deleted": deleted_counts,
+        "preserved": {
+            "users": users_count,
+            "default_budget_categories": default_cats_count
+        }
+    }
+
+@api_router.delete("/admin/clear-test-data")
+async def clear_test_data(current_user: dict = Depends(get_current_user)):
+    """
+    حذف البيانات التجريبية فقط (المستخدمين بإيميل @test.com)
+    """
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه حذف البيانات التجريبية")
+    
+    # Delete test users
+    test_users = await db.users.find({"email": {"$regex": "@test.com$"}}).to_list(100)
+    test_user_ids = [u["id"] for u in test_users]
+    
+    deleted = {
+        "users": 0,
+        "requests": 0,
+        "orders": 0,
+        "projects": 0,
+        "categories": 0,
+        "suppliers": 0
+    }
+    
+    if test_user_ids:
+        # Delete users
+        result = await db.users.delete_many({"email": {"$regex": "@test.com$"}})
+        deleted["users"] = result.deleted_count
+        
+        # Delete their requests
+        result = await db.material_requests.delete_many({"supervisor_id": {"$in": test_user_ids}})
+        deleted["requests"] = result.deleted_count
+        
+        # Delete their orders
+        result = await db.purchase_orders.delete_many({"manager_id": {"$in": test_user_ids}})
+        deleted["orders"] = result.deleted_count
+        
+        # Delete their projects
+        result = await db.projects.delete_many({"created_by": {"$in": test_user_ids}})
+        deleted["projects"] = result.deleted_count
+        
+        # Delete their categories
+        result = await db.budget_categories.delete_many({"created_by": {"$in": test_user_ids}})
+        deleted["categories"] = result.deleted_count
+    
+    # Delete test suppliers
+    result = await db.suppliers.delete_many({"name": {"$regex": "اختبار|تجريب|test", "$options": "i"}})
+    deleted["suppliers"] = result.deleted_count
+    
+    return {
+        "message": "تم حذف البيانات التجريبية بنجاح",
+        "deleted": deleted
+    }
+
+# ==================== SYSTEM SETTINGS ROUTES ====================
+
+@api_router.get("/system-settings")
+async def get_all_system_settings(current_user: dict = Depends(get_current_user)):
+    """الحصول على جميع إعدادات النظام"""
+    # فقط مدير المشتريات والمدير العام يمكنهم رؤية الإعدادات
+    if current_user["role"] not in [UserRole.PROCUREMENT_MANAGER, UserRole.GENERAL_MANAGER]:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    
+    # تهيئة الإعدادات الافتراضية إذا لم تكن موجودة
+    await init_system_settings()
+    
+    settings = await db.system_settings.find({}, {"_id": 0}).to_list(100)
+    return settings
+
+@api_router.get("/system-settings/{key}")
+async def get_system_setting_by_key(
+    key: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """الحصول على إعداد معين"""
+    setting = await db.system_settings.find_one({"key": key}, {"_id": 0})
+    if not setting:
+        raise HTTPException(status_code=404, detail="الإعداد غير موجود")
+    return setting
+
+@api_router.put("/system-settings/{key}")
+async def update_system_setting(
+    key: str,
+    update_data: SystemSettingUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """تحديث إعداد - فقط مدير المشتريات أو المدير العام"""
+    if current_user["role"] not in [UserRole.PROCUREMENT_MANAGER, UserRole.GENERAL_MANAGER]:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    
+    setting = await db.system_settings.find_one({"key": key}, {"_id": 0})
+    if not setting:
+        raise HTTPException(status_code=404, detail="الإعداد غير موجود")
+    
+    old_value = setting.get("value")
+    now = datetime.now(timezone.utc).isoformat()
+    
+    await db.system_settings.update_one(
+        {"key": key},
+        {"$set": {
+            "value": update_data.value,
+            "updated_by": current_user["id"],
+            "updated_by_name": current_user["name"],
+            "updated_at": now
+        }}
+    )
+    
+    await log_audit(
+        entity_type="system_setting",
+        entity_id=setting["id"],
+        action="update",
+        user=current_user,
+        description=f"تحديث إعداد النظام: {key}",
+        changes={"value": {"old": old_value, "new": update_data.value}}
+    )
+    
+    return {"message": "تم تحديث الإعداد بنجاح"}
+
+# ==================== PRICE CATALOG ROUTES ====================
+
+@api_router.get("/price-catalog")
+async def get_price_catalog(
+    search: Optional[str] = None,
+    category_id: Optional[str] = None,
+    supplier_id: Optional[str] = None,
+    is_active: Optional[bool] = True,
+    page: int = 1,
+    page_size: int = 50,
+    current_user: dict = Depends(get_current_user)
+):
+    """الحصول على كتالوج الأسعار مع البحث والفلترة"""
+    query = {}
+    
+    if is_active is not None:
+        query["is_active"] = is_active
+    
+    if category_id:
+        query["category_id"] = category_id
+    
+    if supplier_id:
+        query["supplier_id"] = supplier_id
+    
+    if search:
+        query["$or"] = [
+            {"name": {"$regex": search, "$options": "i"}},
+            {"description": {"$regex": search, "$options": "i"}}
+        ]
+    
+    total = await db.price_catalog.count_documents(query)
+    skip = (page - 1) * page_size
+    
+    items = await db.price_catalog.find(query, {"_id": 0}).sort("name", 1).skip(skip).limit(page_size).to_list(page_size)
+    
+    # إضافة اسم التصنيف
+    for item in items:
+        if item.get("category_id"):
+            category = await db.budget_categories.find_one({"id": item["category_id"]}, {"_id": 0, "name": 1})
+            if not category:
+                # Try default categories
+                category = await db.default_budget_categories.find_one({"id": item["category_id"]}, {"_id": 0, "name": 1})
+            item["category_name"] = category["name"] if category else None
+    
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": (total + page_size - 1) // page_size
+    }
+
+@api_router.get("/price-catalog/template")
+async def get_catalog_import_template(current_user: dict = Depends(get_current_user)):
+    """تحميل قالب استيراد الكتالوج"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="غير مصرح لك")
+    
+    # Create template DataFrame
+    template_data = {
+        'اسم الصنف': ['حديد تسليح 12مم', 'اسمنت بورتلاندي', 'رمل ناعم'],
+        'الوصف': ['حديد تسليح قطر 12 مم', 'اسمنت بورتلاندي عادي', 'رمل ناعم للبناء'],
+        'الوحدة': ['طن', 'كيس', 'متر مكعب'],
+        'السعر': [2500, 25, 150],
+        'العملة': ['SAR', 'SAR', 'SAR'],
+        'المورد': ['مصنع الحديد', 'شركة الاسمنت', 'مورد الرمل']
+    }
+    
+    df = pd.DataFrame(template_data)
+    
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, sheet_name='قالب الكتالوج', index=False)
+    
+    output.seek(0)
+    
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=catalog_template.xlsx"}
+    )
+
+@api_router.get("/price-catalog/{item_id}")
+async def get_price_catalog_item(
+    item_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """الحصول على تفاصيل صنف في الكتالوج"""
+    item = await db.price_catalog.find_one({"id": item_id}, {"_id": 0})
+    if not item:
+        raise HTTPException(status_code=404, detail="الصنف غير موجود")
+    
+    # إضافة اسم التصنيف
+    if item.get("category_id"):
+        category = await db.budget_categories.find_one({"id": item["category_id"]}, {"_id": 0, "name": 1})
+        if not category:
+            category = await db.default_budget_categories.find_one({"id": item["category_id"]}, {"_id": 0, "name": 1})
+        item["category_name"] = category["name"] if category else None
+    
+    return item
+
+@api_router.post("/price-catalog")
+async def create_price_catalog_item(
+    item_data: PriceCatalogCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """إضافة صنف جديد للكتالوج - مدير المشتريات فقط"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه إدارة الكتالوج")
+    
+    # التحقق من عدم تكرار الاسم
+    existing = await db.price_catalog.find_one({"name": item_data.name, "is_active": True})
+    if existing:
+        raise HTTPException(status_code=400, detail="يوجد صنف بنفس الاسم في الكتالوج")
+    
+    item_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    
+    item_doc = {
+        "id": item_id,
+        "name": item_data.name,
+        "description": item_data.description,
+        "unit": item_data.unit,
+        "supplier_id": item_data.supplier_id,
+        "supplier_name": item_data.supplier_name,
+        "price": item_data.price,
+        "currency": item_data.currency,
+        "validity_until": item_data.validity_until,
+        "category_id": item_data.category_id,
+        "is_active": True,
+        "created_by": current_user["id"],
+        "created_by_name": current_user["name"],
+        "created_at": now
+    }
+    
+    await db.price_catalog.insert_one(item_doc)
+    
+    await log_audit(
+        entity_type="price_catalog",
+        entity_id=item_id,
+        action="create",
+        user=current_user,
+        description=f"إضافة صنف للكتالوج: {item_data.name}"
+    )
+    
+    return {k: v for k, v in item_doc.items() if k != "_id"}
+
+@api_router.put("/price-catalog/{item_id}")
+async def update_price_catalog_item(
+    item_id: str,
+    update_data: PriceCatalogUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """تحديث صنف في الكتالوج - مدير المشتريات فقط"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه تعديل الكتالوج")
+    
+    item = await db.price_catalog.find_one({"id": item_id}, {"_id": 0})
+    if not item:
+        raise HTTPException(status_code=404, detail="الصنف غير موجود")
+    
+    update_fields = {}
+    changes = {}
+    
+    for field in ["name", "description", "unit", "supplier_id", "supplier_name", "price", "currency", "validity_until", "category_id", "is_active"]:
+        new_value = getattr(update_data, field, None)
+        if new_value is not None and item.get(field) != new_value:
+            changes[field] = {"old": item.get(field), "new": new_value}
+            update_fields[field] = new_value
+    
+    if update_fields:
+        update_fields["updated_at"] = datetime.now(timezone.utc).isoformat()
+        await db.price_catalog.update_one({"id": item_id}, {"$set": update_fields})
+        
+        await log_audit(
+            entity_type="price_catalog",
+            entity_id=item_id,
+            action="update",
+            user=current_user,
+            description=f"تحديث صنف في الكتالوج: {item['name']}",
+            changes=changes
+        )
+    
+    return {"message": "تم تحديث الصنف بنجاح"}
+
+@api_router.delete("/price-catalog/{item_id}")
+async def delete_price_catalog_item(
+    item_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """حذف صنف من الكتالوج (تعطيل) - مدير المشتريات فقط"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه حذف من الكتالوج")
+    
+    item = await db.price_catalog.find_one({"id": item_id}, {"_id": 0})
+    if not item:
+        raise HTTPException(status_code=404, detail="الصنف غير موجود")
+    
+    # تعطيل بدلاً من الحذف للحفاظ على السجلات
+    await db.price_catalog.update_one(
+        {"id": item_id},
+        {"$set": {"is_active": False, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    await log_audit(
+        entity_type="price_catalog",
+        entity_id=item_id,
+        action="delete",
+        user=current_user,
+        description=f"تعطيل صنف في الكتالوج: {item['name']}"
+    )
+    
+    return {"message": "تم تعطيل الصنف بنجاح"}
+
+# ==================== ITEM ALIASES ROUTES ====================
+
+@api_router.get("/item-aliases")
+async def get_item_aliases(
+    search: Optional[str] = None,
+    catalog_item_id: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 50,
+    current_user: dict = Depends(get_current_user)
+):
+    """الحصول على قائمة الأسماء البديلة"""
+    query = {}
+    
+    if catalog_item_id:
+        query["catalog_item_id"] = catalog_item_id
+    
+    if search:
+        query["alias_name"] = {"$regex": search, "$options": "i"}
+    
+    total = await db.item_aliases.count_documents(query)
+    skip = (page - 1) * page_size
+    
+    items = await db.item_aliases.find(query, {"_id": 0}).sort("usage_count", -1).skip(skip).limit(page_size).to_list(page_size)
+    
+    # إضافة اسم الصنف الرسمي
+    for item in items:
+        catalog_item = await db.price_catalog.find_one({"id": item["catalog_item_id"]}, {"_id": 0, "name": 1})
+        item["catalog_item_name"] = catalog_item["name"] if catalog_item else None
+    
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": (total + page_size - 1) // page_size
+    }
+
+@api_router.post("/item-aliases")
+async def create_item_alias(
+    alias_data: ItemAliasCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """إنشاء ربط بين اسم بديل وصنف في الكتالوج - مدير المشتريات فقط"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه إدارة الأسماء البديلة")
+    
+    # التحقق من وجود الصنف في الكتالوج
+    catalog_item = await db.price_catalog.find_one({"id": alias_data.catalog_item_id, "is_active": True}, {"_id": 0})
+    if not catalog_item:
+        raise HTTPException(status_code=404, detail="الصنف غير موجود في الكتالوج")
+    
+    # التحقق من عدم تكرار الاسم البديل
+    existing = await db.item_aliases.find_one({"alias_name": alias_data.alias_name})
+    if existing:
+        raise HTTPException(status_code=400, detail="هذا الاسم البديل مربوط بصنف آخر بالفعل")
+    
+    alias_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    
+    alias_doc = {
+        "id": alias_id,
+        "alias_name": alias_data.alias_name,
+        "catalog_item_id": alias_data.catalog_item_id,
+        "usage_count": 0,
+        "created_by": current_user["id"],
+        "created_by_name": current_user["name"],
+        "created_at": now
+    }
+    
+    await db.item_aliases.insert_one(alias_doc)
+    
+    await log_audit(
+        entity_type="item_alias",
+        entity_id=alias_id,
+        action="create",
+        user=current_user,
+        description=f"ربط الاسم '{alias_data.alias_name}' بالصنف '{catalog_item['name']}'"
+    )
+    
+    return {
+        **{k: v for k, v in alias_doc.items() if k != "_id"},
+        "catalog_item_name": catalog_item["name"]
+    }
+
+@api_router.delete("/item-aliases/{alias_id}")
+async def delete_item_alias(
+    alias_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """حذف ربط اسم بديل - مدير المشتريات فقط"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه حذف الأسماء البديلة")
+    
+    alias = await db.item_aliases.find_one({"id": alias_id}, {"_id": 0})
+    if not alias:
+        raise HTTPException(status_code=404, detail="الربط غير موجود")
+    
+    await db.item_aliases.delete_one({"id": alias_id})
+    
+    await log_audit(
+        entity_type="item_alias",
+        entity_id=alias_id,
+        action="delete",
+        user=current_user,
+        description=f"حذف الربط للاسم البديل: {alias['alias_name']}"
+    )
+    
+    return {"message": "تم حذف الربط بنجاح"}
+
+@api_router.get("/item-aliases/suggest/{item_name}")
+async def suggest_catalog_item(
+    item_name: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """البحث عن صنف مطابق في الكتالوج أو الأسماء البديلة"""
+    # البحث أولاً في الأسماء البديلة
+    alias = await db.item_aliases.find_one({"alias_name": item_name}, {"_id": 0})
+    if alias:
+        catalog_item = await db.price_catalog.find_one({"id": alias["catalog_item_id"], "is_active": True}, {"_id": 0})
+        if catalog_item:
+            # زيادة عداد الاستخدام
+            await db.item_aliases.update_one(
+                {"id": alias["id"]},
+                {"$inc": {"usage_count": 1}}
+            )
+            return {
+                "found": True,
+                "match_type": "alias",
+                "catalog_item": catalog_item
+            }
+    
+    # البحث في الكتالوج مباشرة (تطابق كامل)
+    catalog_item = await db.price_catalog.find_one({"name": item_name, "is_active": True}, {"_id": 0})
+    if catalog_item:
+        return {
+            "found": True,
+            "match_type": "exact",
+            "catalog_item": catalog_item
+        }
+    
+    # البحث الجزئي في الكتالوج
+    similar_items = await db.price_catalog.find(
+        {"name": {"$regex": item_name, "$options": "i"}, "is_active": True},
+        {"_id": 0}
+    ).limit(5).to_list(5)
+    
+    if similar_items:
+        return {
+            "found": False,
+            "suggestions": similar_items
+        }
+    
+    return {
+        "found": False,
+        "suggestions": [],
+        "message": "لم يتم العثور على صنف مطابق - يحتاج عرض سعر جديد"
+    }
+
+# ==================== GENERAL MANAGER ROUTES ====================
+
+@api_router.get("/gm/pending-approvals")
+async def get_gm_pending_approvals(
+    page: int = 1,
+    page_size: int = 20,
+    current_user: dict = Depends(get_current_user)
+):
+    """الحصول على أوامر الشراء بانتظار موافقة المدير العام"""
+    if current_user["role"] != UserRole.GENERAL_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط المدير العام يمكنه الوصول لهذه الصفحة")
+    
+    query = {"status": PurchaseOrderStatus.PENDING_GM_APPROVAL}
+    
+    total = await db.purchase_orders.count_documents(query)
+    skip = (page - 1) * page_size
+    
+    orders = await db.purchase_orders.find(query, {"_id": 0}).sort("created_at", -1).skip(skip).limit(page_size).to_list(page_size)
+    
+    return {
+        "items": orders,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": (total + page_size - 1) // page_size
+    }
+
+@api_router.get("/gm/stats")
+async def get_gm_stats(current_user: dict = Depends(get_current_user)):
+    """إحصائيات المدير العام"""
+    if current_user["role"] != UserRole.GENERAL_MANAGER:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    
+    pending_approval = await db.purchase_orders.count_documents({"status": PurchaseOrderStatus.PENDING_GM_APPROVAL})
+    
+    # الطلبات المعتمدة هذا الشهر
+    from datetime import date
+    first_day = date.today().replace(day=1).isoformat()
+    approved_this_month = await db.purchase_orders.count_documents({
+        "gm_approved_at": {"$gte": first_day},
+        "gm_approved_by": current_user["id"]
+    })
+    
+    # إجمالي المبالغ المعتمدة
+    pipeline = [
+        {"$match": {"gm_approved_by": current_user["id"]}},
+        {"$group": {"_id": None, "total": {"$sum": "$total_amount"}}}
+    ]
+    total_approved = await db.purchase_orders.aggregate(pipeline).to_list(1)
+    
+    # حد الموافقة الحالي
+    approval_limit = await get_approval_limit()
+    
+    return {
+        "pending_approval": pending_approval,
+        "approved_this_month": approved_this_month,
+        "total_approved_amount": total_approved[0]["total"] if total_approved else 0,
+        "approval_limit": approval_limit
+    }
+
+@api_router.put("/gm/approve/{order_id}")
+async def gm_approve_order(
+    order_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """موافقة المدير العام على أمر شراء"""
+    if current_user["role"] != UserRole.GENERAL_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط المدير العام يمكنه الموافقة")
+    
+    order = await db.purchase_orders.find_one({"id": order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="أمر الشراء غير موجود")
+    
+    if order["status"] != PurchaseOrderStatus.PENDING_GM_APPROVAL:
+        raise HTTPException(status_code=400, detail="أمر الشراء ليس بانتظار موافقة المدير العام")
+    
+    now = datetime.now(timezone.utc).isoformat()
+    
+    await db.purchase_orders.update_one(
+        {"id": order_id},
+        {"$set": {
+            "status": PurchaseOrderStatus.APPROVED,
+            "gm_approved_by": current_user["id"],
+            "gm_approved_by_name": current_user["name"],
+            "gm_approved_at": now,
+            "updated_at": now
+        }}
+    )
+    
+    await log_audit(
+        entity_type="purchase_order",
+        entity_id=order_id,
+        action="gm_approve",
+        user=current_user,
+        description=f"موافقة المدير العام على أمر شراء بمبلغ {order['total_amount']}"
+    )
+    
+    return {"message": "تم اعتماد أمر الشراء بنجاح"}
+
+@api_router.put("/gm/reject/{order_id}")
+async def gm_reject_order(
+    order_id: str,
+    rejection_reason: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """رفض المدير العام لأمر شراء"""
+    if current_user["role"] != UserRole.GENERAL_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط المدير العام يمكنه الرفض")
+    
+    order = await db.purchase_orders.find_one({"id": order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="أمر الشراء غير موجود")
+    
+    if order["status"] != PurchaseOrderStatus.PENDING_GM_APPROVAL:
+        raise HTTPException(status_code=400, detail="أمر الشراء ليس بانتظار موافقة المدير العام")
+    
+    now = datetime.now(timezone.utc).isoformat()
+    
+    await db.purchase_orders.update_one(
+        {"id": order_id},
+        {"$set": {
+            "status": "rejected_by_gm",
+            "gm_rejected_by": current_user["id"],
+            "gm_rejected_by_name": current_user["name"],
+            "gm_rejection_reason": rejection_reason,
+            "gm_rejected_at": now,
+            "updated_at": now
+        }}
+    )
+    
+    await log_audit(
+        entity_type="purchase_order",
+        entity_id=order_id,
+        action="gm_reject",
+        user=current_user,
+        description=f"رفض المدير العام لأمر شراء: {rejection_reason or 'بدون سبب'}"
+    )
+    
+    return {"message": "تم رفض أمر الشراء"}
+
+@api_router.get("/gm/all-orders")
+async def gm_get_all_orders(
+    status: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 10,
+    current_user: dict = Depends(get_current_user)
+):
+    """الحصول على جميع أوامر الشراء للمدير العام - المعتمدة والمعلقة"""
+    if current_user["role"] != UserRole.GENERAL_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط المدير العام يمكنه الوصول")
+    
+    # Build query filter
+    query = {}
+    if status:
+        if status == "pending":
+            # الأوامر بانتظار موافقة المدير العام
+            query["status"] = PurchaseOrderStatus.PENDING_GM_APPROVAL
+        elif status == "gm_approved":
+            # الأوامر التي اعتمدها المدير العام (تجاوزت الحد)
+            query["$and"] = [
+                {"status": {"$in": [PurchaseOrderStatus.APPROVED, PurchaseOrderStatus.PRINTED, PurchaseOrderStatus.SHIPPED, PurchaseOrderStatus.DELIVERED, PurchaseOrderStatus.PARTIALLY_DELIVERED]}},
+                {"needs_gm_approval": True}
+            ]
+        elif status == "procurement_approved":
+            # الأوامر التي اعتمدها مدير المشتريات مباشرة (لم تحتج موافقة GM)
+            query["$and"] = [
+                {"status": {"$in": [PurchaseOrderStatus.APPROVED, PurchaseOrderStatus.PRINTED, PurchaseOrderStatus.SHIPPED, PurchaseOrderStatus.DELIVERED, PurchaseOrderStatus.PARTIALLY_DELIVERED]}},
+                {"$or": [{"needs_gm_approval": False}, {"needs_gm_approval": {"$exists": False}}]}
+            ]
+        elif status == "approved":
+            # جميع الأوامر المعتمدة (للتوافق مع الكود القديم)
+            query["status"] = {"$in": [PurchaseOrderStatus.APPROVED, PurchaseOrderStatus.PRINTED, PurchaseOrderStatus.SHIPPED, PurchaseOrderStatus.DELIVERED, PurchaseOrderStatus.PARTIALLY_DELIVERED]}
+        elif status == "rejected":
+            query["status"] = "rejected_by_gm"
+    
+    # Get total count
+    total = await db.purchase_orders.count_documents(query)
+    total_pages = (total + page_size - 1) // page_size
+    
+    # Get orders with pagination
+    orders = await db.purchase_orders.find(query, {"_id": 0}).sort("created_at", -1).skip((page - 1) * page_size).limit(page_size).to_list(page_size)
+    
+    # Enrich with project and supplier names
+    for order in orders:
+        if order.get("project_id"):
+            project = await db.projects.find_one({"id": order["project_id"]}, {"_id": 0, "name": 1})
+            order["project_name"] = project["name"] if project else "غير محدد"
+        if order.get("supplier_id"):
+            supplier = await db.suppliers.find_one({"id": order["supplier_id"]}, {"_id": 0, "name": 1})
+            order["supplier_name"] = supplier["name"] if supplier else order.get("supplier_name", "غير محدد")
+    
+    return {
+        "items": orders,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": total_pages
+    }
+
+# ==================== CATALOG IMPORT/EXPORT ROUTES ====================
+
+@api_router.get("/price-catalog/export/excel")
+async def export_catalog_to_excel(current_user: dict = Depends(get_current_user)):
+    """تصدير الكتالوج إلى ملف Excel"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه تصدير الكتالوج")
+    
+    # Get all active catalog items
+    items = await db.price_catalog.find({"is_active": True}, {"_id": 0}).to_list(10000)
+    
+    if not items:
+        raise HTTPException(status_code=404, detail="لا توجد أصناف في الكتالوج")
+    
+    # Create DataFrame
+    df = pd.DataFrame(items)
+    
+    # Select and rename columns for export
+    export_columns = {
+        'name': 'اسم الصنف',
+        'description': 'الوصف',
+        'unit': 'الوحدة',
+        'price': 'السعر',
+        'currency': 'العملة',
+        'supplier_name': 'المورد',
+        'category_name': 'التصنيف',
+        'validity_until': 'صالح حتى'
+    }
+    
+    # Keep only existing columns
+    available_columns = [col for col in export_columns.keys() if col in df.columns]
+    df = df[available_columns]
+    df = df.rename(columns={k: v for k, v in export_columns.items() if k in available_columns})
+    
+    # Create Excel file in memory
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, sheet_name='كتالوج الأسعار', index=False)
+    
+    output.seek(0)
+    
+    filename = f"price_catalog_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+@api_router.get("/price-catalog/export/csv")
+async def export_catalog_to_csv(current_user: dict = Depends(get_current_user)):
+    """تصدير الكتالوج إلى ملف CSV"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه تصدير الكتالوج")
+    
+    items = await db.price_catalog.find({"is_active": True}, {"_id": 0}).to_list(10000)
+    
+    if not items:
+        raise HTTPException(status_code=404, detail="لا توجد أصناف في الكتالوج")
+    
+    df = pd.DataFrame(items)
+    
+    export_columns = {
+        'name': 'اسم الصنف',
+        'description': 'الوصف',
+        'unit': 'الوحدة',
+        'price': 'السعر',
+        'currency': 'العملة',
+        'supplier_name': 'المورد'
+    }
+    
+    available_columns = [col for col in export_columns.keys() if col in df.columns]
+    df = df[available_columns]
+    df = df.rename(columns={k: v for k, v in export_columns.items() if k in available_columns})
+    
+    output = io.StringIO()
+    df.to_csv(output, index=False, encoding='utf-8-sig')
+    output.seek(0)
+    
+    filename = f"price_catalog_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv; charset=utf-8-sig",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+@api_router.post("/price-catalog/import")
+async def import_catalog_from_file(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user)
+):
+    """استيراد أصناف للكتالوج من ملف Excel أو CSV"""
+    if current_user["role"] != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه استيراد الكتالوج")
+    
+    # Check file type
+    filename = file.filename.lower()
+    if not (filename.endswith('.xlsx') or filename.endswith('.csv')):
+        raise HTTPException(status_code=400, detail="يجب أن يكون الملف بصيغة Excel (.xlsx) أو CSV (.csv)")
+    
+    try:
+        contents = await file.read()
+        
+        if filename.endswith('.xlsx'):
+            df = pd.read_excel(io.BytesIO(contents), engine='openpyxl')
+        else:
+            # Try different encodings for CSV
+            try:
+                df = pd.read_csv(io.BytesIO(contents), encoding='utf-8-sig')
+            except:
+                df = pd.read_csv(io.BytesIO(contents), encoding='utf-8')
+        
+        # Map Arabic column names to English
+        column_mapping = {
+            'اسم الصنف': 'name',
+            'الوصف': 'description',
+            'الوحدة': 'unit',
+            'السعر': 'price',
+            'العملة': 'currency',
+            'المورد': 'supplier_name',
+            'التصنيف': 'category_name',
+            'صالح حتى': 'validity_until',
+            # English fallback
+            'name': 'name',
+            'description': 'description',
+            'unit': 'unit',
+            'price': 'price',
+            'supplier': 'supplier_name',
+            'supplier_name': 'supplier_name'
+        }
+        
+        df = df.rename(columns=column_mapping)
+        
+        # Validate required columns
+        if 'name' not in df.columns or 'price' not in df.columns:
+            raise HTTPException(status_code=400, detail="الملف يجب أن يحتوي على أعمدة: اسم الصنف، السعر")
+        
+        # Remove rows with missing required fields
+        df = df.dropna(subset=['name', 'price'])
+        
+        if len(df) == 0:
+            raise HTTPException(status_code=400, detail="لا توجد بيانات صالحة في الملف")
+        
+        now = datetime.now(timezone.utc).isoformat()
+        imported_count = 0
+        updated_count = 0
+        errors = []
+        
+        for idx, row in df.iterrows():
+            try:
+                item_name = str(row['name']).strip()
+                item_price = float(row['price'])
+                
+                if not item_name or item_price <= 0:
+                    errors.append(f"صف {idx + 2}: اسم أو سعر غير صالح")
+                    continue
+                
+                # Check if item already exists
+                existing = await db.price_catalog.find_one({"name": item_name, "is_active": True})
+                
+                item_doc = {
+                    "name": item_name,
+                    "description": str(row.get('description', '')) if pd.notna(row.get('description')) else None,
+                    "unit": str(row.get('unit', 'قطعة')) if pd.notna(row.get('unit')) else "قطعة",
+                    "price": item_price,
+                    "currency": str(row.get('currency', 'SAR')) if pd.notna(row.get('currency')) else "SAR",
+                    "supplier_name": str(row.get('supplier_name', '')) if pd.notna(row.get('supplier_name')) else None,
+                    "updated_at": now
+                }
+                
+                if existing:
+                    # Update existing item
+                    await db.price_catalog.update_one(
+                        {"id": existing["id"]},
+                        {"$set": item_doc}
+                    )
+                    updated_count += 1
+                else:
+                    # Create new item
+                    item_doc["id"] = str(uuid.uuid4())
+                    item_doc["is_active"] = True
+                    item_doc["created_by"] = current_user["id"]
+                    item_doc["created_by_name"] = current_user["name"]
+                    item_doc["created_at"] = now
+                    await db.price_catalog.insert_one(item_doc)
+                    imported_count += 1
+                    
+            except Exception as e:
+                errors.append(f"صف {idx + 2}: {str(e)}")
+        
+        await log_audit(
+            entity_type="price_catalog",
+            entity_id="bulk_import",
+            action="import",
+            user=current_user,
+            description=f"استيراد كتالوج: {imported_count} جديد، {updated_count} تحديث"
+        )
+        
+        return {
+            "message": "تم الاستيراد بنجاح",
+            "imported": imported_count,
+            "updated": updated_count,
+            "errors": errors[:10] if errors else []  # Return first 10 errors only
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"خطأ في معالجة الملف: {str(e)}")
+
+# ==================== COST SAVINGS REPORTS ====================
+
+@api_router.get("/reports/cost-savings")
+async def get_cost_savings_report(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    project_id: Optional[str] = None,
+    category_id: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """تقرير توفير التكاليف - مقارنة الأسعار التقديرية بأسعار الكتالوج"""
+    if current_user["role"] not in [UserRole.PROCUREMENT_MANAGER, UserRole.GENERAL_MANAGER]:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا التقرير")
+    
+    # Build query
+    query = {}
+    if start_date:
+        query["created_at"] = {"$gte": start_date}
+    if end_date:
+        if "created_at" in query:
+            query["created_at"]["$lte"] = end_date
+        else:
+            query["created_at"] = {"$lte": end_date}
+    if project_id:
+        query["project_id"] = project_id
+    if category_id:
+        query["category_id"] = category_id
+    
+    # Get all purchase orders
+    orders = await db.purchase_orders.find(query, {"_id": 0}).to_list(10000)
+    
+    total_estimated = 0
+    total_catalog = 0
+    total_actual = 0
+    items_from_catalog = 0
+    items_not_in_catalog = 0
+    savings_by_item = []
+    savings_by_project = {}
+    savings_by_category = {}
+    
+    # Get categories for mapping
+    categories = await db.budget_categories.find({}, {"_id": 0}).to_list(1000)
+    categories_map = {c["id"]: c["name"] for c in categories}
+    
+    for order in orders:
+        project_name = order.get("project_name", "غير محدد")
+        category_name = order.get("category_name") or categories_map.get(order.get("category_id"), "غير محدد")
+        
+        if project_name not in savings_by_project:
+            savings_by_project[project_name] = {
+                "estimated": 0,
+                "actual": 0,
+                "orders_count": 0
+            }
+        
+        if category_name not in savings_by_category:
+            savings_by_category[category_name] = {
+                "estimated": 0,
+                "actual": 0,
+                "orders_count": 0
+            }
+        
+        savings_by_project[project_name]["orders_count"] += 1
+        savings_by_category[category_name]["orders_count"] += 1
+        
+        for item in order.get("items", []):
+            qty = float(item.get("quantity", 0))
+            unit_price = float(item.get("unit_price", 0))
+            estimated_price = float(item.get("estimated_price", 0)) if item.get("estimated_price") else None
+            catalog_item_id = item.get("catalog_item_id")
+            
+            item_total = unit_price * qty
+            total_actual += item_total
+            savings_by_project[project_name]["actual"] += item_total
+            savings_by_category[category_name]["actual"] += item_total
+            
+            if catalog_item_id:
+                items_from_catalog += 1
+                # Get catalog price
+                catalog_item = await db.price_catalog.find_one({"id": catalog_item_id}, {"_id": 0})
+                if catalog_item:
+                    catalog_price = float(catalog_item.get("price", 0)) * qty
+                    total_catalog += catalog_price
+            else:
+                items_not_in_catalog += 1
+            
+            if estimated_price:
+                estimated_total = estimated_price * qty
+                total_estimated += estimated_total
+                savings_by_project[project_name]["estimated"] += estimated_total
+                savings_by_category[category_name]["estimated"] += estimated_total
+                
+                saving = estimated_total - item_total
+                if saving != 0:
+                    savings_by_item.append({
+                        "item_name": item.get("name"),
+                        "quantity": qty,
+                        "estimated_total": estimated_total,
+                        "actual_total": item_total,
+                        "saving": saving,
+                        "saving_percent": round((saving / estimated_total) * 100, 1) if estimated_total > 0 else 0,
+                        "project": project_name,
+                        "category": category_name
+                    })
+    
+    # Sort by savings amount
+    savings_by_item.sort(key=lambda x: x["saving"], reverse=True)
+    
+    # Calculate project savings
+    project_savings = []
+    for project, data in savings_by_project.items():
+        saving = data["estimated"] - data["actual"]
+        project_savings.append({
+            "project": project,
+            "estimated": data["estimated"],
+            "actual": data["actual"],
+            "saving": saving,
+            "saving_percent": round((saving / data["estimated"]) * 100, 1) if data["estimated"] > 0 else 0,
+            "orders_count": data["orders_count"]
+        })
+    
+    project_savings.sort(key=lambda x: x["saving"], reverse=True)
+    
+    # Calculate category savings
+    category_savings = []
+    for category, data in savings_by_category.items():
+        saving = data["estimated"] - data["actual"]
+        category_savings.append({
+            "category": category,
+            "estimated": data["estimated"],
+            "actual": data["actual"],
+            "saving": saving,
+            "saving_percent": round((saving / data["estimated"]) * 100, 1) if data["estimated"] > 0 else 0,
+            "orders_count": data["orders_count"]
+        })
+    
+    category_savings.sort(key=lambda x: x["saving"], reverse=True)
+    
+    total_saving = total_estimated - total_actual
+    
+    return {
+        "summary": {
+            "total_estimated": total_estimated,
+            "total_actual": total_actual,
+            "total_saving": total_saving,
+            "saving_percent": round((total_saving / total_estimated) * 100, 1) if total_estimated > 0 else 0,
+            "items_from_catalog": items_from_catalog,
+            "items_not_in_catalog": items_not_in_catalog,
+            "catalog_usage_percent": round((items_from_catalog / (items_from_catalog + items_not_in_catalog)) * 100, 1) if (items_from_catalog + items_not_in_catalog) > 0 else 0,
+            "orders_count": len(orders)
+        },
+        "by_project": project_savings[:20],  # Top 20 projects
+        "by_category": category_savings[:20],  # Top 20 categories
+        "top_savings_items": savings_by_item[:20],  # Top 20 items
+        "top_losses_items": list(reversed(savings_by_item[-20:]))  # Top 20 losses
+    }
+
+@api_router.get("/reports/catalog-usage")
+async def get_catalog_usage_report(current_user: dict = Depends(get_current_user)):
+    """تقرير استخدام الكتالوج"""
+    if current_user["role"] not in [UserRole.PROCUREMENT_MANAGER, UserRole.GENERAL_MANAGER]:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا التقرير")
+    
+    # Get all catalog items with usage stats
+    catalog_items = await db.price_catalog.find({"is_active": True}, {"_id": 0}).to_list(10000)
+    
+    # Get all aliases with usage count
+    aliases = await db.item_aliases.find({}, {"_id": 0}).to_list(10000)
+    
+    # Count items usage in purchase orders
+    pipeline = [
+        {"$unwind": "$items"},
+        {"$match": {"items.catalog_item_id": {"$ne": None}}},
+        {"$group": {
+            "_id": "$items.catalog_item_id",
+            "usage_count": {"$sum": 1},
+            "total_quantity": {"$sum": {"$toDouble": "$items.quantity"}},
+            "total_value": {"$sum": "$items.total_price"}
+        }}
+    ]
+    
+    usage_stats = await db.purchase_orders.aggregate(pipeline).to_list(10000)
+    usage_map = {item["_id"]: item for item in usage_stats}
+    
+    # Combine catalog items with usage stats
+    catalog_usage = []
+    for item in catalog_items:
+        usage = usage_map.get(item["id"], {})
+        catalog_usage.append({
+            "id": item["id"],
+            "name": item["name"],
+            "price": item.get("price", 0),
+            "unit": item.get("unit", ""),
+            "supplier_name": item.get("supplier_name", ""),
+            "usage_count": usage.get("usage_count", 0),
+            "total_quantity": usage.get("total_quantity", 0),
+            "total_value": usage.get("total_value", 0)
+        })
+    
+    # Sort by usage
+    catalog_usage.sort(key=lambda x: x["usage_count"], reverse=True)
+    
+    # Get unused items
+    unused_items = [item for item in catalog_usage if item["usage_count"] == 0]
+    most_used = catalog_usage[:10]
+    
+    # Alias stats
+    total_alias_usage = sum(a.get("usage_count", 0) for a in aliases)
+    
+    return {
+        "summary": {
+            "total_catalog_items": len(catalog_items),
+            "items_with_usage": len([i for i in catalog_usage if i["usage_count"] > 0]),
+            "unused_items": len(unused_items),
+            "total_aliases": len(aliases),
+            "total_alias_usage": total_alias_usage
+        },
+        "most_used_items": most_used,
+        "unused_items": unused_items[:20],
+        "aliases": aliases[:20]
+    }
+
+@api_router.get("/reports/supplier-performance")
+async def get_supplier_performance_report(current_user: dict = Depends(get_current_user)):
+    """تقرير أداء الموردين"""
+    if current_user["role"] not in [UserRole.PROCUREMENT_MANAGER, UserRole.GENERAL_MANAGER]:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا التقرير")
+    
+    # Aggregate orders by supplier
+    pipeline = [
+        {"$match": {"supplier_name": {"$ne": None}}},
+        {"$group": {
+            "_id": "$supplier_name",
+            "orders_count": {"$sum": 1},
+            "total_value": {"$sum": "$total_amount"},
+            "delivered_count": {"$sum": {"$cond": [{"$eq": ["$status", "delivered"]}, 1, 0]}},
+            "on_time_count": {"$sum": {"$cond": [
+                {"$and": [
+                    {"$eq": ["$status", "delivered"]},
+                    {"$lte": ["$delivered_at", "$expected_delivery_date"]}
+                ]}, 1, 0
+            ]}}
+        }},
+        {"$sort": {"total_value": -1}}
+    ]
+    
+    supplier_stats = await db.purchase_orders.aggregate(pipeline).to_list(100)
+    
+    suppliers_report = []
+    for stat in supplier_stats:
+        on_time_rate = (stat["on_time_count"] / stat["delivered_count"] * 100) if stat["delivered_count"] > 0 else 0
+        delivery_rate = (stat["delivered_count"] / stat["orders_count"] * 100) if stat["orders_count"] > 0 else 0
+        
+        suppliers_report.append({
+            "supplier_name": stat["_id"],
+            "orders_count": stat["orders_count"],
+            "total_value": stat["total_value"],
+            "delivered_count": stat["delivered_count"],
+            "delivery_rate": round(delivery_rate, 1),
+            "on_time_rate": round(on_time_rate, 1)
+        })
+    
+    return {
+        "suppliers": suppliers_report,
+        "summary": {
+            "total_suppliers": len(suppliers_report),
+            "total_orders": sum(s["orders_count"] for s in suppliers_report),
+            "total_value": sum(s["total_value"] for s in suppliers_report)
+        }
+    }
+
+# ==================== APP CONFIGURATION ====================
+# Include the router in the main app (after all routes are defined)
+app.include_router(api_router)
+
+# Include PostgreSQL routes (new migration)
+from routes.pg_auth_routes import pg_auth_router
+from routes.pg_projects_routes import pg_projects_router
+from routes.pg_suppliers_routes import pg_suppliers_router
+from routes.pg_budget_routes import pg_budget_router
+from routes.pg_requests_routes import pg_requests_router
+from routes.pg_orders_routes import pg_orders_router
+from routes.pg_settings_routes import pg_settings_router
+from routes.pg_sysadmin_routes import pg_sysadmin_router
+from routes.pg_catalog_routes import pg_catalog_router
+
+app.include_router(pg_auth_router)
+app.include_router(pg_projects_router)
+app.include_router(pg_suppliers_router)
+app.include_router(pg_budget_router)
+app.include_router(pg_requests_router)
+app.include_router(pg_orders_router)
+app.include_router(pg_settings_router)
+app.include_router(pg_sysadmin_router)
+app.include_router(pg_catalog_router)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_credentials=True,
+    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+@app.on_event("startup")
+async def startup_db_client():
+    """Initialize database indexes and system settings on startup"""
+    await create_indexes()
+    await init_system_settings()
+    await migrate_order_numbers()  # ترحيل أرقام الأوامر القديمة
+    
+    # Initialize PostgreSQL tables
+    from database import init_postgres_db
+    await init_postgres_db()
+
+@app.on_event("shutdown")
+async def shutdown_db_client():
+    client.close()
+    
+    # Close PostgreSQL connection
+    from database import close_postgres_db
+    await close_postgres_db()
