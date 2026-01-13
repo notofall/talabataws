@@ -32,13 +32,17 @@ const EngineerDashboard = () => {
 
   const fetchData = async () => {
     try {
-      const [requestsRes, statsRes] = await Promise.all([
-        axios.get(`${API_URL}/requests`, getAuthHeaders()),
-        axios.get(`${API_URL}/v2/dashboard/stats`, getAuthHeaders()),
-      ]);
+      // Using PostgreSQL APIs
+      const requestsRes = await axios.get(`${API_URL}/requests`, getAuthHeaders());
       setRequests(requestsRes.data);
-      setStats(statsRes.data);
+      // Calculate stats from data
+      setStats({
+        total: requestsRes.data.length,
+        pending: requestsRes.data.filter(r => r.status === 'pending_engineer').length,
+        approved: requestsRes.data.filter(r => r.status === 'approved_by_engineer').length
+      });
     } catch (error) {
+      console.error("Error fetching data:", error);
       toast.error("فشل في تحميل البيانات");
     } finally {
       setLoading(false);
