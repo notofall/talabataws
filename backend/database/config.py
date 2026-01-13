@@ -8,6 +8,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class PostgresSettings(BaseSettings):
     """PostgreSQL configuration loaded from environment variables."""
     
+    # Direct DATABASE_URL support (for deployment)
+    database_url_direct: str = ""
+    
     # Database Configuration
     postgres_host: str = "localhost"
     postgres_port: int = 5432
@@ -33,7 +36,21 @@ class PostgresSettings(BaseSettings):
     
     @property
     def database_url(self) -> str:
-        """Construct the database URL from individual components."""
+        """Construct the database URL from individual components or use direct URL."""
+        # Check for direct DATABASE_URL first (useful for deployment)
+        direct_url = os.environ.get("DATABASE_URL", self.database_url_direct)
+        if direct_url:
+            # Convert postgres:// to postgresql+asyncpg://
+            if direct_url.startswith("postgres://"):
+                direct_url = direct_url.replace("postgres://", "postgresql+asyncpg://", 1)
+            elif direct_url.startswith("postgresql://"):
+                direct_url = direct_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+            # Add ssl if not present
+            if "ssl" not in direct_url and "sslmode" not in direct_url:
+                direct_url += "?ssl=require" if "?" not in direct_url else "&ssl=require"
+            return direct_url
+        
+        # Construct from individual components
         return (
             f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
