@@ -666,6 +666,331 @@ async def get_supplier_performance_report(
     }
 
 
+# ==================== EXPORT ENDPOINTS ====================
+from fastapi.responses import StreamingResponse
+import io
+
+@pg_settings_router.get("/reports/advanced/summary/export")
+async def export_summary_report(
+    project_id: Optional[str] = None,
+    engineer_id: Optional[str] = None,
+    supervisor_id: Optional[str] = None,
+    supplier_id: Optional[str] = None,
+    format: str = "excel",
+    current_user: User = Depends(get_current_user_pg),
+    session: AsyncSession = Depends(get_postgres_session)
+):
+    """تصدير الملخص التنفيذي إلى Excel"""
+    if current_user.role not in [UserRole.PROCUREMENT_MANAGER, UserRole.GENERAL_MANAGER]:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    
+    try:
+        import openpyxl
+        from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+        
+        # Get data with filters
+        filters = []
+        if project_id:
+            filters.append(PurchaseOrder.project_id == project_id)
+        if supplier_id:
+            filters.append(PurchaseOrder.supplier_id == supplier_id)
+        
+        orders_query = select(PurchaseOrder).where(
+            PurchaseOrder.status.in_(["approved", "printed", "shipped", "delivered"])
+        )
+        if filters:
+            orders_query = orders_query.where(and_(*filters))
+        
+        orders_result = await session.execute(orders_query)
+        orders = orders_result.scalars().all()
+        
+        # Create workbook
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "الملخص التنفيذي"
+        ws.sheet_view.rightToLeft = True
+        
+        # Styles
+        header_font = Font(bold=True, color="FFFFFF")
+        header_fill = PatternFill(start_color="EA580C", end_color="EA580C", fill_type="solid")
+        
+        # Title
+        ws.merge_cells('A1:E1')
+        ws['A1'] = "تقرير الملخص التنفيذي"
+        ws['A1'].font = Font(bold=True, size=16)
+        ws['A1'].alignment = Alignment(horizontal='center')
+        
+        # Summary
+        ws['A3'] = "إجمالي أوامر الشراء:"
+        ws['B3'] = len(orders)
+        ws['A4'] = "إجمالي المصروفات:"
+        ws['B4'] = sum(o.total_amount or 0 for o in orders)
+        
+        # Orders by project
+        ws['A7'] = "المشروع"
+        ws['B7'] = "عدد الطلبات"
+        ws['C7'] = "المبلغ"
+        for cell in ['A7', 'B7', 'C7']:
+            ws[cell].font = header_font
+            ws[cell].fill = header_fill
+        
+        by_project = {}
+        for order in orders:
+            pname = order.project_name or "غير محدد"
+            if pname not in by_project:
+                by_project[pname] = {"count": 0, "amount": 0}
+            by_project[pname]["count"] += 1
+            by_project[pname]["amount"] += order.total_amount or 0
+        
+        row = 8
+        for pname, data in by_project.items():
+            ws[f'A{row}'] = pname
+            ws[f'B{row}'] = data["count"]
+            ws[f'C{row}'] = data["amount"]
+            row += 1
+        
+        # Auto-fit columns
+        for col in ws.columns:
+            max_length = 0
+            column = col[0].column_letter
+            for cell in col:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            ws.column_dimensions[column].width = max_length + 2
+        
+        # Save to buffer
+        buffer = io.BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+        
+        return StreamingResponse(
+            buffer,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": "attachment; filename=summary_report.xlsx"}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"فشل في تصدير التقرير: {str(e)}")
+
+
+@pg_settings_router.get("/reports/advanced/approval-analytics/export")
+async def export_approval_report(
+    project_id: Optional[str] = None,
+    engineer_id: Optional[str] = None,
+    supervisor_id: Optional[str] = None,
+    format: str = "excel",
+    current_user: User = Depends(get_current_user_pg),
+    session: AsyncSession = Depends(get_postgres_session)
+):
+    """تصدير تحليل الاعتمادات إلى Excel"""
+    if current_user.role not in [UserRole.PROCUREMENT_MANAGER, UserRole.GENERAL_MANAGER]:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    
+    try:
+        import openpyxl
+        from openpyxl.styles import Font, Alignment, PatternFill
+        
+        # Get data with filters
+        filters = []
+        if project_id:
+            filters.append(MaterialRequest.project_id == project_id)
+        if engineer_id:
+            filters.append(MaterialRequest.engineer_id == engineer_id)
+        if supervisor_id:
+            filters.append(MaterialRequest.supervisor_id == supervisor_id)
+        
+        query = select(MaterialRequest)
+        if filters:
+            query = query.where(and_(*filters))
+        
+        result = await session.execute(query)
+        requests = result.scalars().all()
+        
+        # Create workbook
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "تحليل الاعتمادات"
+        ws.sheet_view.rightToLeft = True
+        
+        # Styles
+        header_font = Font(bold=True, color="FFFFFF")
+        header_fill = PatternFill(start_color="16A34A", end_color="16A34A", fill_type="solid")
+        
+        # Title
+        ws.merge_cells('A1:E1')
+        ws['A1'] = "تقرير تحليل الاعتمادات"
+        ws['A1'].font = Font(bold=True, size=16)
+        
+        # Summary
+        total = len(requests)
+        approved = len([r for r in requests if r.status in ["approved", "po_issued"]])
+        rejected = len([r for r in requests if r.status in ["rejected", "rejected_engineer"]])
+        
+        ws['A3'] = "إجمالي الطلبات:"
+        ws['B3'] = total
+        ws['A4'] = "معتمدة:"
+        ws['B4'] = approved
+        ws['A5'] = "مرفوضة:"
+        ws['B5'] = rejected
+        
+        # By engineer
+        ws['A8'] = "المهندس"
+        ws['B8'] = "الإجمالي"
+        ws['C8'] = "معتمدة"
+        ws['D8'] = "مرفوضة"
+        for cell in ['A8', 'B8', 'C8', 'D8']:
+            ws[cell].font = header_font
+            ws[cell].fill = header_fill
+        
+        by_engineer = {}
+        for req in requests:
+            eng = req.engineer_name or "غير محدد"
+            if eng not in by_engineer:
+                by_engineer[eng] = {"total": 0, "approved": 0, "rejected": 0}
+            by_engineer[eng]["total"] += 1
+            if req.status in ["approved", "po_issued"]:
+                by_engineer[eng]["approved"] += 1
+            elif req.status in ["rejected", "rejected_engineer"]:
+                by_engineer[eng]["rejected"] += 1
+        
+        row = 9
+        for eng, data in by_engineer.items():
+            ws[f'A{row}'] = eng
+            ws[f'B{row}'] = data["total"]
+            ws[f'C{row}'] = data["approved"]
+            ws[f'D{row}'] = data["rejected"]
+            row += 1
+        
+        # Auto-fit columns
+        for col in ws.columns:
+            max_length = 0
+            column = col[0].column_letter
+            for cell in col:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            ws.column_dimensions[column].width = max_length + 2
+        
+        buffer = io.BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+        
+        return StreamingResponse(
+            buffer,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": "attachment; filename=approval_report.xlsx"}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"فشل في تصدير التقرير: {str(e)}")
+
+
+@pg_settings_router.get("/reports/advanced/supplier-performance/export")
+async def export_supplier_report(
+    supplier_id: Optional[str] = None,
+    format: str = "excel",
+    current_user: User = Depends(get_current_user_pg),
+    session: AsyncSession = Depends(get_postgres_session)
+):
+    """تصدير أداء الموردين إلى Excel"""
+    if current_user.role not in [UserRole.PROCUREMENT_MANAGER, UserRole.GENERAL_MANAGER]:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    
+    try:
+        import openpyxl
+        from openpyxl.styles import Font, Alignment, PatternFill
+        
+        # Get suppliers
+        query = select(Supplier)
+        if supplier_id:
+            query = query.where(Supplier.id == supplier_id)
+        result = await session.execute(query)
+        suppliers = result.scalars().all()
+        
+        # Create workbook
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "أداء الموردين"
+        ws.sheet_view.rightToLeft = True
+        
+        # Styles
+        header_font = Font(bold=True, color="FFFFFF")
+        header_fill = PatternFill(start_color="3B82F6", end_color="3B82F6", fill_type="solid")
+        
+        # Title
+        ws.merge_cells('A1:G1')
+        ws['A1'] = "تقرير أداء الموردين"
+        ws['A1'].font = Font(bold=True, size=16)
+        
+        # Headers
+        headers = ["المورد", "جهة الاتصال", "الهاتف", "عدد الطلبات", "المكتملة", "إجمالي المشتريات", "متوسط الطلب"]
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=3, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+        
+        row = 4
+        total_orders = 0
+        total_spending = 0
+        
+        for supplier in suppliers:
+            # Get orders for this supplier
+            orders_result = await session.execute(
+                select(PurchaseOrder).where(PurchaseOrder.supplier_id == supplier.id)
+            )
+            orders = orders_result.scalars().all()
+            
+            order_count = len(orders)
+            completed = len([o for o in orders if o.status == "delivered"])
+            amount = sum(o.total_amount or 0 for o in orders if o.status in ["approved", "printed", "shipped", "delivered"])
+            avg = amount / order_count if order_count > 0 else 0
+            
+            ws.cell(row=row, column=1, value=supplier.name)
+            ws.cell(row=row, column=2, value=supplier.contact_person or "-")
+            ws.cell(row=row, column=3, value=supplier.phone or "-")
+            ws.cell(row=row, column=4, value=order_count)
+            ws.cell(row=row, column=5, value=completed)
+            ws.cell(row=row, column=6, value=amount)
+            ws.cell(row=row, column=7, value=round(avg, 2))
+            
+            total_orders += order_count
+            total_spending += amount
+            row += 1
+        
+        # Summary row
+        ws.cell(row=row+1, column=1, value="الإجمالي")
+        ws.cell(row=row+1, column=1).font = Font(bold=True)
+        ws.cell(row=row+1, column=4, value=total_orders)
+        ws.cell(row=row+1, column=6, value=total_spending)
+        
+        # Auto-fit columns
+        for col in ws.columns:
+            max_length = 0
+            column = col[0].column_letter
+            for cell in col:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            ws.column_dimensions[column].width = max_length + 2
+        
+        buffer = io.BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+        
+        return StreamingResponse(
+            buffer,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": "attachment; filename=supplier_report.xlsx"}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"فشل في تصدير التقرير: {str(e)}")
+
+
 # ==================== AUDIT LOG ROUTES ====================
 
 @pg_settings_router.get("/audit-logs")
