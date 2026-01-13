@@ -60,6 +60,17 @@ export default function SystemAdminDashboard() {
   const [auditLoading, setAuditLoading] = useState(false);
   const [auditFilter, setAuditFilter] = useState({ entity_type: "", limit: 100 });
 
+  // System Tools State
+  const [systemInfo, setSystemInfo] = useState(null);
+  const [systemLogs, setSystemLogs] = useState([]);
+  const [systemLogsStats, setSystemLogsStats] = useState({});
+  const [dbStats, setDbStats] = useState(null);
+  const [updateInfo, setUpdateInfo] = useState(null);
+  const [systemLoading, setSystemLoading] = useState(false);
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [logFilter, setLogFilter] = useState({ level: "ALL", limit: 100 });
+  const [applyingUpdate, setApplyingUpdate] = useState(false);
+
   const roleLabels = {
     system_admin: "مدير النظام",
     supervisor: "مشرف موقع",
