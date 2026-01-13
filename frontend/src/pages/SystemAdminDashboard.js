@@ -70,6 +70,11 @@ export default function SystemAdminDashboard() {
   const [logsLoading, setLogsLoading] = useState(false);
   const [logFilter, setLogFilter] = useState({ level: "ALL", limit: 100 });
   const [applyingUpdate, setApplyingUpdate] = useState(false);
+  
+  // Update Upload State
+  const [uploadingUpdate, setUploadingUpdate] = useState(false);
+  const [updateStatus, setUpdateStatus] = useState(null);
+  const [backups, setBackups] = useState([]);
 
   const roleLabels = {
     system_admin: "مدير النظام",
