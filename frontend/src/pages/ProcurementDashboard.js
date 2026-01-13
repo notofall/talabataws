@@ -1540,7 +1540,7 @@ const ProcurementDashboard = () => {
                 <AlertCircle className="w-4 h-4" />
                 يوجد {rejectedByEngineerRequests.length} طلب مرفوض من المهندس
               </p>
-              <Button size="sm" variant="outline" className="h-7 border-orange-300 text-orange-700" onClick={() => setRequestsViewMode("rejected")}>
+              <Button size="sm" variant="outline" className="h-7 border-orange-300 text-orange-700" onClick={() => setRequestViewMode("rejected")}>
                 <Eye className="w-3 h-3 ml-1" />عرض
               </Button>
             </div>
