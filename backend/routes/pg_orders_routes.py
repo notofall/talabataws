@@ -578,6 +578,46 @@ async def approve_purchase_order(
     return {"message": "تم اعتماد أمر الشراء بنجاح", "status": "approved"}
 
 
+class GMRejectData(BaseModel):
+    reason: str
+
+
+@pg_orders_router.post("/purchase-orders/{order_id}/gm-reject")
+async def gm_reject_order(
+    order_id: str,
+    reject_data: GMRejectData,
+    current_user: User = Depends(get_current_user_pg),
+    session: AsyncSession = Depends(get_postgres_session)
+):
+    """Reject purchase order by General Manager"""
+    if current_user.role != UserRole.GENERAL_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط المدير العام يمكنه رفض الأمر")
+    
+    result = await session.execute(
+        select(PurchaseOrder).where(PurchaseOrder.id == order_id)
+    )
+    order = result.scalar_one_or_none()
+    
+    if not order:
+        raise HTTPException(status_code=404, detail="أمر الشراء غير موجود")
+    
+    if order.status != "pending_gm_approval":
+        raise HTTPException(status_code=400, detail="أمر الشراء ليس في انتظار موافقة المدير العام")
+    
+    order.status = "rejected_by_gm"
+    order.rejection_reason = reject_data.reason
+    order.updated_at = datetime.utcnow()
+    
+    await log_audit_pg(
+        session, "order", order_id, "gm_reject", current_user,
+        f"رفض المدير العام لأمر الشراء: {order.order_number} - السبب: {reject_data.reason}"
+    )
+    
+    await session.commit()
+    
+    return {"message": "تم رفض أمر الشراء", "status": "rejected_by_gm"}
+
+
 @pg_orders_router.post("/purchase-orders/{order_id}/print")
 async def print_purchase_order(
     order_id: str,
