@@ -396,8 +396,8 @@ async def get_audit_logs(
     current_user: User = Depends(get_current_user_pg),
     session: AsyncSession = Depends(get_postgres_session)
 ):
-    """Get audit logs - procurement manager only"""
-    if current_user.role != UserRole.PROCUREMENT_MANAGER:
+    """Get audit logs - system admin and procurement manager only"""
+    if current_user.role not in [UserRole.PROCUREMENT_MANAGER, UserRole.SYSTEM_ADMIN]:
         raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
     
     query = select(AuditLog)
