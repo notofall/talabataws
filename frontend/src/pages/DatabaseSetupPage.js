@@ -8,18 +8,20 @@ import { Label } from '../components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { 
   Database, Server, Cloud, CheckCircle2, XCircle, 
-  Loader2, RefreshCw, Eye, EyeOff, Settings, ArrowLeft
+  Loader2, RefreshCw, Eye, EyeOff, Settings, ArrowLeft,
+  User, Mail, Lock
 } from 'lucide-react';
 
 const API_BASE = process.env.REACT_APP_BACKEND_URL || '';
 
 export default function DatabaseSetupPage() {
   const navigate = useNavigate();
-  const [step, setStep] = useState(1); // 1: choose type, 2: enter details, 3: success
+  const [step, setStep] = useState(1); // 1: choose type, 2: enter details, 3: admin user, 4: success
   const [dbType, setDbType] = useState(''); // 'local' or 'cloud'
   const [testing, setTesting] = useState(false);
   const [configuring, setConfiguring] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showAdminPassword, setShowAdminPassword] = useState(false);
   const [testResult, setTestResult] = useState(null);
   const [presets, setPresets] = useState([]);
   const [selectedPreset, setSelectedPreset] = useState('');
@@ -31,6 +33,12 @@ export default function DatabaseSetupPage() {
     username: '',
     password: '',
     ssl_mode: 'require'
+  });
+
+  const [adminUser, setAdminUser] = useState({
+    name: 'مدير النظام',
+    email: '',
+    password: ''
   });
 
   useEffect(() => {
