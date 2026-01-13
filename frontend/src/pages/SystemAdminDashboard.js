@@ -714,12 +714,15 @@ export default function SystemAdminDashboard() {
 
         {/* Main Content */}
         <Tabs defaultValue="users" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
             <TabsTrigger value="users" className="gap-2">
               <Users className="h-4 w-4" /> المستخدمين
             </TabsTrigger>
             <TabsTrigger value="settings" className="gap-2">
               <Settings className="h-4 w-4" /> إعدادات الشركة
+            </TabsTrigger>
+            <TabsTrigger value="domain" className="gap-2" onClick={() => fetchDomainStatus()}>
+              <Globe className="h-4 w-4" /> الدومين
             </TabsTrigger>
             <TabsTrigger value="backup" className="gap-2">
               <Database className="h-4 w-4" /> النسخ الاحتياطي
