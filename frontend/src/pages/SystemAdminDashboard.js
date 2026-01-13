@@ -485,8 +485,8 @@ export default function SystemAdminDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-100" dir="rtl">
-      {/* Header */}
-      <header className="bg-gradient-to-r from-purple-800 to-indigo-900 text-white py-4 px-6 shadow-lg">
+      {/* Header - PWA Safe Area */}
+      <header className="bg-gradient-to-r from-purple-800 to-indigo-900 text-white py-4 px-6 shadow-lg pwa-header">
         <div className="container mx-auto flex justify-between items-center">
           <div className="flex items-center gap-3">
             <Shield className="h-8 w-8" />
