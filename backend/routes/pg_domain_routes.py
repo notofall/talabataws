@@ -297,7 +297,7 @@ async def configure_domain(
         f.write(docker_compose_content)
     
     # Save setting to database
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
     result = await session.execute(
         select(SystemSetting).where(SystemSetting.key == "domain_config")
     )
