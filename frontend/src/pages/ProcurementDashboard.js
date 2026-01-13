@@ -1517,6 +1517,36 @@ const ProcurementDashboard = () => {
           </div>
         )}
 
+        {/* Rejected by GM Orders - notification bar */}
+        {rejectedByGMOrders.length > 0 && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-red-700 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4" />
+                يوجد {rejectedByGMOrders.length} أمر مرفوض من المدير العام
+              </p>
+              <Button size="sm" variant="outline" className="h-7 border-red-300 text-red-700" onClick={() => setOrdersViewMode("rejected_gm")}>
+                <Eye className="w-3 h-3 ml-1" />عرض
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Rejected by Engineer Requests - notification bar */}
+        {rejectedByEngineerRequests.length > 0 && (
+          <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-orange-700 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4" />
+                يوجد {rejectedByEngineerRequests.length} طلب مرفوض من المهندس
+              </p>
+              <Button size="sm" variant="outline" className="h-7 border-orange-300 text-orange-700" onClick={() => setRequestsViewMode("rejected")}>
+                <Eye className="w-3 h-3 ml-1" />عرض
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Purchase Orders - Improved UI */}
         <div>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
