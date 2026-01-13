@@ -128,90 +128,96 @@ function App() {
           }}
         />
         <BrowserRouter>
-          <Routes>
-            <Route
-              path="/login"
-              element={
-                <PublicRoute>
-                  <LoginPage />
-                </PublicRoute>
-              }
-            />
-            <Route
-              path="/register"
-              element={
-                <PublicRoute>
-                  <RegisterPage />
-                </PublicRoute>
-              }
-            />
-            <Route
-              path="/setup"
-              element={<SetupPage />}
-            />
-            <Route
-              path="/db-setup"
-              element={<DatabaseSetupPage />}
-            />
-            <Route
-              path="/supervisor"
-              element={
-                <ProtectedRoute allowedRoles={["supervisor"]}>
-                  <SupervisorDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/engineer"
-              element={
-                <ProtectedRoute allowedRoles={["engineer"]}>
-                  <EngineerDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/procurement"
-              element={
-                <ProtectedRoute allowedRoles={["procurement_manager"]}>
-                  <ProcurementDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/printer"
-              element={
-                <ProtectedRoute allowedRoles={["printer"]}>
-                  <PrinterDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/delivery-tracker"
-              element={
-                <ProtectedRoute allowedRoles={["delivery_tracker"]}>
-                  <DeliveryTrackerDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/general-manager"
-              element={
-                <ProtectedRoute allowedRoles={["general_manager"]}>
-                  <GeneralManagerDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/system-admin"
-              element={
-                <ProtectedRoute allowedRoles={["system_admin"]}>
-                  <SystemAdminDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="/" element={<Navigate to="/login" replace />} />
-            <Route path="*" element={<Navigate to="/login" replace />} />
-          </Routes>
+          <FirstRunCheck>
+            <Routes>
+              <Route
+                path="/login"
+                element={
+                  <PublicRoute>
+                    <LoginPage />
+                  </PublicRoute>
+                }
+              />
+              <Route
+                path="/register"
+                element={
+                  <PublicRoute>
+                    <RegisterPage />
+                  </PublicRoute>
+                }
+              />
+              <Route
+                path="/setup"
+                element={<SetupPage />}
+              />
+              <Route
+                path="/db-setup"
+                element={<DatabaseSetupPage />}
+              />
+              <Route
+                path="/first-run"
+                element={<FirstRunSetup />}
+              />
+              <Route
+                path="/supervisor"
+                element={
+                  <ProtectedRoute allowedRoles={["supervisor"]}>
+                    <SupervisorDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/engineer"
+                element={
+                  <ProtectedRoute allowedRoles={["engineer"]}>
+                    <EngineerDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/procurement"
+                element={
+                  <ProtectedRoute allowedRoles={["procurement_manager"]}>
+                    <ProcurementDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/printer"
+                element={
+                  <ProtectedRoute allowedRoles={["printer"]}>
+                    <PrinterDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/delivery-tracker"
+                element={
+                  <ProtectedRoute allowedRoles={["delivery_tracker"]}>
+                    <DeliveryTrackerDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/general-manager"
+                element={
+                  <ProtectedRoute allowedRoles={["general_manager"]}>
+                    <GeneralManagerDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/system-admin"
+                element={
+                  <ProtectedRoute allowedRoles={["system_admin"]}>
+                    <SystemAdminDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/" element={<Navigate to="/login" replace />} />
+              <Route path="*" element={<Navigate to="/login" replace />} />
+            </Routes>
+          </FirstRunCheck>
           <PWAInstallPrompt />
         </BrowserRouter>
       </div>
