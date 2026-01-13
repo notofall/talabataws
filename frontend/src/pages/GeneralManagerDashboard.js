@@ -17,9 +17,12 @@ import {
   KeyRound,
   FileText,
   Truck,
-  Download
+  Download,
+  PieChart
 } from 'lucide-react';
+import { Dialog, DialogContent } from '../components/ui/dialog';
 import ChangePasswordDialog from '../components/ChangePasswordDialog';
+import AdvancedReports from '../components/AdvancedReports';
 import { exportPurchaseOrderToPDF } from '../utils/pdfExport';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
