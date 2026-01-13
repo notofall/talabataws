@@ -1067,7 +1067,12 @@ const ProcurementDashboard = () => {
   // Filter orders by status
   const pendingApprovalOrders = filteredOrders.filter(o => o.status === "pending_approval");
   const pendingGMApprovalOrders = filteredOrders.filter(o => o.status === "pending_gm_approval");
+  const rejectedByGMOrders = filteredOrders.filter(o => o.status === "rejected_by_gm");
   const approvedOrders = filteredOrders.filter(o => o.status !== "pending_approval");
+  
+  // Filter requests by status
+  const rejectedByEngineerRequests = requests.filter(r => r.status === "rejected_by_engineer");
+  const rejectedByManagerRequests = requests.filter(r => r.status === "rejected_by_manager");
 
   return (
     <div className="min-h-screen bg-slate-50">
