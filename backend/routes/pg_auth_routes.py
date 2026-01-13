@@ -296,9 +296,9 @@ async def get_all_users_admin(
     current_user: User = Depends(get_current_user_pg),
     session: AsyncSession = Depends(get_postgres_session)
 ):
-    """Get all users - procurement manager only"""
-    if current_user.role != UserRole.PROCUREMENT_MANAGER:
-        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    """Get all users - system admin only"""
+    if current_user.role != UserRole.SYSTEM_ADMIN:
+        raise HTTPException(status_code=403, detail="فقط مدير النظام يمكنه إدارة المستخدمين")
     
     result = await session.execute(select(User).order_by(User.created_at.desc()))
     users = result.scalars().all()
@@ -325,9 +325,9 @@ async def create_user_by_admin(
     current_user: User = Depends(get_current_user_pg),
     session: AsyncSession = Depends(get_postgres_session)
 ):
-    """Create a new user - procurement manager only"""
-    if current_user.role != UserRole.PROCUREMENT_MANAGER:
-        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    """Create a new user - system admin only"""
+    if current_user.role != UserRole.SYSTEM_ADMIN:
+        raise HTTPException(status_code=403, detail="فقط مدير النظام يمكنه إنشاء المستخدمين")
     
     # Check if email exists
     result = await session.execute(select(User).where(User.email == user_data.email))
@@ -335,7 +335,7 @@ async def create_user_by_admin(
         raise HTTPException(status_code=400, detail="البريد الإلكتروني مسجل مسبقاً")
     
     # Validate role
-    valid_roles = [UserRole.SUPERVISOR, UserRole.ENGINEER, UserRole.PROCUREMENT_MANAGER,
+    valid_roles = [UserRole.SYSTEM_ADMIN, UserRole.SUPERVISOR, UserRole.ENGINEER, UserRole.PROCUREMENT_MANAGER,
                    UserRole.PRINTER, UserRole.DELIVERY_TRACKER, UserRole.GENERAL_MANAGER]
     if user_data.role not in valid_roles:
         raise HTTPException(status_code=400, detail="الدور غير صالح")
