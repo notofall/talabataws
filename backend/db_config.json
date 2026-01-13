@@ -1,9 +1,0 @@
-{
-  "db_type": "cloud",
-  "host": "eu-central-2.pg.psdb.cloud",
-  "port": 6432,
-  "database": "postgres",
-  "username": "pscale_api_35rgz9k9l8x3.0twp2nptx1ez",
-  "password": "pscale_pw_uoUpM0zkEXkJTOdOAJFS6bchIFAOK33L",
-  "ssl_mode": "require"
-}
