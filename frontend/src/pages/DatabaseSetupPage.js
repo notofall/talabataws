@@ -133,6 +133,7 @@ export default function DatabaseSetupPage() {
           <div className="grid md:grid-cols-2 gap-4">
             {/* Local Option */}
             <Card 
+              data-testid="db-type-local"
               className={`cursor-pointer transition-all hover:border-orange-500 ${dbType === 'local' ? 'border-orange-500 bg-orange-500/10' : 'bg-slate-800/50 border-slate-700'}`}
               onClick={() => setDbType('local')}
             >
@@ -163,6 +164,7 @@ export default function DatabaseSetupPage() {
             
             {/* Cloud Option */}
             <Card 
+              data-testid="db-type-cloud"
               className={`cursor-pointer transition-all hover:border-orange-500 ${dbType === 'cloud' ? 'border-orange-500 bg-orange-500/10' : 'bg-slate-800/50 border-slate-700'}`}
               onClick={() => setDbType('cloud')}
             >
