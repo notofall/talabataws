@@ -259,13 +259,16 @@ def apply_update_background(zip_path: Path, user_name: str):
             # Copy new backend files (preserve .env and data)
             for item in (source_dir / "backend").iterdir():
                 if item.name not in ['.env', 'data', 'logs', 'updates', 'backups', '__pycache__']:
-                    dest = APP_ROOT / "backend" / item.name
-                    if item.is_dir():
-                        if dest.exists():
-                            shutil.rmtree(dest)
-                        shutil.copytree(item, dest)
-                    else:
-                        shutil.copy2(item, dest)
+                    try:
+                        dest = APP_ROOT / "backend" / item.name
+                        if item.is_dir():
+                            if dest.exists():
+                                shutil.rmtree(dest)
+                            shutil.copytree(item, dest)
+                        else:
+                            shutil.copy2(item, dest)
+                    except Exception as copy_error:
+                        log_warning("Update", f"تخطي نسخ {item.name}: {copy_error}")
         
         # Step 5: Apply frontend updates
         update_status["current_step"] = "تحديث ملفات Frontend..."
