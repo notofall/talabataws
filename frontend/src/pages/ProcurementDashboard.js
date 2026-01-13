@@ -655,9 +655,63 @@ const ProcurementDashboard = () => {
         ? `${API_URL}/reports/budget?project_id=${projectId}`
         : `${API_URL}/reports/budget`;
       const res = await axios.get(url, getAuthHeaders());
-      setBudgetReport(res.data);
+      
+      // Transform API response to match expected format
+      const apiData = res.data;
+      const transformedData = {
+        total_estimated: apiData.summary?.total_budget || 0,
+        total_spent: apiData.summary?.total_spent || 0,
+        total_remaining: apiData.summary?.total_remaining || 0,
+        overall_variance_percentage: apiData.summary?.overall_percentage || 0,
+        categories: [],
+        over_budget: [],
+        project: null
+      };
+      
+      // If filtering by project, get that project's data
+      if (projectId && apiData.projects?.length > 0) {
+        const project = apiData.projects[0];
+        transformedData.project = {
+          name: project.project_name,
+          owner_name: "",
+          location: ""
+        };
+        transformedData.categories = project.categories?.map(cat => ({
+          id: cat.category_id,
+          name: cat.category_name,
+          project_name: project.project_name,
+          estimated_budget: cat.budget,
+          actual_spent: cat.spent,
+          remaining: cat.remaining,
+          status: cat.remaining < 0 ? 'over_budget' : 'within_budget'
+        })) || [];
+        transformedData.total_estimated = project.total_budget;
+        transformedData.total_spent = project.total_spent;
+        transformedData.total_remaining = project.remaining;
+      } else {
+        // Get all categories from all projects
+        apiData.projects?.forEach(project => {
+          project.categories?.forEach(cat => {
+            transformedData.categories.push({
+              id: cat.category_id,
+              name: cat.category_name,
+              project_name: project.project_name,
+              estimated_budget: cat.budget,
+              actual_spent: cat.spent,
+              remaining: cat.remaining,
+              status: cat.remaining < 0 ? 'over_budget' : 'within_budget'
+            });
+          });
+        });
+      }
+      
+      // Filter over budget categories
+      transformedData.over_budget = transformedData.categories.filter(cat => cat.remaining < 0);
+      
+      setBudgetReport(transformedData);
       setBudgetReportDialogOpen(true);
     } catch (error) {
+      console.error("Budget report error:", error);
       toast.error("فشل في تحميل تقرير الميزانية");
     }
   };
