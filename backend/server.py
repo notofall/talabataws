@@ -5410,6 +5410,7 @@ from routes.pg_requests_routes import pg_requests_router
 from routes.pg_orders_routes import pg_orders_router
 from routes.pg_settings_routes import pg_settings_router
 from routes.pg_sysadmin_routes import pg_sysadmin_router
+from routes.pg_catalog_routes import pg_catalog_router
 
 app.include_router(pg_auth_router)
 app.include_router(pg_projects_router)
@@ -5419,6 +5420,7 @@ app.include_router(pg_requests_router)
 app.include_router(pg_orders_router)
 app.include_router(pg_settings_router)
 app.include_router(pg_sysadmin_router)
+app.include_router(pg_catalog_router)
 
 app.add_middleware(
     CORSMiddleware,
