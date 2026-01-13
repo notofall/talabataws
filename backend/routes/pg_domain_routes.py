@@ -283,7 +283,7 @@ async def configure_domain(
         "ssl_enabled": domain_config.enable_ssl,
         "ssl_mode": domain_config.ssl_mode,
         "admin_email": domain_config.admin_email,
-        "configured_at": datetime.now(timezone.utc).isoformat(),
+        "configured_at": datetime.utcnow().isoformat(),
         "configured_by": current_user.name
     }
     save_domain_config(config)
