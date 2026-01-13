@@ -1078,16 +1078,16 @@ export default function SystemAdminDashboard() {
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Lock className="h-5 w-5 text-green-600" />
-                      إعداد Let's Encrypt
+                      إعداد Let&apos;s Encrypt
                     </CardTitle>
-                    <CardDescription>الحصول على شهادة SSL مجانية من Let's Encrypt</CardDescription>
+                    <CardDescription>الحصول على شهادة SSL مجانية من Let&apos;s Encrypt</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
                       <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                         <div className="flex items-center gap-2 text-blue-700 font-medium mb-2">
                           <Info className="h-5 w-5" />
-                          متطلبات Let's Encrypt
+                          متطلبات Let&apos;s Encrypt
                         </div>
                         <ul className="list-disc list-inside text-sm text-blue-600 space-y-1">
                           <li>الدومين يجب أن يشير إلى عنوان IP الخادم</li>
