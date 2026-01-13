@@ -110,6 +110,10 @@ function App() {
               element={<SetupPage />}
             />
             <Route
+              path="/db-setup"
+              element={<DatabaseSetupPage />}
+            />
+            <Route
               path="/supervisor"
               element={
                 <ProtectedRoute allowedRoles={["supervisor"]}>
