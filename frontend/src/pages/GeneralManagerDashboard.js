@@ -236,6 +236,16 @@ export default function GeneralManagerDashboard() {
               <Button
                 variant="ghost"
                 size="sm"
+                onClick={() => setAdvancedReportsOpen(true)}
+                className="text-white hover:bg-white/20 h-8 px-2"
+                title="التقارير المتقدمة"
+              >
+                <PieChart className="w-4 h-4" />
+                <span className="hidden sm:inline mr-1">التقارير</span>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => setPasswordDialogOpen(true)}
                 className="text-white hover:bg-white/20 h-8 px-2"
               >
