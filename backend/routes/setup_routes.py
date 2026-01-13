@@ -8,11 +8,14 @@ from typing import Optional
 import os
 import json
 from pathlib import Path
+from datetime import datetime
 
 setup_router = APIRouter(prefix="/api/setup", tags=["Setup"])
 
-# Configuration file path
+# Configuration file paths
 CONFIG_FILE = Path("/app/backend/db_config.json")
+ENV_FILE = Path("/app/backend/.env")
+SETUP_COMPLETE_FILE = Path("/app/backend/.setup_complete")
 
 class DatabaseConfig(BaseModel):
     """Database configuration model"""
@@ -24,12 +27,25 @@ class DatabaseConfig(BaseModel):
     password: str
     ssl_mode: str = "require"  # "require" for cloud, "disable" for local
     
+class AdminUserConfig(BaseModel):
+    """Initial admin user configuration"""
+    name: str = "مدير النظام"
+    email: str
+    password: str
+    
+class FullSetupConfig(BaseModel):
+    """Complete setup configuration"""
+    database: DatabaseConfig
+    admin_user: Optional[AdminUserConfig] = None
+    
 class SetupStatus(BaseModel):
     """Setup status response"""
     is_configured: bool
+    needs_setup: bool
     db_type: Optional[str] = None
     host: Optional[str] = None
     database: Optional[str] = None
+    setup_date: Optional[str] = None
 
 
 def get_config() -> Optional[dict]:
