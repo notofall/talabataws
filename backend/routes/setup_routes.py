@@ -113,24 +113,37 @@ async def get_setup_status():
     """Check if database is configured"""
     config = get_config()
     
+    # Get setup date if available
+    setup_date = None
+    if SETUP_COMPLETE_FILE.exists():
+        try:
+            with open(SETUP_COMPLETE_FILE, 'r') as f:
+                setup_date = f.read().strip()
+        except:
+            pass
+    
     if config:
         return SetupStatus(
             is_configured=True,
+            needs_setup=False,
             db_type=config.get("db_type"),
             host=config.get("host"),
-            database=config.get("database")
+            database=config.get("database"),
+            setup_date=setup_date
         )
     
     # Check if using environment variables (backward compatibility)
     if os.environ.get("POSTGRES_HOST"):
         return SetupStatus(
             is_configured=True,
+            needs_setup=False,
             db_type="env",
             host=os.environ.get("POSTGRES_HOST"),
-            database=os.environ.get("POSTGRES_DB")
+            database=os.environ.get("POSTGRES_DB"),
+            setup_date=setup_date
         )
     
-    return SetupStatus(is_configured=False)
+    return SetupStatus(is_configured=False, needs_setup=True)
 
 
 @setup_router.post("/test-connection")
