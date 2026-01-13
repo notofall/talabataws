@@ -2,12 +2,15 @@
 System Monitoring and Updates API
 For System Administrator
 """
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, BackgroundTasks
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, timedelta
 import os
 import json
+import shutil
+import zipfile
+import subprocess
 from pathlib import Path
 
 from routes.pg_auth_routes import get_current_user_pg, UserRole
@@ -15,9 +18,11 @@ from database import User
 
 system_router = APIRouter(prefix="/api/pg/system", tags=["System"])
 
-# Version file
+# Paths
 VERSION_FILE = Path("/app/backend/version.json")
 LOGS_DIR = Path("/app/backend/logs")
+UPDATES_DIR = Path("/app/backend/updates")
+APP_ROOT = Path("/app")
 ERROR_LOG_FILE = LOGS_DIR / "errors.log"
 
 # Ensure logs directory exists
