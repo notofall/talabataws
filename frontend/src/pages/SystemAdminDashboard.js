@@ -16,7 +16,7 @@ import {
   Plus, Edit, Key, Shield, Building2, Image, FileText,
   LogOut, RefreshCw, AlertTriangle, History, Search, Filter,
   Server, Activity, HardDrive, Cpu, MemoryStick, Clock,
-  Terminal, CheckCircle2, XCircle, Info, Wrench
+  Terminal, CheckCircle2, XCircle, Info, Wrench, Globe, Lock, Copy, ExternalLink
 } from "lucide-react";
 
 export default function SystemAdminDashboard() {
