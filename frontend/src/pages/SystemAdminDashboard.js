@@ -876,6 +876,403 @@ export default function SystemAdminDashboard() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* System Tools Tab */}
+          <TabsContent value="system">
+            <div className="space-y-6">
+              {/* System Info & Update Section */}
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* System Information Card */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Server className="h-5 w-5 text-blue-600" />
+                      معلومات النظام
+                    </CardTitle>
+                    <CardDescription>معلومات الخادم والموارد</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {systemLoading ? (
+                      <div className="flex justify-center py-8">
+                        <RefreshCw className="h-8 w-8 animate-spin text-blue-600" />
+                      </div>
+                    ) : systemInfo ? (
+                      <div className="space-y-4">
+                        {/* Version Info */}
+                        <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg">
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="font-medium">إصدار النظام</span>
+                            <Badge variant="secondary" className="text-lg">{systemInfo.version}</Badge>
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            تاريخ البناء: {systemInfo.build_date}
+                          </div>
+                        </div>
+                        
+                        {/* Server Info */}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="p-3 bg-gray-50 rounded-lg">
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                              <HardDrive className="h-4 w-4" />
+                              نظام التشغيل
+                            </div>
+                            <div className="font-medium">{systemInfo.server?.os} {systemInfo.server?.os_version}</div>
+                          </div>
+                          <div className="p-3 bg-gray-50 rounded-lg">
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                              <Terminal className="h-4 w-4" />
+                              Python
+                            </div>
+                            <div className="font-medium">{systemInfo.server?.python_version}</div>
+                          </div>
+                        </div>
+
+                        {/* Resources */}
+                        <div className="space-y-3">
+                          {/* CPU */}
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-sm">
+                              <span className="flex items-center gap-2">
+                                <Cpu className="h-4 w-4 text-orange-500" />
+                                المعالج (CPU)
+                              </span>
+                              <span className="font-medium">{systemInfo.resources?.cpu_percent}%</span>
+                            </div>
+                            <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full rounded-full transition-all ${
+                                  systemInfo.resources?.cpu_percent > 80 ? 'bg-red-500' : 
+                                  systemInfo.resources?.cpu_percent > 50 ? 'bg-yellow-500' : 'bg-green-500'
+                                }`}
+                                style={{ width: `${systemInfo.resources?.cpu_percent || 0}%` }}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Memory */}
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-sm">
+                              <span className="flex items-center gap-2">
+                                <Activity className="h-4 w-4 text-blue-500" />
+                                الذاكرة (RAM)
+                              </span>
+                              <span className="font-medium">
+                                {systemInfo.resources?.memory_used_gb} / {systemInfo.resources?.memory_total_gb} GB ({systemInfo.resources?.memory_percent}%)
+                              </span>
+                            </div>
+                            <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full rounded-full transition-all ${
+                                  systemInfo.resources?.memory_percent > 80 ? 'bg-red-500' : 
+                                  systemInfo.resources?.memory_percent > 50 ? 'bg-yellow-500' : 'bg-green-500'
+                                }`}
+                                style={{ width: `${systemInfo.resources?.memory_percent || 0}%` }}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Disk */}
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-sm">
+                              <span className="flex items-center gap-2">
+                                <HardDrive className="h-4 w-4 text-purple-500" />
+                                القرص
+                              </span>
+                              <span className="font-medium">
+                                {systemInfo.resources?.disk_used_gb} / {systemInfo.resources?.disk_total_gb} GB ({systemInfo.resources?.disk_percent}%)
+                              </span>
+                            </div>
+                            <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full rounded-full transition-all ${
+                                  systemInfo.resources?.disk_percent > 80 ? 'bg-red-500' : 
+                                  systemInfo.resources?.disk_percent > 50 ? 'bg-yellow-500' : 'bg-green-500'
+                                }`}
+                                style={{ width: `${systemInfo.resources?.disk_percent || 0}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <Button variant="outline" onClick={fetchSystemInfo} className="w-full">
+                          <RefreshCw className="ml-2 h-4 w-4" />
+                          تحديث المعلومات
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Server className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p>اضغط على "أدوات النظام" لتحميل المعلومات</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Updates Card */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Wrench className="h-5 w-5 text-green-600" />
+                      التحديثات
+                    </CardTitle>
+                    <CardDescription>التحقق من تحديثات النظام وتطبيقها</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {systemLoading ? (
+                      <div className="flex justify-center py-8">
+                        <RefreshCw className="h-8 w-8 animate-spin text-green-600" />
+                      </div>
+                    ) : updateInfo ? (
+                      <div className="space-y-4">
+                        {/* Current Version */}
+                        <div className="p-4 bg-gray-50 rounded-lg">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-muted-foreground">الإصدار الحالي</span>
+                            <Badge variant="outline">{updateInfo.current_version}</Badge>
+                          </div>
+                        </div>
+
+                        {/* Update Status */}
+                        {updateInfo.update_available ? (
+                          <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                            <div className="flex items-center gap-2 text-green-700 font-medium mb-2">
+                              <CheckCircle2 className="h-5 w-5" />
+                              تحديث جديد متاح!
+                            </div>
+                            <div className="text-sm text-green-600 mb-3">
+                              الإصدار الجديد: {updateInfo.latest_version}
+                            </div>
+                            {updateInfo.release_notes?.length > 0 && (
+                              <div className="text-sm mb-3">
+                                <p className="font-medium mb-1">ملاحظات الإصدار:</p>
+                                <ul className="list-disc list-inside text-muted-foreground">
+                                  {updateInfo.release_notes.map((note, i) => (
+                                    <li key={i}>{note}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            <Button 
+                              onClick={handleApplyUpdate} 
+                              disabled={applyingUpdate}
+                              className="w-full bg-green-600 hover:bg-green-700"
+                            >
+                              {applyingUpdate ? (
+                                <RefreshCw className="ml-2 h-4 w-4 animate-spin" />
+                              ) : (
+                                <Download className="ml-2 h-4 w-4" />
+                              )}
+                              تطبيق التحديث
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                            <div className="flex items-center gap-2 text-blue-700 font-medium">
+                              <CheckCircle2 className="h-5 w-5" />
+                              النظام محدث إلى آخر إصدار
+                            </div>
+                            <p className="text-sm text-blue-600 mt-1">
+                              أنت تستخدم الإصدار {updateInfo.current_version}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Release Notes */}
+                        {systemInfo?.release_notes?.length > 0 && (
+                          <div className="p-4 bg-gray-50 rounded-lg">
+                            <p className="font-medium mb-2 text-sm">آخر التحديثات:</p>
+                            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                              {systemInfo.release_notes.map((note, i) => (
+                                <li key={i}>{note}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        <Button variant="outline" onClick={fetchSystemInfo} className="w-full">
+                          <RefreshCw className="ml-2 h-4 w-4" />
+                          التحقق من التحديثات
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Wrench className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p>اضغط على "أدوات النظام" للتحقق من التحديثات</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Database Stats */}
+              {dbStats && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Database className="h-5 w-5 text-purple-600" />
+                      إحصائيات قاعدة البيانات
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                      <div className="p-4 bg-purple-50 rounded-lg text-center">
+                        <p className="text-2xl font-bold text-purple-700">{dbStats.tables?.users || 0}</p>
+                        <p className="text-sm text-muted-foreground">المستخدمين</p>
+                      </div>
+                      <div className="p-4 bg-blue-50 rounded-lg text-center">
+                        <p className="text-2xl font-bold text-blue-700">{dbStats.tables?.purchase_orders || 0}</p>
+                        <p className="text-sm text-muted-foreground">أوامر الشراء</p>
+                      </div>
+                      <div className="p-4 bg-green-50 rounded-lg text-center">
+                        <p className="text-2xl font-bold text-green-700">{dbStats.tables?.material_requests || 0}</p>
+                        <p className="text-sm text-muted-foreground">طلبات المواد</p>
+                      </div>
+                      <div className="p-4 bg-orange-50 rounded-lg text-center">
+                        <p className="text-2xl font-bold text-orange-700">{dbStats.tables?.projects || 0}</p>
+                        <p className="text-sm text-muted-foreground">المشاريع</p>
+                      </div>
+                      <div className="p-4 bg-pink-50 rounded-lg text-center">
+                        <p className="text-2xl font-bold text-pink-700">{dbStats.tables?.suppliers || 0}</p>
+                        <p className="text-sm text-muted-foreground">الموردين</p>
+                      </div>
+                    </div>
+                    <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
+                      <span>نوع قاعدة البيانات: {dbStats.database_type}</span>
+                      <span>حجم Pool: {dbStats.connection_pool?.size} (max: {dbStats.connection_pool?.size + dbStats.connection_pool?.max_overflow})</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* System Logs Section */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Terminal className="h-5 w-5 text-gray-600" />
+                    سجلات النظام
+                  </CardTitle>
+                  <CardDescription>عرض سجلات الأخطاء والتحذيرات</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {/* Logs Stats */}
+                  {systemLogsStats.total > 0 && (
+                    <div className="grid grid-cols-4 gap-4 mb-4">
+                      <div className="p-3 bg-gray-100 rounded-lg text-center">
+                        <p className="text-xl font-bold">{systemLogsStats.total}</p>
+                        <p className="text-xs text-muted-foreground">إجمالي</p>
+                      </div>
+                      <div className="p-3 bg-red-100 rounded-lg text-center">
+                        <p className="text-xl font-bold text-red-700">{systemLogsStats.errors}</p>
+                        <p className="text-xs text-muted-foreground">أخطاء</p>
+                      </div>
+                      <div className="p-3 bg-yellow-100 rounded-lg text-center">
+                        <p className="text-xl font-bold text-yellow-700">{systemLogsStats.warnings}</p>
+                        <p className="text-xs text-muted-foreground">تحذيرات</p>
+                      </div>
+                      <div className="p-3 bg-blue-100 rounded-lg text-center">
+                        <p className="text-xl font-bold text-blue-700">{systemLogsStats.today}</p>
+                        <p className="text-xs text-muted-foreground">اليوم</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Filters */}
+                  <div className="flex flex-wrap gap-4 mb-4">
+                    <Select 
+                      value={logFilter.level} 
+                      onValueChange={(value) => setLogFilter(prev => ({ ...prev, level: value }))}
+                    >
+                      <SelectTrigger className="w-[150px]">
+                        <SelectValue placeholder="المستوى" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ALL">الكل</SelectItem>
+                        <SelectItem value="ERROR">أخطاء</SelectItem>
+                        <SelectItem value="WARNING">تحذيرات</SelectItem>
+                        <SelectItem value="INFO">معلومات</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    
+                    <Select 
+                      value={logFilter.limit.toString()} 
+                      onValueChange={(value) => setLogFilter(prev => ({ ...prev, limit: parseInt(value) }))}
+                    >
+                      <SelectTrigger className="w-[120px]">
+                        <SelectValue placeholder="العدد" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="50">50 سجل</SelectItem>
+                        <SelectItem value="100">100 سجل</SelectItem>
+                        <SelectItem value="200">200 سجل</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    
+                    <Button variant="outline" onClick={fetchSystemLogs} disabled={logsLoading}>
+                      <RefreshCw className={`ml-2 h-4 w-4 ${logsLoading ? 'animate-spin' : ''}`} />
+                      تحديث
+                    </Button>
+                    
+                    <Button variant="outline" className="text-red-600" onClick={() => handleClearOldLogs(30)}>
+                      <Trash2 className="ml-2 h-4 w-4" />
+                      حذف القديم (30 يوم+)
+                    </Button>
+                  </div>
+
+                  {/* Logs Table */}
+                  {logsLoading ? (
+                    <div className="flex justify-center py-8">
+                      <RefreshCw className="h-8 w-8 animate-spin text-gray-500" />
+                    </div>
+                  ) : systemLogs.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Terminal className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>لا توجد سجلات</p>
+                      <p className="text-sm">اضغط على "تحديث" لتحميل السجلات</p>
+                    </div>
+                  ) : (
+                    <div className="border rounded-lg overflow-hidden max-h-[400px] overflow-y-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted/50 sticky top-0">
+                          <tr>
+                            <th className="px-4 py-2 text-right font-medium">الوقت</th>
+                            <th className="px-4 py-2 text-right font-medium">المستوى</th>
+                            <th className="px-4 py-2 text-right font-medium">المصدر</th>
+                            <th className="px-4 py-2 text-right font-medium">الرسالة</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {systemLogs.map((log, index) => (
+                            <tr key={index} className="hover:bg-muted/30">
+                              <td className="px-4 py-2 whitespace-nowrap text-muted-foreground text-xs">
+                                {log.timestamp ? new Date(log.timestamp).toLocaleString('ar-SA', {
+                                  month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                                }) : '-'}
+                              </td>
+                              <td className="px-4 py-2">
+                                <Badge 
+                                  className={`text-xs ${
+                                    log.level === 'ERROR' ? 'bg-red-100 text-red-700' : 
+                                    log.level === 'WARNING' ? 'bg-yellow-100 text-yellow-700' : 
+                                    'bg-blue-100 text-blue-700'
+                                  }`}
+                                >
+                                  {log.level === 'ERROR' ? 'خطأ' : log.level === 'WARNING' ? 'تحذير' : 'معلومة'}
+                                </Badge>
+                              </td>
+                              <td className="px-4 py-2 font-mono text-xs">{log.source}</td>
+                              <td className="px-4 py-2 max-w-xs truncate" title={log.message}>
+                                {log.message}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
         </Tabs>
       </div>
 
