@@ -10,6 +10,7 @@ import PrinterDashboard from "./pages/PrinterDashboard";
 import DeliveryTrackerDashboard from "./pages/DeliveryTrackerDashboard";
 import GeneralManagerDashboard from "./pages/GeneralManagerDashboard";
 import SystemAdminDashboard from "./pages/SystemAdminDashboard";
+import PWAInstallPrompt from "./components/PWAInstallPrompt";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import "./App.css";
 
