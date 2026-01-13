@@ -355,16 +355,11 @@ export default function DatabaseSetupPage() {
                 </Button>
                 
                 <Button
-                  onClick={configureDatabase}
-                  disabled={configuring || !testResult?.success}
+                  onClick={() => setStep(3)}
+                  disabled={!testResult?.success}
                   className="flex-1 bg-orange-600 hover:bg-orange-700"
                 >
-                  {configuring ? (
-                    <Loader2 className="w-4 h-4 animate-spin ml-2" />
-                  ) : (
-                    <Settings className="w-4 h-4 ml-2" />
-                  )}
-                  تثبيت وتهيئة
+                  التالي
                 </Button>
               </div>
             </CardContent>
@@ -374,7 +369,125 @@ export default function DatabaseSetupPage() {
     );
   }
 
-  // Step 3: Success
+  // Step 3: Create Admin User
+  if (step === 3) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4" dir="rtl">
+        <div className="w-full max-w-xl">
+          <Card className="bg-slate-800/50 border-slate-700">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <Button variant="ghost" size="sm" onClick={() => setStep(2)} className="text-slate-400">
+                  <ArrowLeft className="w-4 h-4" />
+                </Button>
+                <div>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <User className="w-5 h-5" />
+                    إنشاء حساب مدير النظام
+                  </CardTitle>
+                  <CardDescription>أنشئ حساب المسؤول الأول للنظام</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Admin Name */}
+              <div>
+                <Label className="text-slate-300">الاسم</Label>
+                <div className="relative">
+                  <Input
+                    value={adminUser.name}
+                    onChange={(e) => setAdminUser(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="مدير النظام"
+                    className="bg-slate-700 border-slate-600 text-white mt-1 pr-10"
+                  />
+                  <User className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                </div>
+              </div>
+              
+              {/* Admin Email */}
+              <div>
+                <Label className="text-slate-300">البريد الإلكتروني</Label>
+                <div className="relative">
+                  <Input
+                    type="email"
+                    value={adminUser.email}
+                    onChange={(e) => setAdminUser(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="admin@company.com"
+                    className="bg-slate-700 border-slate-600 text-white mt-1 pr-10"
+                  />
+                  <Mail className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                </div>
+              </div>
+              
+              {/* Admin Password */}
+              <div>
+                <Label className="text-slate-300">كلمة المرور</Label>
+                <div className="relative">
+                  <Input
+                    type={showAdminPassword ? 'text' : 'password'}
+                    value={adminUser.password}
+                    onChange={(e) => setAdminUser(prev => ({ ...prev, password: e.target.value }))}
+                    placeholder="••••••••"
+                    className="bg-slate-700 border-slate-600 text-white mt-1 px-10"
+                  />
+                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <button
+                    type="button"
+                    onClick={() => setShowAdminPassword(!showAdminPassword)}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                  >
+                    {showAdminPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">يجب أن تكون 6 أحرف على الأقل</p>
+              </div>
+              
+              {/* Summary */}
+              <div className="p-4 bg-slate-700/50 rounded-lg">
+                <h4 className="text-sm font-medium text-white mb-2">ملخص الإعداد:</h4>
+                <div className="text-sm text-slate-400 space-y-1">
+                  <p>• نوع القاعدة: {dbType === 'local' ? 'خادم محلي' : 'سحابية'}</p>
+                  <p>• الخادم: {config.host}:{config.port}</p>
+                  <p>• قاعدة البيانات: {config.database}</p>
+                  <p>• المسؤول: {adminUser.email || '(لم يتم تحديده)'}</p>
+                </div>
+              </div>
+              
+              {/* Actions */}
+              <div className="flex gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setAdminUser({ name: '', email: '', password: '' });
+                    configureDatabase();
+                  }}
+                  disabled={configuring}
+                  className="flex-1"
+                >
+                  تخطي (بدون مسؤول)
+                </Button>
+                
+                <Button
+                  onClick={configureDatabase}
+                  disabled={configuring || !adminUser.email || adminUser.password.length < 6}
+                  className="flex-1 bg-orange-600 hover:bg-orange-700"
+                >
+                  {configuring ? (
+                    <Loader2 className="w-4 h-4 animate-spin ml-2" />
+                  ) : (
+                    <Settings className="w-4 h-4 ml-2" />
+                  )}
+                  إكمال الإعداد
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // Step 4: Success
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4" dir="rtl">
       <Card className="bg-slate-800/50 border-slate-700 max-w-md w-full text-center">
@@ -385,8 +498,15 @@ export default function DatabaseSetupPage() {
           <h2 className="text-2xl font-bold text-white mb-2">تم الإعداد بنجاح!</h2>
           <p className="text-slate-400 mb-6">
             تم إعداد قاعدة البيانات وإنشاء جميع الجداول المطلوبة.
+            {adminUser.email && (
+              <>
+                <br />
+                <span className="text-green-400">تم إنشاء حساب المسؤول: {adminUser.email}</span>
+              </>
+            )}
             <br />
-            جاري إعادة التوجيه...
+            <br />
+            جاري إعادة التوجيه إلى صفحة تسجيل الدخول...
           </p>
           <Loader2 className="w-6 h-6 animate-spin mx-auto text-orange-500" />
         </CardContent>
