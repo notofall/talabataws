@@ -1123,14 +1123,6 @@ const ProcurementDashboard = () => {
               <p className="text-xs text-slate-500 px-3 py-2 font-medium">إدارة البيانات</p>
               
               <button 
-                onClick={() => { setUserManagementOpen(true); setMobileMenuOpen(false); }}
-                className="w-full flex items-center gap-3 px-3 py-3 text-slate-300 hover:bg-slate-800 rounded-lg transition-colors"
-              >
-                <UserCog className="w-5 h-5 text-blue-400" />
-                <span className="text-sm">إدارة المستخدمين</span>
-              </button>
-              
-              <button 
                 onClick={() => { setBudgetDialogOpen(true); setMobileMenuOpen(false); }}
                 className="w-full flex items-center gap-3 px-3 py-3 text-slate-300 hover:bg-slate-800 rounded-lg transition-colors"
               >
@@ -1154,8 +1146,8 @@ const ProcurementDashboard = () => {
                 <span className="text-sm">كتالوج الأسعار</span>
               </button>
               
-              {/* التصدير والنسخ */}
-              <p className="text-xs text-slate-500 px-3 py-2 font-medium mt-4">التصدير والنسخ الاحتياطي</p>
+              {/* التصدير */}
+              <p className="text-xs text-slate-500 px-3 py-2 font-medium mt-4">التصدير</p>
               
               <button 
                 onClick={() => { setExportDialogOpen(true); setMobileMenuOpen(false); }}
@@ -1163,14 +1155,6 @@ const ProcurementDashboard = () => {
               >
                 <Download className="w-5 h-5 text-green-400" />
                 <span className="text-sm">تصدير التقارير PDF</span>
-              </button>
-              
-              <button 
-                onClick={() => { openBackupDialog(); setMobileMenuOpen(false); }}
-                className="w-full flex items-center gap-3 px-3 py-3 text-slate-300 hover:bg-slate-800 rounded-lg transition-colors"
-              >
-                <Database className="w-5 h-5 text-cyan-400" />
-                <span className="text-sm">النسخ الاحتياطي</span>
               </button>
               
               {/* إعدادات الحساب */}
@@ -1182,14 +1166,6 @@ const ProcurementDashboard = () => {
               >
                 <KeyRound className="w-5 h-5 text-yellow-400" />
                 <span className="text-sm">تغيير كلمة المرور</span>
-              </button>
-              
-              <button 
-                onClick={() => { setCleanDataDialogOpen(true); setMobileMenuOpen(false); }}
-                className="w-full flex items-center gap-3 px-3 py-3 text-slate-300 hover:bg-slate-800 rounded-lg transition-colors"
-              >
-                <Trash2 className="w-5 h-5 text-red-400" />
-                <span className="text-sm">تنظيف البيانات</span>
               </button>
             </div>
             
