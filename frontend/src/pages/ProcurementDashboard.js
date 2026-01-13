@@ -11,11 +11,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Badge } from "../components/ui/badge";
 import { Checkbox } from "../components/ui/checkbox";
-import { Package, LogOut, Clock, CheckCircle, RefreshCw, FileText, ShoppingCart, Truck, Eye, Download, Calendar, Filter, Check, AlertCircle, Plus, Users, X, Edit, DollarSign, BarChart3, Trash2, KeyRound, Loader2, Search, Database, Upload, HardDrive, TrendingUp, UserCog, Menu, Settings, ChevronLeft } from "lucide-react";
+import { Package, LogOut, Clock, CheckCircle, RefreshCw, FileText, ShoppingCart, Truck, Eye, Download, Calendar, Filter, Check, AlertCircle, Plus, Users, X, Edit, DollarSign, BarChart3, Trash2, KeyRound, Loader2, Search, TrendingUp, Menu, Settings, ChevronLeft } from "lucide-react";
 import { exportRequestToPDF, exportPurchaseOrderToPDF, exportRequestsTableToPDF, exportPurchaseOrdersTableToPDF, exportBudgetReportToPDF, exportCostReportToPDF } from "../utils/pdfExport";
 import ChangePasswordDialog from "../components/ChangePasswordDialog";
 import SearchableSelect from "../components/SearchableSelect";
-import UserManagement from "../components/UserManagement";
 
 // Skeleton loader component for better UX during loading
 const SkeletonLoader = ({ rows = 5 }) => (
