@@ -328,11 +328,17 @@ async def get_budget_report(
             "project_id": project.id,
             "project_name": project.name,
             "categories": [],
-            "total_spent": 0
+            "total_spent": 0,
+            "total_budget": 0
         }
         
-        # Get spending per category for this project
-        for category in categories:
+        # Get categories for this project
+        project_cats_result = await session.execute(
+            select(BudgetCategory).where(BudgetCategory.project_id == project.id)
+        )
+        project_cats = project_cats_result.scalars().all()
+        
+        for category in project_cats:
             # Sum of approved orders in this category for this project
             spending_result = await session.execute(
                 select(func.coalesce(func.sum(PurchaseOrder.total_amount), 0))
@@ -344,57 +350,33 @@ async def get_budget_report(
                 )
             )
             spent = float(spending_result.scalar() or 0)
+            cat_budget = float(category.estimated_budget or 0)
             
-            cat_budget = float(category.budget or 0)
-            
-            if spent > 0 or cat_budget > 0:
-                project_budget["categories"].append({
-                    "category_id": category.id,
-                    "category_name": category.name,
-                    "budget": cat_budget,
-                    "spent": spent,
-                    "remaining": cat_budget - spent,
-                    "percentage": round((spent / cat_budget * 100), 1) if cat_budget > 0 else 0
-                })
-            
-            project_budget["total_spent"] += spent
-        
-        if project_budget["total_spent"] > 0 or project_budget["categories"]:
-            budget_data.append(project_budget)
-    
-    # Get overall category totals
-    category_totals = []
-    for category in categories:
-        total_budget = float(category.budget or 0)
-        
-        # Total spent in this category across all projects
-        total_spent_result = await session.execute(
-            select(func.coalesce(func.sum(PurchaseOrder.total_amount), 0))
-            .select_from(PurchaseOrder)
-            .where(
-                PurchaseOrder.category_id == category.id,
-                PurchaseOrder.status.in_(["approved", "printed", "shipped", "delivered"])
-            )
-        )
-        total_spent = float(total_spent_result.scalar() or 0)
-        
-        if total_budget > 0 or total_spent > 0:
-            category_totals.append({
+            project_budget["categories"].append({
                 "category_id": category.id,
                 "category_name": category.name,
-                "budget": total_budget,
-                "spent": total_spent,
-                "remaining": total_budget - total_spent,
-                "percentage": round((total_spent / total_budget * 100), 1) if total_budget > 0 else 0
+                "budget": cat_budget,
+                "spent": spent,
+                "remaining": cat_budget - spent,
+                "percentage": round((spent / cat_budget * 100), 1) if cat_budget > 0 else 0
             })
+            
+            project_budget["total_spent"] += spent
+            project_budget["total_budget"] += cat_budget
+        
+        project_budget["remaining"] = project_budget["total_budget"] - project_budget["total_spent"]
+        project_budget["percentage"] = round(
+            (project_budget["total_spent"] / project_budget["total_budget"] * 100), 1
+        ) if project_budget["total_budget"] > 0 else 0
+        
+        budget_data.append(project_budget)
     
     # Summary
-    total_all_budgets = sum(c["budget"] for c in category_totals)
-    total_all_spent = sum(c["spent"] for c in category_totals)
+    total_all_budgets = sum(p["total_budget"] for p in budget_data)
+    total_all_spent = sum(p["total_spent"] for p in budget_data)
     
     return {
         "projects": budget_data,
-        "categories": category_totals,
         "summary": {
             "total_budget": total_all_budgets,
             "total_spent": total_all_spent,
