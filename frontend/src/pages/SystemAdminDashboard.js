@@ -122,6 +122,24 @@ export default function SystemAdminDashboard() {
     }
   }, [API_URL, getAuthHeaders]);
 
+  // Fetch Audit Logs
+  const fetchAuditLogs = useCallback(async () => {
+    setAuditLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (auditFilter.entity_type) params.append("entity_type", auditFilter.entity_type);
+      params.append("limit", auditFilter.limit.toString());
+      
+      const response = await axios.get(`${API_URL}/settings/audit-logs?${params}`, getAuthHeaders());
+      setAuditLogs(response.data);
+    } catch (error) {
+      console.error("Error fetching audit logs:", error);
+      toast.error("فشل في تحميل سجل التدقيق");
+    } finally {
+      setAuditLoading(false);
+    }
+  }, [API_URL, getAuthHeaders, auditFilter]);
+
   useEffect(() => {
     fetchData();
   }, [fetchData]);
