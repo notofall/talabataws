@@ -21,8 +21,6 @@ a[href*="emergent.sh"][style*="position: fixed"] {
 /* PWA Safe Area Support */
 html {
     /* iOS PWA safe area support */
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
 }
@@ -39,61 +37,38 @@ body {
     min-height: -webkit-fill-available;
 }
 
-/* PWA App Shell - Fixed header safe area */
+/* PWA App Shell - Header with safe area (constant for iOS 11, env for iOS 11.2+) */
 .pwa-header {
-    padding-top: env(safe-area-inset-top, 0px) !important;
-    /* Minimum padding for status bar */
-    padding-top: max(env(safe-area-inset-top, 0px), 0px) !important;
+    padding-top: constant(safe-area-inset-top) !important;
+    padding-top: env(safe-area-inset-top) !important;
 }
 
 /* PWA App Shell - Fixed bottom navigation safe area */
 .pwa-bottom-nav {
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-}
-
-/* PWA: Main content area with safe areas */
-.pwa-main {
-    padding-top: env(safe-area-inset-top, 0px);
-    min-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    padding-bottom: constant(safe-area-inset-bottom);
+    padding-bottom: env(safe-area-inset-bottom);
 }
 
 /* PWA: Standalone mode detection - iOS Safari PWA */
 @media all and (display-mode: standalone) {
-    html {
-        /* Remove default padding, handle in header */
-        padding-top: 0 !important;
-    }
-    
-    body {
-        /* No extra padding on body */
-        padding-top: 0 !important;
-    }
-    
     /* Add safe area to headers in standalone mode */
-    .pwa-header {
-        padding-top: env(safe-area-inset-top, 20px) !important;
-        /* Fallback for older iOS */
+    .pwa-header,
+    header,
+    .bg-slate-900.sticky,
+    .bg-slate-800,
+    [class*="bg-gradient-to"] {
         padding-top: constant(safe-area-inset-top) !important;
         padding-top: env(safe-area-inset-top) !important;
     }
     
-    /* Sticky headers need proper positioning */
-    header.sticky, .sticky.top-0 {
-        top: 0 !important;
-    }
-}
-
-/* iOS specific - when in standalone PWA mode */
-@supports (padding-top: env(safe-area-inset-top)) {
-    .pwa-header {
-        padding-top: env(safe-area-inset-top) !important;
-    }
-}
-
-/* Fallback for older iOS using constant() */
-@supports (padding-top: constant(safe-area-inset-top)) {
-    .pwa-header {
+    /* Sidebar/Sheet needs safe area too */
+    [role="dialog"],
+    [data-state="open"],
+    .fixed.inset-0,
+    .sheet-content,
+    aside {
         padding-top: constant(safe-area-inset-top) !important;
+        padding-top: env(safe-area-inset-top) !important;
     }
 }
 
