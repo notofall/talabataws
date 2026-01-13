@@ -5403,7 +5403,14 @@ app.include_router(api_router)
 
 # Include PostgreSQL routes (new migration)
 from routes.pg_auth_routes import pg_auth_router
+from routes.pg_projects_routes import pg_projects_router
+from routes.pg_suppliers_routes import pg_suppliers_router
+from routes.pg_budget_routes import pg_budget_router
+
 app.include_router(pg_auth_router)
+app.include_router(pg_projects_router)
+app.include_router(pg_suppliers_router)
+app.include_router(pg_budget_router)
 
 app.add_middleware(
     CORSMiddleware,
