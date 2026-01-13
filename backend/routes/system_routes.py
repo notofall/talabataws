@@ -18,18 +18,19 @@ from database import User
 
 system_router = APIRouter(prefix="/api/pg/system", tags=["System"])
 
-# Paths
-VERSION_FILE = Path("/app/backend/version.json")
-LOGS_DIR = Path("/app/backend/logs")
-UPDATES_DIR = Path("/app/backend/updates")
-APP_ROOT = Path("/app")
+# Paths - Use relative paths for Docker compatibility
+BASE_DIR = Path(__file__).resolve().parent.parent
+LOGS_DIR = BASE_DIR / "logs"
+UPDATES_DIR = BASE_DIR / "updates"
+BACKUP_DIR = BASE_DIR / "backups"
+VERSION_FILE = BASE_DIR / "version.json"
+APP_ROOT = BASE_DIR.parent
 ERROR_LOG_FILE = LOGS_DIR / "errors.log"
-BACKUP_DIR = Path("/app/backend/backups")
 
-# Ensure directories exist
-LOGS_DIR.mkdir(exist_ok=True)
-UPDATES_DIR.mkdir(exist_ok=True)
-BACKUP_DIR.mkdir(exist_ok=True)
+# Ensure directories exist with parents
+LOGS_DIR.mkdir(parents=True, exist_ok=True)
+UPDATES_DIR.mkdir(parents=True, exist_ok=True)
+BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 
 # Current version info
 CURRENT_VERSION = {
