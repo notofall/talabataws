@@ -347,7 +347,7 @@ async def approve_request(
 @pg_requests_router.post("/requests/{request_id}/reject")
 async def reject_request(
     request_id: str,
-    rejection_data: MaterialRequestUpdate,
+    rejection_data: RejectRequestData,
     current_user: User = Depends(get_current_user_pg),
     session: AsyncSession = Depends(get_postgres_session)
 ):
@@ -370,7 +370,7 @@ async def reject_request(
         raise HTTPException(status_code=403, detail="هذا الطلب غير موجه إليك")
     
     req.status = "rejected_by_engineer"
-    req.rejection_reason = rejection_data.rejection_reason
+    req.rejection_reason = rejection_data.reason
     req.updated_at = datetime.utcnow()
     
     await log_audit_pg(
