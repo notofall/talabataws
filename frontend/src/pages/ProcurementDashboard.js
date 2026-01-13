@@ -814,7 +814,7 @@ const ProcurementDashboard = () => {
 
   const handleApproveOrder = async (orderId) => {
     try {
-      const res = await axios.put(`${API_URL}/purchase-orders/${orderId}/approve`, {}, getAuthHeaders());
+      const res = await axios.post(`${API_URL}/purchase-orders/${orderId}/approve`, {}, getAuthHeaders());
       if (res.data.requires_gm_approval) {
         toast.info(res.data.message, { duration: 6000 });
       } else {
