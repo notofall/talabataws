@@ -448,8 +448,8 @@ async def admin_reset_user_password(
     session: AsyncSession = Depends(get_postgres_session)
 ):
     """Reset user password - system admin only"""
-    if current_user.role != UserRole.PROCUREMENT_MANAGER:
-        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    if current_user.role != UserRole.SYSTEM_ADMIN:
+        raise HTTPException(status_code=403, detail="فقط مدير النظام يمكنه إعادة تعيين كلمات المرور")
     
     result = await session.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
@@ -472,9 +472,9 @@ async def toggle_user_active(
     current_user: User = Depends(get_current_user_pg),
     session: AsyncSession = Depends(get_postgres_session)
 ):
-    """Toggle user active status - procurement manager only"""
-    if current_user.role != UserRole.PROCUREMENT_MANAGER:
-        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    """Toggle user active status - system admin only"""
+    if current_user.role != UserRole.SYSTEM_ADMIN:
+        raise HTTPException(status_code=403, detail="فقط مدير النظام يمكنه تغيير حالة المستخدمين")
     
     result = await session.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
@@ -500,9 +500,9 @@ async def delete_user_by_admin(
     current_user: User = Depends(get_current_user_pg),
     session: AsyncSession = Depends(get_postgres_session)
 ):
-    """Delete a user - procurement manager only"""
-    if current_user.role != UserRole.PROCUREMENT_MANAGER:
-        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    """Delete a user - system admin only"""
+    if current_user.role != UserRole.SYSTEM_ADMIN:
+        raise HTTPException(status_code=403, detail="فقط مدير النظام يمكنه حذف المستخدمين")
     
     result = await session.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
