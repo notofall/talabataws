@@ -369,7 +369,7 @@ async def upload_ssl_certificate(
     
     # Update config
     config = load_domain_config()
-    config["ssl_uploaded_at"] = datetime.now(timezone.utc).isoformat()
+    config["ssl_uploaded_at"] = datetime.utcnow().isoformat()
     config["ssl_uploaded_by"] = current_user.name
     save_domain_config(config)
     
