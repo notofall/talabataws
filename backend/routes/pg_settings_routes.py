@@ -985,17 +985,14 @@ async def export_supplier_report(
         ws.cell(row=row+1, column=4, value=total_orders)
         ws.cell(row=row+1, column=6, value=total_spending)
         
-        # Auto-fit columns
-        for col in ws.columns:
-            max_length = 0
-            column = col[0].column_letter
-            for cell in col:
-                try:
-                    if len(str(cell.value)) > max_length:
-                        max_length = len(str(cell.value))
-                except:
-                    pass
-            ws.column_dimensions[column].width = max_length + 2
+        # Set column widths
+        ws.column_dimensions['A'].width = 25
+        ws.column_dimensions['B'].width = 20
+        ws.column_dimensions['C'].width = 15
+        ws.column_dimensions['D'].width = 12
+        ws.column_dimensions['E'].width = 12
+        ws.column_dimensions['F'].width = 18
+        ws.column_dimensions['G'].width = 15
         
         buffer = io.BytesIO()
         wb.save(buffer)
