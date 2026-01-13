@@ -24,9 +24,12 @@ LOGS_DIR = Path("/app/backend/logs")
 UPDATES_DIR = Path("/app/backend/updates")
 APP_ROOT = Path("/app")
 ERROR_LOG_FILE = LOGS_DIR / "errors.log"
+BACKUP_DIR = Path("/app/backend/backups")
 
-# Ensure logs directory exists
+# Ensure directories exist
 LOGS_DIR.mkdir(exist_ok=True)
+UPDATES_DIR.mkdir(exist_ok=True)
+BACKUP_DIR.mkdir(exist_ok=True)
 
 # Current version info
 CURRENT_VERSION = {
@@ -37,8 +40,18 @@ CURRENT_VERSION = {
         "تحويل التطبيق إلى PWA",
         "شاشة إعداد قاعدة البيانات",
         "سجل التدقيق",
-        "تنظيف الكود"
+        "تنظيف الكود",
+        "أدوات النظام ونظام التحديثات"
     ]
+}
+
+# Update status tracking
+update_status = {
+    "in_progress": False,
+    "current_step": "",
+    "progress": 0,
+    "error": None,
+    "last_update": None
 }
 
 
