@@ -222,6 +222,80 @@ export default function SystemAdminDashboard() {
     }
   };
 
+  // Upload Update ZIP
+  const handleUploadUpdate = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    if (!file.name.endsWith('.zip')) {
+      toast.error("يجب رفع ملف ZIP فقط");
+      return;
+    }
+    
+    if (!confirm(`هل تريد رفع وتطبيق التحديث من الملف: ${file.name}؟`)) {
+      e.target.value = '';
+      return;
+    }
+    
+    setUploadingUpdate(true);
+    const formData = new FormData();
+    formData.append("file", file);
+    
+    try {
+      const response = await axios.post(`${API_URL}/system/upload-update`, formData, {
+        ...getAuthHeaders(),
+        headers: { ...getAuthHeaders().headers, "Content-Type": "multipart/form-data" }
+      });
+      
+      toast.success(response.data.message);
+      
+      // Start polling for update status
+      pollUpdateStatus();
+      
+    } catch (error) {
+      console.error("Error uploading update:", error);
+      toast.error(error.response?.data?.detail || "فشل في رفع التحديث");
+    } finally {
+      setUploadingUpdate(false);
+      e.target.value = '';
+    }
+  };
+
+  // Poll Update Status
+  const pollUpdateStatus = async () => {
+    const checkStatus = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/system/update-status`, getAuthHeaders());
+        setUpdateStatus(response.data);
+        
+        if (response.data.in_progress) {
+          setTimeout(checkStatus, 2000); // Check every 2 seconds
+        } else {
+          if (response.data.error) {
+            toast.error(`فشل التحديث: ${response.data.error}`);
+          } else if (response.data.progress === 100) {
+            toast.success("تم تطبيق التحديث بنجاح! يُنصح بإعادة تحميل الصفحة.");
+            fetchSystemInfo();
+          }
+        }
+      } catch (error) {
+        console.error("Error checking update status:", error);
+      }
+    };
+    
+    checkStatus();
+  };
+
+  // Fetch Backups
+  const fetchBackups = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/system/backups`, getAuthHeaders());
+      setBackups(response.data);
+    } catch (error) {
+      console.error("Error fetching backups:", error);
+    }
+  };
+
   // Clear Old Logs
   const handleClearOldLogs = async (daysToKeep = 30) => {
     if (!confirm(`هل أنت متأكد من حذف السجلات الأقدم من ${daysToKeep} يوم؟`)) return;
