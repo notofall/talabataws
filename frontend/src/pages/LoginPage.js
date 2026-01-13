@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/
 import { Package, Mail, Lock, ArrowLeft, KeyRound } from "lucide-react";
 import axios from "axios";
 
-const API_URL = `${process.env.REACT_APP_BACKEND_URL}/api`;
+// Changed to PostgreSQL APIs
+const API_URL = `${process.env.REACT_APP_BACKEND_URL}/api/pg`;
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
