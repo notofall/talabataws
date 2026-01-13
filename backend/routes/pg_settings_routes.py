@@ -632,6 +632,8 @@ async def get_approval_analytics(
 
 @pg_settings_router.get("/reports/advanced/supplier-performance")
 async def get_supplier_performance_report(
+    supplier_id: Optional[str] = None,
+    project_id: Optional[str] = None,
     current_user: User = Depends(get_current_user_pg),
     session: AsyncSession = Depends(get_postgres_session)
 ):
@@ -639,17 +641,21 @@ async def get_supplier_performance_report(
     if current_user.role not in [UserRole.PROCUREMENT_MANAGER, UserRole.GENERAL_MANAGER]:
         raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
     
-    # Get all suppliers
-    suppliers_result = await session.execute(select(Supplier))
+    # Get suppliers
+    suppliers_query = select(Supplier)
+    if supplier_id:
+        suppliers_query = suppliers_query.where(Supplier.id == supplier_id)
+    suppliers_result = await session.execute(suppliers_query)
     suppliers = suppliers_result.scalars().all()
     
     performance_data = []
     
     for supplier in suppliers:
         # Orders for this supplier
-        orders_result = await session.execute(
-            select(PurchaseOrder).where(PurchaseOrder.supplier_id == supplier.id)
-        )
+        orders_query = select(PurchaseOrder).where(PurchaseOrder.supplier_id == supplier.id)
+        if project_id:
+            orders_query = orders_query.where(PurchaseOrder.project_id == project_id)
+        orders_result = await session.execute(orders_query)
         orders = orders_result.scalars().all()
         
         if not orders:
