@@ -1,6 +1,6 @@
 @echo off
 chcp 65001 >nul
-title نظام إدارة طلبات المواد - الإيقاف
+title إيقاف نظام إدارة طلبات المواد
 
 echo.
 echo ╔════════════════════════════════════════════════════════════╗
@@ -9,9 +9,9 @@ echo ╚════════════════════════
 echo.
 
 echo جاري إيقاف التطبيق...
-docker-compose -f docker-compose.windows.yml down
+docker-compose down
 
 echo.
-echo [✓] تم إيقاف التطبيق بنجاح
+echo [OK] تم إيقاف التطبيق بنجاح
 echo.
 pause

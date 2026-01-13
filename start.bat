@@ -1,6 +1,6 @@
 @echo off
 chcp 65001 >nul
-title نظام إدارة طلبات المواد - التشغيل
+title نظام إدارة طلبات المواد
 
 echo.
 echo ╔════════════════════════════════════════════════════════════╗
@@ -9,7 +9,7 @@ echo ║          Material Requests Management System               ║
 echo ╚════════════════════════════════════════════════════════════╝
 echo.
 
-:: Check if Docker is installed
+REM Check if Docker is installed
 docker --version >nul 2>&1
 if errorlevel 1 (
     echo [خطأ] Docker غير مثبت!
@@ -21,33 +21,34 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo [✓] Docker مثبت
+echo [OK] Docker مثبت
 echo.
 
-:: Check if Docker is running
+REM Check if Docker is running
 docker info >nul 2>&1
 if errorlevel 1 (
-    echo [خطأ] Docker غير مُشغّل!
+    echo [خطأ] Docker غير مشغّل!
     echo.
     echo يرجى تشغيل Docker Desktop والانتظار حتى يكتمل التحميل
+    echo ثم أعد تشغيل هذا الملف
     echo.
     pause
     exit /b 1
 )
 
-echo [✓] Docker يعمل
+echo [OK] Docker يعمل
 echo.
-
 echo جاري تشغيل التطبيق...
-echo (قد يستغرق هذا بضع دقائق في المرة الأولى)
+echo (قد يستغرق 5-10 دقائق في المرة الأولى)
 echo.
 
-:: Start the application
-docker-compose -f docker-compose.windows.yml up -d --build
+REM Start the application
+docker-compose up -d --build
 
 if errorlevel 1 (
     echo.
     echo [خطأ] فشل في تشغيل التطبيق
+    echo جرب تشغيل: docker-compose logs
     echo.
     pause
     exit /b 1
@@ -55,20 +56,20 @@ if errorlevel 1 (
 
 echo.
 echo ╔════════════════════════════════════════════════════════════╗
-echo ║                    تم التشغيل بنجاح! ✓                     ║
+echo ║                تم التشغيل بنجاح!                           ║
 echo ╠════════════════════════════════════════════════════════════╣
 echo ║                                                            ║
-echo ║  افتح المتصفح على الرابط التالي:                          ║
+echo ║  افتح المتصفح على:                                        ║
 echo ║                                                            ║
-echo ║         http://localhost                                   ║
+echo ║      http://localhost:3000                                 ║
 echo ║                                                            ║
 echo ╠════════════════════════════════════════════════════════════╣
 echo ║  لإيقاف التطبيق: شغّل stop.bat                            ║
 echo ╚════════════════════════════════════════════════════════════╝
 echo.
 
-:: Open browser
-timeout /t 3 >nul
-start http://localhost
+REM Wait a moment then open browser
+timeout /t 5 >nul
+start http://localhost:3000
 
 pause
