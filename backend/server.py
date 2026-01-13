@@ -27,6 +27,10 @@ async def root_health_check():
     """Health check endpoint for Kubernetes liveness/readiness probes"""
     return {"status": "healthy", "database": "PostgreSQL"}
 
+# ==================== Setup Routes (must be before auth) ====================
+from routes.setup_routes import setup_router
+app.include_router(setup_router)
+
 # ==================== PostgreSQL Routes ====================
 from routes.pg_auth_routes import pg_auth_router
 from routes.pg_projects_routes import pg_projects_router
