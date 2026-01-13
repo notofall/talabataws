@@ -30,6 +30,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - talabat_network
 
   # الخادم الخلفي Backend API
   backend:
@@ -51,6 +53,8 @@ services:
       postgres:
         condition: service_healthy
     restart: unless-stopped
+    networks:
+      - talabat_network
 
   # الواجهة الأمامية Frontend
   frontend:
@@ -67,7 +71,13 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
+    networks:
+      - talabat_network
 
 volumes:
   postgres_data:
     name: talabat_postgres_data
+
+networks:
+  talabat_network:
+    driver: bridge
