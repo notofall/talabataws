@@ -394,7 +394,9 @@ async def complete_full_setup(setup_config: FullSetupConfig):
             "success": True,
             "message": "تم إعداد النظام بنجاح!",
             "admin_created": admin_created,
-            "restart_required": True
+            "access_token": access_token,
+            "user": user_data,
+            "restart_required": False
         }
         
     except Exception as e:
