@@ -35,6 +35,7 @@ pg_auth_router = APIRouter(prefix="/api/pg", tags=["PostgreSQL Auth"])
 # ==================== PYDANTIC MODELS ====================
 
 class UserRole:
+    SYSTEM_ADMIN = "system_admin"  # مدير النظام - جديد
     SUPERVISOR = "supervisor"
     ENGINEER = "engineer"
     PROCUREMENT_MANAGER = "procurement_manager"
