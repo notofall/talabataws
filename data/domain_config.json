@@ -3,6 +3,6 @@
   "ssl_enabled": true,
   "ssl_mode": "letsencrypt",
   "admin_email": "admin@example.com",
-  "configured_at": "2026-01-13T22:50:34.447218+00:00",
+  "configured_at": "2026-01-13T22:52:33.071885",
   "configured_by": "مدير النظام"
 }
