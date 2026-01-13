@@ -215,7 +215,8 @@ SSL: Required
     ├── pg_requests_routes.py  # Requests APIs (7)
     ├── pg_orders_routes.py    # Orders APIs (10)
     ├── pg_settings_routes.py  # Settings APIs (11)
-    └── pg_sysadmin_routes.py  # System Admin APIs (8) - NEW
+    ├── pg_sysadmin_routes.py  # System Admin APIs (8)
+    └── pg_domain_routes.py    # Domain & SSL APIs (7) - NEW
 ```
 
 ### Frontend:
