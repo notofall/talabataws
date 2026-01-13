@@ -155,6 +155,14 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/system-admin"
+              element={
+                <ProtectedRoute allowedRoles={["system_admin"]}>
+                  <SystemAdminDashboard />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>
