@@ -80,6 +80,24 @@
 - [x] `DELETE /api/pg/system/logs/clear` - حذف السجلات القديمة
 - [x] `GET /api/pg/system/database-stats` - إحصائيات قاعدة البيانات
 
+#### ✅ إعدادات الدومين و SSL - يناير 2026
+- [x] تبويب جديد "الدومين" في لوحة مدير النظام
+- [x] إدخال اسم الدومين مع توليد ملفات Nginx تلقائياً
+- [x] دعم Let's Encrypt (شهادة SSL مجانية وتلقائية)
+- [x] دعم رفع شهادة SSL يدوياً
+- [x] تعليمات DNS مفصلة بالعربي
+- [x] توليد docker-compose.nginx.yml تلقائياً
+
+#### APIs الدومين و SSL (`pg_domain_routes.py`)
+- [x] `GET /api/pg/domain/status` - حالة إعدادات الدومين
+- [x] `POST /api/pg/domain/configure` - حفظ إعدادات الدومين وتوليد Nginx
+- [x] `POST /api/pg/domain/ssl/upload` - رفع شهادة SSL يدوياً
+- [x] `POST /api/pg/domain/ssl/letsencrypt` - إنشاء سكربت Let's Encrypt
+- [x] `GET /api/pg/domain/nginx-config` - عرض ملف Nginx
+- [x] `GET /api/pg/domain/docker-compose` - عرض docker-compose للـ Nginx
+- [x] `GET /api/pg/domain/dns-instructions` - تعليمات إعداد DNS
+- [x] `DELETE /api/pg/domain/reset` - إعادة تعيين إعدادات الدومين
+
 #### ✅ سجل التدقيق (Audit Trail) - ديسمبر 2025
 - [x] تبويب جديد في لوحة مدير النظام "سجل التدقيق"
 - [x] عرض جميع العمليات مع التفاصيل (التاريخ، المستخدم، الدور، نوع الكيان، الإجراء، الوصف)
