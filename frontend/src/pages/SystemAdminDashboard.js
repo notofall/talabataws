@@ -130,7 +130,7 @@ export default function SystemAdminDashboard() {
       if (auditFilter.entity_type) params.append("entity_type", auditFilter.entity_type);
       params.append("limit", auditFilter.limit.toString());
       
-      const response = await axios.get(`${API_URL}/settings/audit-logs?${params}`, getAuthHeaders());
+      const response = await axios.get(`${API_URL}/audit-logs?${params}`, getAuthHeaders());
       setAuditLogs(response.data);
     } catch (error) {
       console.error("Error fetching audit logs:", error);
