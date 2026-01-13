@@ -53,6 +53,11 @@ export default function SystemAdminDashboard() {
   // Restore dialog
   const [showRestoreDialog, setShowRestoreDialog] = useState(false);
 
+  // Audit Logs
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditFilter, setAuditFilter] = useState({ entity_type: "", limit: 100 });
+
   const roleLabels = {
     system_admin: "مدير النظام",
     supervisor: "مشرف موقع",
@@ -61,6 +66,38 @@ export default function SystemAdminDashboard() {
     general_manager: "المدير العام",
     printer: "طابعة",
     delivery_tracker: "متتبع التسليم"
+  };
+
+  const entityTypeLabels = {
+    user: "مستخدم",
+    project: "مشروع",
+    request: "طلب مواد",
+    purchase_order: "أمر شراء",
+    supplier: "مورد",
+    category: "تصنيف ميزانية",
+    default_category: "تصنيف افتراضي",
+    company_settings: "إعدادات الشركة",
+    system: "النظام"
+  };
+
+  const actionLabels = {
+    create: "إنشاء",
+    update: "تحديث",
+    delete: "حذف",
+    approve: "اعتماد",
+    reject: "رفض",
+    create_user: "إنشاء مستخدم",
+    update_user: "تحديث مستخدم",
+    delete_user: "حذف مستخدم",
+    toggle_user_active: "تغيير حالة المستخدم",
+    admin_reset_password: "إعادة تعيين كلمة مرور",
+    change_password: "تغيير كلمة المرور",
+    issue_po: "إصدار أمر شراء",
+    approve_gm: "اعتماد المدير العام",
+    reject_gm: "رفض المدير العام",
+    backup: "نسخ احتياطي",
+    restore: "استعادة",
+    clean_data: "تنظيف البيانات"
   };
 
   const fetchData = useCallback(async () => {
