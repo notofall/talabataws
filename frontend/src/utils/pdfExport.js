@@ -284,8 +284,13 @@ const printHTML = (html, title) => {
       </style>
     </head>
     <body>
-      <button class="print-btn no-print" onclick="window.print()">طباعة / حفظ PDF</button>
+      <div class="btn-container no-print">
+        <button class="print-btn" onclick="window.print()">🖨️ طباعة / حفظ PDF</button>
+        <button class="close-btn" onclick="window.close()">✕ إغلاق</button>
+      </div>
+      <div style="margin-top: 60px;">
       ${html}
+      </div>
       <script>
         // Auto print after fonts load
         document.fonts.ready.then(() => {
