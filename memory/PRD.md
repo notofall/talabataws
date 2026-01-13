@@ -5,41 +5,31 @@
 
 ---
 
-## 🚀 التحول إلى PostgreSQL (13 يناير 2026)
+## 🚀 التحول الكامل إلى PostgreSQL (13 يناير 2026)
 
 ### ✅ ما تم إنجازه بالكامل:
 
-#### البنية التحتية
+#### Backend - قاعدة البيانات
 - [x] اتصال مع PlanetScale PostgreSQL
 - [x] إنشاء 15 جدول SQL
-- [x] إنشاء ملفات Database Layer (config, connection, models)
+- [x] 59 API محولة إلى PostgreSQL
+- [x] جميع الـ Routes تعمل وتم اختبارها
 
-#### الـ APIs المحولة (59 API)
-| الملف | عدد APIs | الحالة |
-|-------|----------|--------|
-| `pg_auth_routes.py` | 13 | ✅ |
-| `pg_projects_routes.py` | 5 | ✅ |
-| `pg_suppliers_routes.py` | 5 | ✅ |
-| `pg_budget_routes.py` | 8 | ✅ |
-| `pg_requests_routes.py` | 7 | ✅ |
-| `pg_orders_routes.py` | 10 | ✅ |
-| `pg_settings_routes.py` | 11 | ✅ |
+#### Frontend - الواجهة
+- [x] `AuthContext.js` - تحديث للـ PostgreSQL APIs
+- [x] `LoginPage.js` - تحديث URLs
+- [x] `ProcurementDashboard.js` - تحديث fetchData و Reports
+- [x] `SupervisorDashboard.js` - تحديث fetchData
+- [x] `EngineerDashboard.js` - تحديث fetchData
+- [x] `GeneralManagerDashboard.js` - تحديث كامل للـ GM APIs
 
-### نقاط النهاية الجديدة:
-```
-/api/pg/auth/*           - المصادقة
-/api/pg/admin/users/*    - إدارة المستخدمين
-/api/pg/projects/*       - المشاريع
-/api/pg/suppliers/*      - الموردين
-/api/pg/budget-categories/* - تصنيفات الميزانية
-/api/pg/requests/*       - طلبات المواد
-/api/pg/purchase-orders/* - أوامر الشراء
-/api/pg/gm/*             - لوحة المدير العام
-/api/pg/settings/*       - الإعدادات
-/api/pg/reports/*        - التقارير
-/api/pg/admin/*          - إدارة البيانات
-/api/pg/audit-logs       - سجل التدقيق
-```
+### 🧪 نتائج الاختبار:
+| الصفحة | الحالة | البيانات |
+|--------|--------|----------|
+| تسجيل الدخول | ✅ | PostgreSQL |
+| مدير المشتريات | ✅ | الطلبات والأوامر تظهر |
+| المشرف | ✅ | طلب A1 يظهر |
+| المدير العام | ✅ | أمر PO-00000001 معتمد |
 
 ---
 
@@ -56,17 +46,15 @@
 
 ## المهام القادمة
 
-### 🔴 P0 - أولوية قصوى
-1. تعديل Frontend ليستخدم `/api/pg/*` بدلاً من `/api/*`
-2. اختبار شامل للتدفق الكامل
-
 ### 🟡 P1 - أولوية متوسطة  
-1. تحويل PWA للموبايل
-2. إضافة Price Catalog APIs
+1. PWA للموبايل
+2. Price Catalog APIs (PostgreSQL)
+3. اختبار شامل للتدفق الكامل
 
 ### 🟢 P2 - أولوية منخفضة
 1. File Attachments
-2. Email Notifications
+2. Email Notifications (SendGrid)
+3. تنظيف MongoDB القديمة
 
 ---
 
@@ -82,23 +70,36 @@ SSL: Required
 
 ---
 
-## الهيكل التقني
+## الهيكل التقني النهائي
 
 ### Backend:
 ```
 /app/backend/
-├── server.py              # FastAPI app
+├── server.py              # FastAPI app (MongoDB + PostgreSQL)
 ├── database/
 │   ├── __init__.py
 │   ├── config.py          # PostgreSQL settings
 │   ├── connection.py      # SQLAlchemy engine
 │   └── models.py          # 15 SQLAlchemy models
 └── routes/
-    ├── pg_auth_routes.py
-    ├── pg_projects_routes.py
-    ├── pg_suppliers_routes.py
-    ├── pg_budget_routes.py
-    ├── pg_requests_routes.py
-    ├── pg_orders_routes.py
-    └── pg_settings_routes.py
+    ├── pg_auth_routes.py      # Auth APIs (13)
+    ├── pg_projects_routes.py  # Projects APIs (5)
+    ├── pg_suppliers_routes.py # Suppliers APIs (5)
+    ├── pg_budget_routes.py    # Budget APIs (8)
+    ├── pg_requests_routes.py  # Requests APIs (7)
+    ├── pg_orders_routes.py    # Orders APIs (10)
+    └── pg_settings_routes.py  # Settings APIs (11)
+```
+
+### Frontend:
+```
+/app/frontend/src/
+├── context/AuthContext.js     # Updated for /api/pg
+├── pages/
+│   ├── LoginPage.js           # Updated
+│   ├── ProcurementDashboard.js # Updated
+│   ├── SupervisorDashboard.js  # Updated
+│   ├── EngineerDashboard.js    # Updated
+│   └── GeneralManagerDashboard.js # Updated
+└── utils/pdfExport.js
 ```
