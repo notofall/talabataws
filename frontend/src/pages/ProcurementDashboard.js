@@ -2335,7 +2335,7 @@ const ProcurementDashboard = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
               <span>إدارة تصنيفات الميزانية</span>
-              <Button size="sm" onClick={fetchBudgetReport} className="bg-blue-600 hover:bg-blue-700">
+              <Button size="sm" onClick={() => fetchBudgetReport()} className="bg-blue-600 hover:bg-blue-700">
                 <BarChart3 className="w-4 h-4 ml-1" /> تقرير الميزانية
               </Button>
             </DialogTitle>
