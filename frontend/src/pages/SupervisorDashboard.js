@@ -445,7 +445,7 @@ const SupervisorDashboard = () => {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <header className="bg-slate-900 text-white shadow-lg sticky top-0 z-40">
+      <header className="bg-slate-900 text-white shadow-lg sticky top-0 z-40 pwa-header">
         <div className="max-w-7xl mx-auto px-3 sm:px-6">
           <div className="flex items-center justify-between h-14">
             <div className="flex items-center gap-2">
