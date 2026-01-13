@@ -874,11 +874,6 @@ const ProcurementDashboard = () => {
     }
   };
 
-  // Clean Data Dialog states
-  const [cleanDataDialogOpen, setCleanDataDialogOpen] = useState(false);
-  const [cleanDataLoading, setCleanDataLoading] = useState(false);
-  const [keepUserEmail, setKeepUserEmail] = useState("");
-
   // Delete Purchase Order
   const handleDeleteOrder = async (orderId) => {
     if (!window.confirm("هل أنت متأكد من حذف أمر الشراء هذا؟ سيتم حذفه نهائياً.")) return;
@@ -928,29 +923,6 @@ const ProcurementDashboard = () => {
     setRejectingRequest(request);
     setRejectReason("");
     setRejectDialogOpen(true);
-  };
-
-  // Clean All Data
-  const handleCleanAllData = async () => {
-    if (!keepUserEmail.trim()) {
-      toast.error("الرجاء إدخال البريد الإلكتروني للمستخدم المراد الاحتفاظ به");
-      return;
-    }
-    
-    if (!window.confirm(`تحذير: سيتم حذف جميع البيانات نهائياً ما عدا المستخدم ${keepUserEmail}. هذا الإجراء لا يمكن التراجع عنه. هل أنت متأكد؟`)) return;
-    
-    setCleanDataLoading(true);
-    try {
-      const res = await axios.delete(`${API_URL}/admin/clean-all-data?keep_user_email=${encodeURIComponent(keepUserEmail)}`, getAuthHeaders());
-      toast.success(res.data.message || "تم تنظيف البيانات بنجاح");
-      setCleanDataDialogOpen(false);
-      setKeepUserEmail("");
-      fetchData();
-    } catch (error) {
-      toast.error(error.response?.data?.detail || "فشل في تنظيف البيانات");
-    } finally {
-      setCleanDataLoading(false);
-    }
   };
 
   // Export by Date - تصدير حسب التاريخ
