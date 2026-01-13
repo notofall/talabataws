@@ -1,0 +1,8 @@
+{
+  "domain": "test.example.com",
+  "ssl_enabled": true,
+  "ssl_mode": "letsencrypt",
+  "admin_email": "admin@example.com",
+  "configured_at": "2026-01-13T22:50:26.212676+00:00",
+  "configured_by": "مدير النظام"
+}

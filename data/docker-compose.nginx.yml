@@ -1,0 +1,33 @@
+# Docker Compose Override for Nginx
+# Add this to your docker-compose.yml or use as docker-compose.override.yml
+
+version: '3.8'
+
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: talabat_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./data/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./data/ssl:/etc/nginx/ssl:ro
+      - ./data/certbot/www:/var/www/certbot:ro
+    depends_on:
+      - backend
+      - frontend
+    restart: unless-stopped
+    networks:
+      - talabat_network
+
+  # Certbot for Let's Encrypt (optional)
+  certbot:
+    image: certbot/certbot
+    container_name: talabat_certbot
+    volumes:
+      - ./data/ssl:/etc/letsencrypt
+      - ./data/certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    networks:
+      - talabat_network
