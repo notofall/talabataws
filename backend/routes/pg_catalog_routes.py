@@ -142,24 +142,28 @@ async def create_catalog_item(
     if current_user.role not in [UserRole.PROCUREMENT_MANAGER, UserRole.SYSTEM_ADMIN]:
         raise HTTPException(status_code=403, detail="غير مصرح لك بإضافة عناصر للكتالوج")
     
-    # Get category name if category_id provided
+    # Validate and get category name if category_id provided
     category_name = item_data.category_name
-    if item_data.category_id and not category_name:
+    valid_category_id = None
+    if item_data.category_id:
         cat_result = await session.execute(
             select(BudgetCategory).where(BudgetCategory.id == item_data.category_id)
         )
         category = cat_result.scalar_one_or_none()
         if category:
+            valid_category_id = item_data.category_id
             category_name = category.name
     
-    # Get supplier name if supplier_id provided
+    # Validate and get supplier name if supplier_id provided
     supplier_name = item_data.supplier_name
-    if item_data.supplier_id and not supplier_name:
+    valid_supplier_id = None
+    if item_data.supplier_id:
         sup_result = await session.execute(
             select(Supplier).where(Supplier.id == item_data.supplier_id)
         )
         supplier = sup_result.scalar_one_or_none()
         if supplier:
+            valid_supplier_id = item_data.supplier_id
             supplier_name = supplier.name
     
     new_item = PriceCatalogItem(
@@ -167,12 +171,12 @@ async def create_catalog_item(
         name=item_data.name,
         description=item_data.description,
         unit=item_data.unit,
-        supplier_id=item_data.supplier_id,
+        supplier_id=valid_supplier_id,
         supplier_name=supplier_name,
         price=item_data.price,
         currency=item_data.currency,
         validity_until=item_data.validity_until,
-        category_id=item_data.category_id,
+        category_id=valid_category_id,
         category_name=category_name,
         is_active=True,
         created_by=current_user.id,
