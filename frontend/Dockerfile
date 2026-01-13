@@ -11,7 +11,7 @@ RUN npm install --legacy-peer-deps
 # Copy application code
 COPY . .
 
-# Set environment variable for build
+# Set environment variable for build - use localhost since browser will access it
 ARG REACT_APP_BACKEND_URL=http://localhost:8001
 ENV REACT_APP_BACKEND_URL=$REACT_APP_BACKEND_URL
 
@@ -24,5 +24,5 @@ RUN npm install -g serve
 # Expose port
 EXPOSE 3000
 
-# Start the application
+# Start the application - serve the built files
 CMD ["serve", "-s", "build", "-l", "3000"]
