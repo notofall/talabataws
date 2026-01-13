@@ -292,6 +292,85 @@ async def export_catalog(
     )
 
 
+@pg_catalog_router.get("/price-catalog/export/excel")
+async def export_catalog_excel(
+    current_user: User = Depends(get_current_user_pg),
+    session: AsyncSession = Depends(get_postgres_session)
+):
+    """Export catalog to Excel"""
+    if current_user.role not in [UserRole.PROCUREMENT_MANAGER, UserRole.SYSTEM_ADMIN]:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بتصدير الكتالوج")
+    
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    except ImportError:
+        raise HTTPException(status_code=500, detail="مكتبة Excel غير متوفرة")
+    
+    result = await session.execute(
+        select(PriceCatalogItem).where(PriceCatalogItem.is_active == True).order_by(PriceCatalogItem.name)
+    )
+    items = result.scalars().all()
+    
+    # Create workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "كتالوج الأسعار"
+    ws.sheet_view.rightToLeft = True
+    
+    # Styles
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+    header_alignment = Alignment(horizontal="center", vertical="center")
+    thin_border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    # Headers
+    headers = ['الاسم', 'الوصف', 'الوحدة', 'السعر', 'العملة', 'المورد', 'التصنيف', 'صالح حتى']
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_alignment
+        cell.border = thin_border
+    
+    # Data
+    for row_num, item in enumerate(items, 2):
+        ws.cell(row=row_num, column=1, value=item.name).border = thin_border
+        ws.cell(row=row_num, column=2, value=item.description or '').border = thin_border
+        ws.cell(row=row_num, column=3, value=item.unit).border = thin_border
+        ws.cell(row=row_num, column=4, value=item.price).border = thin_border
+        ws.cell(row=row_num, column=5, value=item.currency).border = thin_border
+        ws.cell(row=row_num, column=6, value=item.supplier_name or '').border = thin_border
+        ws.cell(row=row_num, column=7, value=item.category_name or '').border = thin_border
+        ws.cell(row=row_num, column=8, value=item.validity_until or '').border = thin_border
+    
+    # Column widths
+    ws.column_dimensions['A'].width = 30
+    ws.column_dimensions['B'].width = 40
+    ws.column_dimensions['C'].width = 15
+    ws.column_dimensions['D'].width = 15
+    ws.column_dimensions['E'].width = 10
+    ws.column_dimensions['F'].width = 25
+    ws.column_dimensions['G'].width = 20
+    ws.column_dimensions['H'].width = 15
+    
+    # Save to bytes
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename=price_catalog_{datetime.now().strftime('%Y%m%d')}.xlsx"}
+    )
+
+
 @pg_catalog_router.post("/price-catalog/import")
 async def import_catalog(
     file: UploadFile = File(...),
