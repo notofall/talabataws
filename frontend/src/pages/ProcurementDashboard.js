@@ -317,19 +317,15 @@ const ProcurementDashboard = () => {
 
   useEffect(() => { fetchData(); }, []);
 
-  // Fetch Reports - تحميل التقارير
+  // Fetch Reports - تحميل التقارير (PostgreSQL)
   const fetchReports = async () => {
     setReportsLoading(true);
     try {
-      const [savingsRes, usageRes, suppliersRes] = await Promise.all([
-        axios.get(`${API_URL}/reports/cost-savings`, getAuthHeaders()),
-        axios.get(`${API_URL}/reports/catalog-usage`, getAuthHeaders()),
-        axios.get(`${API_URL}/reports/supplier-performance`, getAuthHeaders())
-      ]);
+      const savingsRes = await axios.get(`${API_URL}/reports/cost-savings`, getAuthHeaders());
       setReportsData({
         savings: savingsRes.data,
-        usage: usageRes.data,
-        suppliers: suppliersRes.data
+        usage: { total_catalog_items: 0, used_items: 0, usage_rate: 0 },
+        suppliers: savingsRes.data.by_supplier || []
       });
     } catch (error) {
       toast.error("فشل في تحميل التقارير");
