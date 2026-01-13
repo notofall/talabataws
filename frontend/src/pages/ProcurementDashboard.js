@@ -2925,7 +2925,7 @@ const ProcurementDashboard = () => {
                       className="w-full mt-1 p-2 border rounded-md text-sm bg-white"
                     >
                       <option value="">جميع المشرفين</option>
-                      {users.filter(u => u.role === "site_supervisor").map(s => (
+                      {users.filter(u => u.role === "supervisor").map(s => (
                         <option key={s.id} value={s.id}>{s.name}</option>
                       ))}
                     </select>
@@ -2942,8 +2942,8 @@ const ProcurementDashboard = () => {
                       className="w-full mt-1 p-2 border rounded-md text-sm bg-white"
                     >
                       <option value="">جميع المهندسين</option>
-                      {users.filter(u => u.role === "engineer").map(e => (
-                        <option key={e.id} value={e.id}>{e.name}</option>
+                      {users.filter(u => u.role === "engineer").map(eng => (
+                        <option key={eng.id} value={eng.id}>{eng.name}</option>
                       ))}
                     </select>
                   </div>
