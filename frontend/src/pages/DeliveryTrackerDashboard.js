@@ -341,6 +341,7 @@ const DeliveryTrackerDashboard = () => {
           <p>نظام إدارة طلبات المواد - إيصال استلام</p>
           <p style="margin-top: 5px;">تاريخ الطباعة: ${formatDate(new Date().toISOString())}</p>
         </div>
+        </div>
         
         <script>
           document.fonts.ready.then(() => { setTimeout(() => window.print(), 500); });
