@@ -37,38 +37,46 @@ body {
     min-height: -webkit-fill-available;
 }
 
-/* PWA App Shell - Header with safe area (constant for iOS 11, env for iOS 11.2+) */
+/* PWA App Shell - Header with safe area */
 .pwa-header {
-    padding-top: constant(safe-area-inset-top) !important;
-    padding-top: env(safe-area-inset-top) !important;
+    /* Fallback padding for status bar (47px is typical iPhone notch area) */
+    padding-top: 0;
 }
 
-/* PWA App Shell - Fixed bottom navigation safe area */
-.pwa-bottom-nav {
-    padding-bottom: constant(safe-area-inset-bottom);
-    padding-bottom: env(safe-area-inset-bottom);
-}
-
-/* PWA: Standalone mode detection - iOS Safari PWA */
+/* PWA: Standalone mode - when running as installed app */
 @media all and (display-mode: standalone) {
-    /* Add safe area to headers in standalone mode */
-    .pwa-header,
-    header,
-    .bg-slate-900.sticky,
-    .bg-slate-800,
-    [class*="bg-gradient-to"] {
-        padding-top: constant(safe-area-inset-top) !important;
-        padding-top: env(safe-area-inset-top) !important;
+    /* iOS 11.0 - 11.1 */
+    .pwa-header {
+        padding-top: constant(safe-area-inset-top, 47px) !important;
     }
     
-    /* Sidebar/Sheet needs safe area too */
-    [role="dialog"],
-    [data-state="open"],
-    .fixed.inset-0,
-    .sheet-content,
-    aside {
-        padding-top: constant(safe-area-inset-top) !important;
-        padding-top: env(safe-area-inset-top) !important;
+    /* iOS 11.2+ and modern browsers */
+    .pwa-header {
+        padding-top: env(safe-area-inset-top, 47px) !important;
+    }
+    
+    /* Sidebar/Drawer also needs safe area */
+    .pwa-sidebar,
+    .fixed.inset-0 > div[class*="bg-slate-900"],
+    aside,
+    [role="dialog"] {
+        padding-top: constant(safe-area-inset-top, 47px) !important;
+        padding-top: env(safe-area-inset-top, 47px) !important;
+    }
+    
+    /* All headers in standalone mode */
+    header {
+        padding-top: constant(safe-area-inset-top, 47px) !important;
+        padding-top: env(safe-area-inset-top, 47px) !important;
+    }
+}
+
+/* Specific fix for iOS devices with notch */
+@supports (padding-top: max(0px, env(safe-area-inset-top))) {
+    @media all and (display-mode: standalone) {
+        .pwa-header, header {
+            padding-top: max(0px, env(safe-area-inset-top)) !important;
+        }
     }
 }
 
