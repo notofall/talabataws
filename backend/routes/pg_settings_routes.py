@@ -388,8 +388,6 @@ async def get_budget_report(
 
 # ==================== ADVANCED REPORTS ====================
 
-from database import MaterialRequest
-
 @pg_settings_router.get("/reports/advanced/summary")
 async def get_advanced_summary_report(
     start_date: Optional[str] = None,
