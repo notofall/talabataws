@@ -1097,13 +1097,13 @@ export default function SystemAdminDashboard() {
                       </div>
                       <Button onClick={handleLetsEncrypt}>
                         <Lock className="ml-2 h-4 w-4" />
-                        إنشاء سكربت Let's Encrypt
+                        إنشاء سكربت Let&apos;s Encrypt
                       </Button>
                       
                       {nginxConfig?.letsencrypt && (
                         <div className="p-4 bg-gray-50 rounded-lg">
                           <div className="flex justify-between items-center mb-2">
-                            <Label>أوامر Let's Encrypt</Label>
+                            <Label>أوامر Let&apos;s Encrypt</Label>
                             <Button variant="ghost" size="sm" onClick={() => copyToClipboard(nginxConfig.letsencrypt.instructions)}>
                               <Copy className="h-4 w-4" />
                             </Button>
