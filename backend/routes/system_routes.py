@@ -275,10 +275,13 @@ def apply_update_background(zip_path: Path, user_name: str):
         update_status["progress"] = 80
         
         if (source_dir / "frontend" / "src").exists():
-            dest_src = APP_ROOT / "frontend" / "src"
-            if dest_src.exists():
-                shutil.rmtree(dest_src)
-            shutil.copytree(source_dir / "frontend" / "src", dest_src)
+            try:
+                dest_src = APP_ROOT / "frontend" / "src"
+                if dest_src.exists():
+                    shutil.rmtree(dest_src)
+                shutil.copytree(source_dir / "frontend" / "src", dest_src)
+            except Exception as frontend_error:
+                log_warning("Update", f"فشل تحديث Frontend: {frontend_error}")
         
         # Step 6: Install dependencies (if requirements changed)
         update_status["current_step"] = "تثبيت المتطلبات..."
