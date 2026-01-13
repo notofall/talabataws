@@ -400,9 +400,9 @@ async def update_user_by_admin(
     current_user: User = Depends(get_current_user_pg),
     session: AsyncSession = Depends(get_postgres_session)
 ):
-    """Update a user - procurement manager only"""
-    if current_user.role != UserRole.PROCUREMENT_MANAGER:
-        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    """Update a user - system admin only"""
+    if current_user.role != UserRole.SYSTEM_ADMIN:
+        raise HTTPException(status_code=403, detail="فقط مدير النظام يمكنه تعديل المستخدمين")
     
     result = await session.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
@@ -420,7 +420,7 @@ async def update_user_by_admin(
         user.email = user_data.email
     
     if user_data.role is not None:
-        valid_roles = [UserRole.SUPERVISOR, UserRole.ENGINEER, UserRole.PROCUREMENT_MANAGER,
+        valid_roles = [UserRole.SYSTEM_ADMIN, UserRole.SUPERVISOR, UserRole.ENGINEER, UserRole.PROCUREMENT_MANAGER,
                        UserRole.PRINTER, UserRole.DELIVERY_TRACKER, UserRole.GENERAL_MANAGER]
         if user_data.role not in valid_roles:
             raise HTTPException(status_code=400, detail="الدور غير صالح")
@@ -447,7 +447,7 @@ async def admin_reset_user_password(
     current_user: User = Depends(get_current_user_pg),
     session: AsyncSession = Depends(get_postgres_session)
 ):
-    """Reset user password - procurement manager only"""
+    """Reset user password - system admin only"""
     if current_user.role != UserRole.PROCUREMENT_MANAGER:
         raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
     
