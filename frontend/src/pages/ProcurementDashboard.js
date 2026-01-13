@@ -425,6 +425,8 @@ const ProcurementDashboard = () => {
       result = result.filter(r => r.status === "pending_engineer");
     } else if (requestViewMode === "ordered") {
       result = result.filter(r => r.status === "purchase_order_issued");
+    } else if (requestViewMode === "rejected") {
+      result = result.filter(r => r.status === "rejected_by_engineer" || r.status === "rejected_by_manager");
     }
     
     return result;
