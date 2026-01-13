@@ -1926,69 +1926,80 @@ const ProcurementDashboard = () => {
 
       {/* Create Order Dialog - Shows only remaining items */}
       <Dialog open={orderDialogOpen} onOpenChange={setOrderDialogOpen}>
-        <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto p-4" dir="rtl">
-          <DialogHeader><DialogTitle className="text-center">إصدار أمر شراء</DialogTitle></DialogHeader>
+        <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto p-0" dir="rtl">
+          {/* Header */}
+          <div className="sticky top-0 z-10 bg-gradient-to-l from-orange-600 to-orange-500 text-white p-4 rounded-t-lg">
+            <DialogTitle className="text-center text-lg font-bold">إصدار أمر شراء</DialogTitle>
+            {selectedRequest && (
+              <p className="text-center text-orange-100 text-sm mt-1">{selectedRequest.project_name}</p>
+            )}
+          </div>
+          
           {selectedRequest && (
-            <div className="space-y-4 mt-2">
-              <div className="bg-slate-50 p-3 rounded-lg space-y-2 text-sm">
-                <div className="flex justify-between items-center border-b pb-2">
-                  <span className="text-slate-500 font-medium">المشروع:</span>
-                  <span className="font-medium">{selectedRequest.project_name}</span>
+            <div className="p-4 space-y-4">
+              {/* Items Section */}
+              <div className="bg-slate-50 rounded-lg border">
+                <div className="p-3 border-b bg-slate-100 rounded-t-lg">
+                  <p className="font-semibold text-slate-700 text-sm">الأصناف المتبقية</p>
                 </div>
-                <div className="pt-2">
+                <div className="p-3">
                   {loadingItems ? (
-                    <div className="text-center py-4">
-                      <div className="w-6 h-6 border-2 border-orange-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                      <p className="text-slate-500 text-xs mt-2">جاري تحميل الأصناف...</p>
+                    <div className="text-center py-6">
+                      <div className="w-8 h-8 border-3 border-orange-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                      <p className="text-slate-500 text-sm mt-3">جاري تحميل الأصناف...</p>
                     </div>
                   ) : remainingItems.length === 0 ? (
-                    <div className="text-center py-4 bg-green-50 rounded-lg">
-                      <CheckCircle className="w-8 h-8 text-green-500 mx-auto mb-2" />
-                      <p className="text-green-700 font-medium">تم إصدار أوامر شراء لجميع الأصناف</p>
+                    <div className="text-center py-6 bg-green-50 rounded-lg">
+                      <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-2" />
+                      <p className="text-green-700 font-semibold">تم إصدار أوامر شراء لجميع الأصناف</p>
                     </div>
                   ) : (
                     <>
-                      <div className="flex justify-between items-center mb-2">
-                        <p className="text-slate-500 font-medium">الأصناف المتبقية ({remainingItems.length}):</p>
-                        <div className="flex gap-1">
-                          <Button size="sm" variant="outline" onClick={selectAllItems} className="h-6 text-xs px-2">الكل</Button>
-                          <Button size="sm" variant="outline" onClick={deselectAllItems} className="h-6 text-xs px-2">إلغاء</Button>
+                      <div className="flex justify-between items-center mb-3">
+                        <span className="text-slate-600 text-sm">{remainingItems.length} صنف متبقي</span>
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline" onClick={selectAllItems} className="h-7 text-xs px-3 bg-white">تحديد الكل</Button>
+                          <Button size="sm" variant="outline" onClick={deselectAllItems} className="h-7 text-xs px-3 bg-white">إلغاء</Button>
                         </div>
                       </div>
-                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                      <div className="space-y-2 max-h-40 overflow-y-auto">
                         {remainingItems.map((item) => (
                           <div 
                             key={item.index} 
-                            className={`flex items-center justify-between p-2 rounded border cursor-pointer transition-colors ${
+                            className={`flex items-center justify-between p-3 rounded-lg border-2 cursor-pointer transition-all ${
                               selectedItemIndices.includes(item.index) 
-                                ? 'bg-green-50 border-green-300' 
-                                : 'bg-white border-slate-200 hover:bg-slate-50'
+                                ? 'bg-green-50 border-green-400 shadow-sm' 
+                                : 'bg-white border-slate-200 hover:border-slate-300'
                             }`}
                             onClick={() => toggleItemSelection(item.index)}
                           >
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-3">
                               <Checkbox 
                                 checked={selectedItemIndices.includes(item.index)}
                                 onCheckedChange={() => toggleItemSelection(item.index)}
+                                className="h-5 w-5"
                               />
-                              <span className="font-medium">{item.name}</span>
+                              <span className="font-medium text-sm">{item.name}</span>
                             </div>
-                            <span className="text-slate-600">{item.quantity} {item.unit}</span>
+                            <span className="text-slate-600 text-sm font-medium">{item.quantity} {item.unit}</span>
                           </div>
                         ))}
                       </div>
-                      <p className="text-xs text-slate-500 mt-2 text-center">
-                        تم اختيار {selectedItemIndices.length} من {remainingItems.length} أصناف متبقية
-                      </p>
+                      <div className="text-center mt-3 py-2 bg-orange-50 rounded-lg">
+                        <span className="text-orange-700 font-medium text-sm">
+                          تم اختيار {selectedItemIndices.length} من {remainingItems.length} صنف
+                        </span>
+                      </div>
                     </>
                   )}
                 </div>
               </div>
+              
               {remainingItems.length > 0 && (
                 <>
                   {/* Supplier Selection */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">المورد</Label>
+                  <div className="bg-slate-50 rounded-lg border p-3 space-y-3">
+                    <Label className="text-sm font-semibold text-slate-700">المورد</Label>
                     <div className="flex gap-2">
                       <div className="flex-1">
                         <SearchableSelect
@@ -2005,7 +2016,7 @@ const ProcurementDashboard = () => {
                           valueKey="id"
                         />
                       </div>
-                      <Button type="button" variant="outline" size="sm" onClick={() => setSupplierDialogOpen(true)} className="h-10 px-3">
+                      <Button type="button" variant="outline" size="sm" onClick={() => setSupplierDialogOpen(true)} className="h-10 px-3 bg-white">
                         <Plus className="w-4 h-4" />
                       </Button>
                     </div>
@@ -2013,7 +2024,7 @@ const ProcurementDashboard = () => {
                       placeholder="أو اكتب اسم المورد يدوياً" 
                       value={supplierName} 
                       onChange={(e) => { setSupplierName(e.target.value); setSelectedSupplierId(""); }} 
-                      className="h-10" 
+                      className="h-10 bg-white" 
                     />
                   </div>
 
