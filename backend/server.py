@@ -5406,11 +5406,13 @@ from routes.pg_auth_routes import pg_auth_router
 from routes.pg_projects_routes import pg_projects_router
 from routes.pg_suppliers_routes import pg_suppliers_router
 from routes.pg_budget_routes import pg_budget_router
+from routes.pg_requests_routes import pg_requests_router
 
 app.include_router(pg_auth_router)
 app.include_router(pg_projects_router)
 app.include_router(pg_suppliers_router)
 app.include_router(pg_budget_router)
+app.include_router(pg_requests_router)
 
 app.add_middleware(
     CORSMiddleware,
