@@ -105,12 +105,6 @@ const ProcurementDashboard = () => {
   const [editingDefaultCategory, setEditingDefaultCategory] = useState(null);
   const [budgetViewMode, setBudgetViewMode] = useState("default"); // "default" or "projects"
   
-  // Backup System - نظام النسخ الاحتياطي
-  const [backupDialogOpen, setBackupDialogOpen] = useState(false);
-  const [backupStats, setBackupStats] = useState(null);
-  const [backupLoading, setBackupLoading] = useState(false);
-  const [importFile, setImportFile] = useState(null);
-  
   // Mobile Menu Drawer - القائمة الجانبية للجوال
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
