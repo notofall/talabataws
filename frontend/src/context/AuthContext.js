@@ -3,7 +3,8 @@ import axios from "axios";
 
 const AuthContext = createContext(null);
 
-const API_URL = `${process.env.REACT_APP_BACKEND_URL}/api`;
+// Changed to PostgreSQL APIs
+const API_URL = `${process.env.REACT_APP_BACKEND_URL}/api/pg`;
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
