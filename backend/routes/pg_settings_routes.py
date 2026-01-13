@@ -390,6 +390,10 @@ async def get_budget_report(
 
 @pg_settings_router.get("/reports/advanced/summary")
 async def get_advanced_summary_report(
+    project_id: Optional[str] = None,
+    engineer_id: Optional[str] = None,
+    supervisor_id: Optional[str] = None,
+    supplier_id: Optional[str] = None,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     current_user: User = Depends(get_current_user_pg),
@@ -399,29 +403,39 @@ async def get_advanced_summary_report(
     if current_user.role not in [UserRole.PROCUREMENT_MANAGER, UserRole.GENERAL_MANAGER]:
         raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
     
-    # Date filters
-    date_filter_orders = []
-    date_filter_requests = []
+    # Build filters for orders
+    order_filters = []
+    request_filters = []
+    
+    if project_id:
+        order_filters.append(PurchaseOrder.project_id == project_id)
+        request_filters.append(MaterialRequest.project_id == project_id)
+    if supplier_id:
+        order_filters.append(PurchaseOrder.supplier_id == supplier_id)
+    if engineer_id:
+        request_filters.append(MaterialRequest.engineer_id == engineer_id)
+    if supervisor_id:
+        request_filters.append(MaterialRequest.supervisor_id == supervisor_id)
     if start_date:
         start = datetime.fromisoformat(start_date)
-        date_filter_orders.append(PurchaseOrder.created_at >= start)
-        date_filter_requests.append(MaterialRequest.created_at >= start)
+        order_filters.append(PurchaseOrder.created_at >= start)
+        request_filters.append(MaterialRequest.created_at >= start)
     if end_date:
         end = datetime.fromisoformat(end_date)
-        date_filter_orders.append(PurchaseOrder.created_at <= end)
-        date_filter_requests.append(MaterialRequest.created_at <= end)
+        order_filters.append(PurchaseOrder.created_at <= end)
+        request_filters.append(MaterialRequest.created_at <= end)
     
     # Total Purchase Orders
     orders_query = select(PurchaseOrder)
-    if date_filter_orders:
-        orders_query = orders_query.where(and_(*date_filter_orders))
+    if order_filters:
+        orders_query = orders_query.where(and_(*order_filters))
     orders_result = await session.execute(orders_query)
     all_orders = orders_result.scalars().all()
     
     # Total Material Requests
     requests_query = select(MaterialRequest)
-    if date_filter_requests:
-        requests_query = requests_query.where(and_(*date_filter_requests))
+    if request_filters:
+        requests_query = requests_query.where(and_(*request_filters))
     requests_result = await session.execute(requests_query)
     all_requests = requests_result.scalars().all()
     
