@@ -76,6 +76,20 @@ export default function SystemAdminDashboard() {
   const [updateStatus, setUpdateStatus] = useState(null);
   const [backups, setBackups] = useState([]);
 
+  // Domain & SSL State
+  const [domainStatus, setDomainStatus] = useState(null);
+  const [domainForm, setDomainForm] = useState({
+    domain: "",
+    enable_ssl: true,
+    ssl_mode: "letsencrypt",
+    admin_email: ""
+  });
+  const [domainLoading, setDomainLoading] = useState(false);
+  const [savingDomain, setSavingDomain] = useState(false);
+  const [sslUploading, setSslUploading] = useState(false);
+  const [nginxConfig, setNginxConfig] = useState(null);
+  const [dnsInstructions, setDnsInstructions] = useState(null);
+
   const roleLabels = {
     system_admin: "مدير النظام",
     supervisor: "مشرف موقع",
