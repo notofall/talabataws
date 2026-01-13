@@ -1612,6 +1612,17 @@ const ProcurementDashboard = () => {
               </Button>
               <Button 
                 size="sm" 
+                variant={ordersViewMode === "rejected_gm" ? "default" : "outline"}
+                onClick={() => setOrdersViewMode("rejected_gm")}
+                className={`h-8 text-xs ${ordersViewMode === "rejected_gm" ? "bg-red-600" : "text-red-700 border-red-300"}`}
+              >
+                مرفوض GM
+                <Badge className="mr-1 bg-red-500 text-white text-xs">
+                  {filteredOrders.filter(o => o.status === "rejected_by_gm").length}
+                </Badge>
+              </Button>
+              <Button 
+                size="sm" 
                 variant={ordersViewMode === "all" ? "default" : "outline"}
                 onClick={() => setOrdersViewMode("all")}
                 className={`h-8 text-xs ${ordersViewMode === "all" ? "bg-slate-800" : ""}`}
