@@ -93,7 +93,7 @@ async def create_project(
         raise HTTPException(status_code=403, detail="فقط المشرف يمكنه إنشاء المشاريع")
     
     project_id = str(uuid.uuid4())
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
     
     new_project = Project(
         id=project_id,
