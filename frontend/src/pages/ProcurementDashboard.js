@@ -166,25 +166,34 @@ const ProcurementDashboard = () => {
 
   const fetchData = async () => {
     try {
-      // Use optimized V2 APIs for better performance with high data volumes
-      const [requestsRes, ordersRes, statsRes, suppliersRes, categoriesRes, projectsRes, defaultCatsRes] = await Promise.all([
-        axios.get(`${API_URL}/requests`, getAuthHeaders()),  // Still uses old API for full data
+      // Using PostgreSQL APIs
+      const [requestsRes, ordersRes, suppliersRes, categoriesRes, projectsRes, defaultCatsRes, dashboardRes] = await Promise.all([
+        axios.get(`${API_URL}/requests`, getAuthHeaders()),
         axios.get(`${API_URL}/purchase-orders`, getAuthHeaders()),
-        axios.get(`${API_URL}/v2/dashboard/stats`, getAuthHeaders()),  // Optimized stats
         axios.get(`${API_URL}/suppliers`, getAuthHeaders()),
         axios.get(`${API_URL}/budget-categories`, getAuthHeaders()),
         axios.get(`${API_URL}/projects`, getAuthHeaders()),
         axios.get(`${API_URL}/default-budget-categories`, getAuthHeaders()),
+        axios.get(`${API_URL}/reports/dashboard`, getAuthHeaders()),
       ]);
       setRequests(requestsRes.data);
       setAllOrders(ordersRes.data);
       setFilteredOrders(ordersRes.data);
-      setStats(statsRes.data);
+      // Map dashboard stats
+      setStats({
+        total_orders: dashboardRes.data.total_orders || 0,
+        total_amount: dashboardRes.data.total_amount || 0,
+        pending_orders: dashboardRes.data.pending_orders || 0,
+        delivered_orders: dashboardRes.data.delivered_orders || 0,
+        total_projects: dashboardRes.data.total_projects || 0,
+        total_suppliers: dashboardRes.data.total_suppliers || 0
+      });
       setSuppliers(suppliersRes.data);
       setBudgetCategories(categoriesRes.data);
       setProjects(projectsRes.data || []);
       setDefaultCategories(defaultCatsRes.data || []);
     } catch (error) {
+      console.error("Error fetching data:", error);
       toast.error("فشل في تحميل البيانات");
     } finally {
       setLoading(false);
