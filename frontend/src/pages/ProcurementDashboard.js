@@ -2029,8 +2029,8 @@ const ProcurementDashboard = () => {
                   </div>
 
                   {/* Budget Category Selection */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">تصنيف الميزانية</Label>
+                  <div className="bg-slate-50 rounded-lg border p-3 space-y-3">
+                    <Label className="text-sm font-semibold text-slate-700">تصنيف الميزانية</Label>
                     <SearchableSelect
                       options={budgetCategories.filter(c => c.project_id === selectedRequest?.project_id || c.project_name === selectedRequest?.project_name)}
                       value={selectedCategoryId}
