@@ -1121,8 +1121,8 @@ const ProcurementDashboard = () => {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <header className="bg-slate-900 text-white sticky top-0 z-40">
+      {/* Header - PWA Safe Area */}
+      <header className="bg-slate-900 text-white sticky top-0 z-40 pwa-header">
         <div className="max-w-7xl mx-auto px-3 sm:px-6">
           <div className="flex items-center justify-between h-14">
             {/* Logo & Title */}
