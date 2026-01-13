@@ -956,11 +956,11 @@ const ProcurementDashboard = () => {
       filterDescription.push(`المشروع: ${projectName}`);
     }
     if (exportSupervisorFilter) {
-      const supervisorName = users.filter(u => u.role === "site_supervisor").find(u => u.id === exportSupervisorFilter)?.name || exportSupervisorFilter;
+      const supervisorName = users.find(u => u.role === "supervisor" && u.id === exportSupervisorFilter)?.name || exportSupervisorFilter;
       filterDescription.push(`المشرف: ${supervisorName}`);
     }
     if (exportEngineerFilter) {
-      const engineerName = users.filter(u => u.role === "engineer").find(u => u.id === exportEngineerFilter)?.name || exportEngineerFilter;
+      const engineerName = users.find(u => u.role === "engineer" && u.id === exportEngineerFilter)?.name || exportEngineerFilter;
       filterDescription.push(`المهندس: ${engineerName}`);
     }
     if (exportApprovalTypeFilter !== "all") {
