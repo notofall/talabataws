@@ -536,6 +536,9 @@ async def get_advanced_summary_report(
 
 @pg_settings_router.get("/reports/advanced/approval-analytics")
 async def get_approval_analytics(
+    project_id: Optional[str] = None,
+    engineer_id: Optional[str] = None,
+    supervisor_id: Optional[str] = None,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     current_user: User = Depends(get_current_user_pg),
@@ -545,16 +548,22 @@ async def get_approval_analytics(
     if current_user.role not in [UserRole.PROCUREMENT_MANAGER, UserRole.GENERAL_MANAGER]:
         raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
     
-    date_filter = []
+    filters = []
+    if project_id:
+        filters.append(MaterialRequest.project_id == project_id)
+    if engineer_id:
+        filters.append(MaterialRequest.engineer_id == engineer_id)
+    if supervisor_id:
+        filters.append(MaterialRequest.supervisor_id == supervisor_id)
     if start_date:
-        date_filter.append(MaterialRequest.created_at >= datetime.fromisoformat(start_date))
+        filters.append(MaterialRequest.created_at >= datetime.fromisoformat(start_date))
     if end_date:
-        date_filter.append(MaterialRequest.created_at <= datetime.fromisoformat(end_date))
+        filters.append(MaterialRequest.created_at <= datetime.fromisoformat(end_date))
     
     # Get all requests
     query = select(MaterialRequest)
-    if date_filter:
-        query = query.where(and_(*date_filter))
+    if filters:
+        query = query.where(and_(*filters))
     result = await session.execute(query)
     all_requests = result.scalars().all()
     
