@@ -204,35 +204,249 @@ async def check_for_updates(current_user: User = Depends(get_current_user_pg)):
     )
 
 
+def apply_update_background(zip_path: Path, user_name: str):
+    """Background task to apply update from ZIP file"""
+    global update_status
+    
+    try:
+        update_status["in_progress"] = True
+        update_status["error"] = None
+        
+        # Step 1: Validate ZIP file
+        update_status["current_step"] = "التحقق من ملف التحديث..."
+        update_status["progress"] = 10
+        
+        if not zipfile.is_zipfile(zip_path):
+            raise Exception("الملف ليس ملف ZIP صالح")
+        
+        # Step 2: Create backup
+        update_status["current_step"] = "إنشاء نسخة احتياطية..."
+        update_status["progress"] = 20
+        
+        backup_name = f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        backup_path = BACKUP_DIR / backup_name
+        
+        # Backup critical directories
+        if (APP_ROOT / "backend").exists():
+            shutil.copytree(APP_ROOT / "backend", backup_path / "backend", 
+                          ignore=shutil.ignore_patterns('__pycache__', '*.pyc', 'updates', 'backups', 'logs'))
+        if (APP_ROOT / "frontend" / "src").exists():
+            shutil.copytree(APP_ROOT / "frontend" / "src", backup_path / "frontend_src")
+        
+        # Step 3: Extract ZIP
+        update_status["current_step"] = "فك ضغط ملف التحديث..."
+        update_status["progress"] = 40
+        
+        extract_dir = UPDATES_DIR / f"extract_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        extract_dir.mkdir(exist_ok=True)
+        
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            zip_ref.extractall(extract_dir)
+        
+        # Find the root folder in extracted content (GitHub adds a folder)
+        extracted_items = list(extract_dir.iterdir())
+        if len(extracted_items) == 1 and extracted_items[0].is_dir():
+            source_dir = extracted_items[0]
+        else:
+            source_dir = extract_dir
+        
+        # Step 4: Apply backend updates
+        update_status["current_step"] = "تحديث ملفات Backend..."
+        update_status["progress"] = 60
+        
+        if (source_dir / "backend").exists():
+            # Copy new backend files (preserve .env and data)
+            for item in (source_dir / "backend").iterdir():
+                if item.name not in ['.env', 'data', 'logs', 'updates', 'backups', '__pycache__']:
+                    dest = APP_ROOT / "backend" / item.name
+                    if item.is_dir():
+                        if dest.exists():
+                            shutil.rmtree(dest)
+                        shutil.copytree(item, dest)
+                    else:
+                        shutil.copy2(item, dest)
+        
+        # Step 5: Apply frontend updates
+        update_status["current_step"] = "تحديث ملفات Frontend..."
+        update_status["progress"] = 80
+        
+        if (source_dir / "frontend" / "src").exists():
+            dest_src = APP_ROOT / "frontend" / "src"
+            if dest_src.exists():
+                shutil.rmtree(dest_src)
+            shutil.copytree(source_dir / "frontend" / "src", dest_src)
+        
+        # Step 6: Install dependencies (if requirements changed)
+        update_status["current_step"] = "تثبيت المتطلبات..."
+        update_status["progress"] = 90
+        
+        if (source_dir / "backend" / "requirements.txt").exists():
+            try:
+                subprocess.run(
+                    ["pip", "install", "-r", str(APP_ROOT / "backend" / "requirements.txt")],
+                    check=True, capture_output=True, timeout=120
+                )
+            except Exception as e:
+                log_warning("Update", f"فشل تثبيت المتطلبات: {e}")
+        
+        # Step 7: Cleanup
+        update_status["current_step"] = "تنظيف الملفات المؤقتة..."
+        update_status["progress"] = 95
+        
+        # Remove extracted files
+        shutil.rmtree(extract_dir, ignore_errors=True)
+        zip_path.unlink(missing_ok=True)
+        
+        # Keep only last 5 backups
+        backups = sorted(BACKUP_DIR.iterdir(), key=lambda x: x.stat().st_mtime, reverse=True)
+        for old_backup in backups[5:]:
+            shutil.rmtree(old_backup, ignore_errors=True)
+        
+        # Step 8: Complete
+        update_status["current_step"] = "اكتمل التحديث بنجاح!"
+        update_status["progress"] = 100
+        update_status["last_update"] = datetime.now().isoformat()
+        
+        log_info("Update", f"تم تطبيق التحديث بنجاح بواسطة {user_name}")
+        
+    except Exception as e:
+        update_status["error"] = str(e)
+        update_status["current_step"] = f"فشل التحديث: {e}"
+        log_error("Update", f"فشل التحديث: {e}")
+        
+        # Try to restore from backup if exists
+        if 'backup_path' in locals() and backup_path.exists():
+            try:
+                log_info("Update", "محاولة استعادة النسخة الاحتياطية...")
+                if (backup_path / "backend").exists():
+                    for item in (backup_path / "backend").iterdir():
+                        dest = APP_ROOT / "backend" / item.name
+                        if item.is_dir():
+                            if dest.exists():
+                                shutil.rmtree(dest)
+                            shutil.copytree(item, dest)
+                        else:
+                            shutil.copy2(item, dest)
+            except Exception as restore_error:
+                log_error("Update", f"فشل استعادة النسخة الاحتياطية: {restore_error}")
+    
+    finally:
+        update_status["in_progress"] = False
+
+
+@system_router.post("/upload-update")
+async def upload_update_file(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user_pg)
+):
+    """Upload and apply update from ZIP file"""
+    global update_status
+    
+    if current_user.role != UserRole.SYSTEM_ADMIN:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    
+    if update_status["in_progress"]:
+        raise HTTPException(status_code=400, detail="يوجد تحديث قيد التنفيذ حالياً")
+    
+    # Validate file type
+    if not file.filename.endswith('.zip'):
+        raise HTTPException(status_code=400, detail="يجب رفع ملف ZIP فقط")
+    
+    # Save uploaded file
+    upload_path = UPDATES_DIR / f"update_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
+    
+    try:
+        with open(upload_path, 'wb') as f:
+            content = await file.read()
+            f.write(content)
+        
+        log_info("Update", f"تم رفع ملف التحديث: {file.filename} بواسطة {current_user.name}")
+        
+        # Start background update process
+        background_tasks.add_task(apply_update_background, upload_path, current_user.name)
+        
+        return {
+            "success": True,
+            "message": "تم رفع الملف وبدأ التحديث",
+            "filename": file.filename
+        }
+    
+    except Exception as e:
+        log_error("Update", f"فشل رفع ملف التحديث: {e}")
+        raise HTTPException(status_code=500, detail=f"فشل رفع الملف: {str(e)}")
+
+
+@system_router.get("/update-status")
+async def get_update_status(current_user: User = Depends(get_current_user_pg)):
+    """Get current update status"""
+    if current_user.role != UserRole.SYSTEM_ADMIN:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    
+    return update_status
+
+
+@system_router.get("/backups")
+async def list_backups(current_user: User = Depends(get_current_user_pg)):
+    """List available backups"""
+    if current_user.role != UserRole.SYSTEM_ADMIN:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    
+    backups = []
+    if BACKUP_DIR.exists():
+        for backup in sorted(BACKUP_DIR.iterdir(), key=lambda x: x.stat().st_mtime, reverse=True):
+            if backup.is_dir():
+                backups.append({
+                    "name": backup.name,
+                    "date": datetime.fromtimestamp(backup.stat().st_mtime).isoformat(),
+                    "size_mb": round(sum(f.stat().st_size for f in backup.rglob('*') if f.is_file()) / (1024*1024), 2)
+                })
+    
+    return backups
+
+
 @system_router.post("/apply-update")
 async def apply_update(
     update_url: str = None,
     current_user: User = Depends(get_current_user_pg)
 ):
-    """Apply a system update (placeholder)"""
+    """Apply a system update - instructions for manual update"""
     if current_user.role != UserRole.SYSTEM_ADMIN:
         raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
     
-    # Log the update attempt
-    log_info("System", f"محاولة تحديث النظام بواسطة {current_user.name}")
-    
-    # In production, this would:
-    # 1. Download the update package
-    # 2. Verify the package signature
-    # 3. Backup current files
-    # 4. Apply the update
-    # 5. Restart services
+    log_info("System", f"طلب تعليمات التحديث بواسطة {current_user.name}")
     
     return {
         "success": True,
-        "message": "هذه الميزة قيد التطوير. يرجى تحديث النظام يدوياً.",
-        "manual_steps": [
-            "1. قم بتحميل آخر إصدار من الموقع الرسمي",
-            "2. أوقف الخدمات: sudo systemctl stop material-requests",
-            "3. خذ نسخة احتياطية من قاعدة البيانات",
-            "4. استبدل الملفات بالإصدار الجديد",
-            "5. أعد تشغيل الخدمات: sudo systemctl start material-requests"
-        ]
+        "message": "يمكنك تحديث النظام بإحدى الطريقتين:",
+        "methods": {
+            "upload": {
+                "title": "رفع ملف ZIP",
+                "steps": [
+                    "1. حمّل ملف ZIP من GitHub Releases",
+                    "2. ارفع الملف من خلال 'رفع تحديث' أدناه",
+                    "3. النظام سيطبق التحديث تلقائياً"
+                ]
+            },
+            "docker": {
+                "title": "Docker (موصى به)",
+                "steps": [
+                    "1. على الخادم: docker-compose pull",
+                    "2. docker-compose down",
+                    "3. docker-compose up -d"
+                ]
+            },
+            "manual": {
+                "title": "يدوي (SSH)",
+                "steps": [
+                    "1. حمّل آخر إصدار من GitHub",
+                    "2. أوقف الخدمات: sudo systemctl stop material-requests",
+                    "3. خذ نسخة احتياطية",
+                    "4. استبدل الملفات",
+                    "5. أعد تشغيل: sudo systemctl start material-requests"
+                ]
+            }
+        }
     }
 
 
