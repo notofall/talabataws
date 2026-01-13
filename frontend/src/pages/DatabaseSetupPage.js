@@ -93,14 +93,17 @@ export default function DatabaseSetupPage() {
     setConfiguring(true);
     
     try {
-      const response = await axios.post(`${API_BASE}/api/setup/configure`, {
-        db_type: dbType,
-        ...config
+      const response = await axios.post(`${API_BASE}/api/setup/complete-setup`, {
+        database: {
+          db_type: dbType,
+          ...config
+        },
+        admin_user: adminUser.email ? adminUser : null
       });
       
       if (response.data.success) {
-        toast.success('تم إعداد قاعدة البيانات بنجاح!');
-        setStep(3);
+        toast.success('تم إعداد النظام بنجاح!');
+        setStep(4);
         
         // Reload after 3 seconds
         setTimeout(() => {
