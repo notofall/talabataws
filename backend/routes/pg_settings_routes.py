@@ -300,6 +300,95 @@ async def get_dashboard_stats(
     }
 
 
+@pg_settings_router.get("/reports/budget")
+async def get_budget_report(
+    project_id: Optional[str] = None,
+    current_user: User = Depends(get_current_user_pg),
+    session: AsyncSession = Depends(get_postgres_session)
+):
+    """Get budget report - spending by category and project"""
+    
+    # Get all budget categories
+    categories_result = await session.execute(
+        select(BudgetCategory).order_by(BudgetCategory.name)
+    )
+    categories = categories_result.scalars().all()
+    
+    # Get all projects
+    projects_query = select(Project).where(Project.status == "active")
+    if project_id:
+        projects_query = projects_query.where(Project.id == project_id)
+    projects_result = await session.execute(projects_query.order_by(Project.name))
+    projects = projects_result.scalars().all()
+    
+    budget_data = []
+    
+    for project in projects:
+        project_budget = {
+            "project_id": project.id,
+            "project_name": project.name,
+            "total_budget": project.budget or 0,
+            "categories": [],
+            "total_spent": 0
+        }
+        
+        # Get spending per category for this project
+        for category in categories:
+            # Sum of approved orders in this category for this project
+            spending_result = await session.execute(
+                select(func.coalesce(func.sum(PurchaseOrder.total_amount), 0))
+                .select_from(PurchaseOrder)
+                .where(
+                    PurchaseOrder.project_id == project.id,
+                    PurchaseOrder.category_id == category.id,
+                    PurchaseOrder.status.in_(["approved", "printed", "shipped", "delivered"])
+                )
+            )
+            spent = float(spending_result.scalar() or 0)
+            
+            # Get category budget for this project if exists
+            cat_budget_result = await session.execute(
+                select(BudgetCategory.budget)
+                .where(
+                    BudgetCategory.id == category.id,
+                    BudgetCategory.project_id == project.id
+                )
+            )
+            cat_budget = cat_budget_result.scalar() or category.budget or 0
+            
+            project_budget["categories"].append({
+                "category_id": category.id,
+                "category_name": category.name,
+                "budget": float(cat_budget),
+                "spent": spent,
+                "remaining": float(cat_budget) - spent,
+                "percentage": round((spent / float(cat_budget) * 100), 1) if cat_budget > 0 else 0
+            })
+            
+            project_budget["total_spent"] += spent
+        
+        project_budget["remaining_budget"] = project_budget["total_budget"] - project_budget["total_spent"]
+        project_budget["budget_percentage"] = round(
+            (project_budget["total_spent"] / project_budget["total_budget"] * 100), 1
+        ) if project_budget["total_budget"] > 0 else 0
+        
+        budget_data.append(project_budget)
+    
+    # Summary
+    total_all_budgets = sum(p["total_budget"] for p in budget_data)
+    total_all_spent = sum(p["total_spent"] for p in budget_data)
+    
+    return {
+        "projects": budget_data,
+        "summary": {
+            "total_budget": total_all_budgets,
+            "total_spent": total_all_spent,
+            "total_remaining": total_all_budgets - total_all_spent,
+            "overall_percentage": round((total_all_spent / total_all_budgets * 100), 1) if total_all_budgets > 0 else 0
+        }
+    }
+
+
 # ==================== AUDIT LOG ROUTES ====================
 
 @pg_settings_router.get("/audit-logs")
