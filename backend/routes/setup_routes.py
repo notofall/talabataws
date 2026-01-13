@@ -335,6 +335,8 @@ async def complete_full_setup(setup_config: FullSetupConfig):
         
         # Create admin user if provided
         admin_created = False
+        access_token = None
+        user_data = None
         if setup_config.admin_user:
             async_session = async_sessionmaker(new_engine, class_=AsyncSession, expire_on_commit=False)
             async with async_session() as session:
@@ -346,8 +348,9 @@ async def complete_full_setup(setup_config: FullSetupConfig):
                 
                 if not existing_user:
                     # Create admin user
+                    user_id = str(uuid.uuid4())
                     admin_user = User(
-                        id=str(uuid.uuid4()),
+                        id=user_id,
                         name=setup_config.admin_user.name,
                         email=setup_config.admin_user.email,
                         password_hash=pwd_context.hash(setup_config.admin_user.password),
@@ -357,6 +360,30 @@ async def complete_full_setup(setup_config: FullSetupConfig):
                     session.add(admin_user)
                     await session.commit()
                     admin_created = True
+                    
+                    # Generate access token
+                    from datetime import datetime, timedelta
+                    from jose import jwt
+                    
+                    SECRET_KEY = os.environ.get("SECRET_KEY", "default-secret-key-change-in-production")
+                    ALGORITHM = "HS256"
+                    ACCESS_TOKEN_EXPIRE_MINUTES = 1440  # 24 hours
+                    
+                    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+                    token_data = {
+                        "sub": setup_config.admin_user.email,
+                        "user_id": user_id,
+                        "role": "system_admin",
+                        "name": setup_config.admin_user.name,
+                        "exp": expire
+                    }
+                    access_token = jwt.encode(token_data, SECRET_KEY, algorithm=ALGORITHM)
+                    user_data = {
+                        "id": user_id,
+                        "name": setup_config.admin_user.name,
+                        "email": setup_config.admin_user.email,
+                        "role": "system_admin"
+                    }
         
         await new_engine.dispose()
         
