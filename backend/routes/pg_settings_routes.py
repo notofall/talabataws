@@ -887,17 +887,12 @@ async def export_approval_report(
             ws[f'D{row}'] = data["rejected"]
             row += 1
         
-        # Auto-fit columns
-        for col in ws.columns:
-            max_length = 0
-            column = col[0].column_letter
-            for cell in col:
-                try:
-                    if len(str(cell.value)) > max_length:
-                        max_length = len(str(cell.value))
-                except:
-                    pass
-            ws.column_dimensions[column].width = max_length + 2
+        # Set column widths
+        ws.column_dimensions['A'].width = 25
+        ws.column_dimensions['B'].width = 12
+        ws.column_dimensions['C'].width = 12
+        ws.column_dimensions['D'].width = 12
+        ws.column_dimensions['E'].width = 12
         
         buffer = io.BytesIO()
         wb.save(buffer)
