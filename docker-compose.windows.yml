@@ -1,0 +1,88 @@
+# ملف Docker Compose للتثبيت السهل على Windows
+# استخدم هذا الملف مع Docker Desktop على Windows
+#
+# خطوات التشغيل:
+# 1. ثبّت Docker Desktop من https://www.docker.com/products/docker-desktop
+# 2. افتح PowerShell أو CMD في مجلد المشروع
+# 3. شغّل الأمر: docker-compose -f docker-compose.windows.yml up -d
+# 4. افتح المتصفح على: http://localhost
+
+version: '3.8'
+
+services:
+  # قاعدة البيانات PostgreSQL
+  db:
+    image: postgres:14-alpine
+    container_name: talabat_db
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_DB: talabat_db
+    volumes:
+      - talabat_postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d talabat_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - talabat_network
+
+  # الخادم الخلفي (Backend)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: talabat_backend
+    environment:
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=talabat_db
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=admin123
+      - POSTGRES_SSLMODE=disable
+      - SECRET_KEY=my-super-secret-key-change-in-production
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - talabat_network
+
+  # الواجهة الأمامية (Frontend)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - REACT_APP_BACKEND_URL=http://localhost/api
+    container_name: talabat_frontend
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - talabat_network
+
+  # خادم الويب (Nginx)
+  nginx:
+    image: nginx:alpine
+    container_name: talabat_nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.windows.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - frontend
+      - backend
+    restart: unless-stopped
+    networks:
+      - talabat_network
+
+volumes:
+  talabat_postgres_data:
+    name: talabat_postgres_data
+
+networks:
+  talabat_network:
+    name: talabat_network
