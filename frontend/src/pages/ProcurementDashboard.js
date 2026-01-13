@@ -2832,8 +2832,8 @@ const ProcurementDashboard = () => {
       />
 
       {/* Export Dialog - نافذة التصدير */}
-      <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
-        <DialogContent className="w-[95vw] max-w-md p-4" dir="rtl">
+      <Dialog open={exportDialogOpen} onOpenChange={(open) => { setExportDialogOpen(open); if (!open) resetExportFilters(); }}>
+        <DialogContent className="w-[95vw] max-w-lg p-4 max-h-[90vh] overflow-y-auto" dir="rtl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-green-600">
               <Download className="w-5 h-5" />
@@ -2843,8 +2843,8 @@ const ProcurementDashboard = () => {
           
           <div className="space-y-4 mt-4">
             <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-              <p className="text-sm text-green-700 font-medium mb-1">📄 تصدير التقارير حسب التاريخ</p>
-              <p className="text-xs text-green-600">اختر نوع التقرير والفترة الزمنية ثم اضغط تصدير</p>
+              <p className="text-sm text-green-700 font-medium mb-1">📄 تصدير التقارير مع الفلاتر</p>
+              <p className="text-xs text-green-600">اختر نوع التقرير والفلاتر المطلوبة ثم اضغط تصدير</p>
             </div>
             
             <div>
@@ -2892,13 +2892,85 @@ const ProcurementDashboard = () => {
               </div>
             </div>
             
+            {/* New Filters Section */}
+            <div className="border-t pt-3">
+              <p className="text-xs text-slate-500 mb-2 font-medium">🔍 فلاتر إضافية (اختياري):</p>
+              
+              <div className="space-y-3">
+                {/* Project Filter */}
+                <div>
+                  <Label className="text-xs">المشروع:</Label>
+                  <select 
+                    value={exportProjectFilter}
+                    onChange={(e) => setExportProjectFilter(e.target.value)}
+                    className="w-full mt-1 p-2 border rounded-md text-sm bg-white"
+                  >
+                    <option value="">جميع المشاريع</option>
+                    {projects.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                {/* Supervisor Filter - Only for Requests */}
+                {exportType === "requests" && (
+                  <div>
+                    <Label className="text-xs">المشرف:</Label>
+                    <select 
+                      value={exportSupervisorFilter}
+                      onChange={(e) => setExportSupervisorFilter(e.target.value)}
+                      className="w-full mt-1 p-2 border rounded-md text-sm bg-white"
+                    >
+                      <option value="">جميع المشرفين</option>
+                      {users.filter(u => u.role === "site_supervisor").map(s => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                
+                {/* Engineer Filter - Only for Requests */}
+                {exportType === "requests" && (
+                  <div>
+                    <Label className="text-xs">المهندس:</Label>
+                    <select 
+                      value={exportEngineerFilter}
+                      onChange={(e) => setExportEngineerFilter(e.target.value)}
+                      className="w-full mt-1 p-2 border rounded-md text-sm bg-white"
+                    >
+                      <option value="">جميع المهندسين</option>
+                      {users.filter(u => u.role === "engineer").map(e => (
+                        <option key={e.id} value={e.id}>{e.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                
+                {/* Approval Type Filter - Only for Orders */}
+                {exportType === "orders" && (
+                  <div>
+                    <Label className="text-xs">نوع الموافقة:</Label>
+                    <select 
+                      value={exportApprovalTypeFilter}
+                      onChange={(e) => setExportApprovalTypeFilter(e.target.value)}
+                      className="w-full mt-1 p-2 border rounded-md text-sm bg-white"
+                    >
+                      <option value="all">جميع الأنواع</option>
+                      <option value="gm_approved">معتمدة من المدير العام</option>
+                      <option value="procurement_approved">معتمدة من مدير المشتريات فقط</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+            </div>
+            
             <div className="text-center text-xs text-slate-500">
               سيتم تضمين اسمك ({user?.name}) في التقرير المُصدَّر
             </div>
             
             <div className="flex gap-2 pt-2">
               <Button 
-                onClick={() => setExportDialogOpen(false)} 
+                onClick={() => { setExportDialogOpen(false); resetExportFilters(); }} 
                 variant="outline" 
                 className="flex-1"
               >
