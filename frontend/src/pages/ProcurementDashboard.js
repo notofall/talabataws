@@ -91,6 +91,7 @@ const ProcurementDashboard = () => {
   const [selectedProjectReport, setSelectedProjectReport] = useState(null);
   const [budgetReportProjectFilter, setBudgetReportProjectFilter] = useState("");  // فلتر المشروع في تقرير الميزانية
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [advancedReportsOpen, setAdvancedReportsOpen] = useState(false);  // التقارير المتقدمة
   
   // Export Dialog - نافذة التصدير
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
