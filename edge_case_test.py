@@ -9,7 +9,7 @@ import sys
 import json
 
 class EdgeCaseAPITester:
-    def __init__(self, base_url="https://sysadmin-migrate.preview.emergentagent.com"):
+    def __init__(self, base_url="https://postgres-migrate-7.preview.emergentagent.com"):
         self.base_url = base_url
         self.tokens = {}
         self.tests_run = 0
