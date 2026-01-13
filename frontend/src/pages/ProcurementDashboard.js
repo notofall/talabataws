@@ -2176,27 +2176,31 @@ const ProcurementDashboard = () => {
                           );
                         })}
                       </div>
-                      <div className="flex justify-between items-center bg-orange-50 p-2 rounded-lg">
-                        <span className="text-sm font-medium">الإجمالي:</span>
-                        <span className="text-lg font-bold text-orange-600">{formatCurrency(calculateTotal())}</span>
+                      <div className="p-3 border-t bg-gradient-to-l from-orange-50 to-orange-100 rounded-b-lg">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-semibold text-slate-700">الإجمالي:</span>
+                          <span className="text-xl font-bold text-orange-600">{formatCurrency(calculateTotal())}</span>
+                        </div>
                       </div>
                     </div>
                   )}
 
                   {/* Expected Delivery Date */}
-                  <div>
-                    <Label className="text-sm">تاريخ التسليم المتوقع</Label>
-                    <Input type="date" value={expectedDeliveryDate} onChange={(e) => setExpectedDeliveryDate(e.target.value)} className="h-10 mt-1" />
+                  <div className="bg-slate-50 rounded-lg border p-3 space-y-3">
+                    <Label className="text-sm font-semibold text-slate-700">تاريخ التسليم المتوقع</Label>
+                    <Input type="date" value={expectedDeliveryDate} onChange={(e) => setExpectedDeliveryDate(e.target.value)} className="h-10 bg-white" />
                   </div>
 
                   {/* Notes & Terms */}
-                  <div>
-                    <Label className="text-sm">ملاحظات (اختياري)</Label>
-                    <Textarea placeholder="أي ملاحظات..." value={orderNotes} onChange={(e) => setOrderNotes(e.target.value)} rows={2} className="mt-1" />
-                  </div>
-                  <div>
-                    <Label className="text-sm">الشروط والأحكام (اختياري)</Label>
-                    <Textarea placeholder="شروط الدفع والتسليم..." value={termsConditions} onChange={(e) => setTermsConditions(e.target.value)} rows={2} className="mt-1" />
+                  <div className="bg-slate-50 rounded-lg border p-3 space-y-3">
+                    <div>
+                      <Label className="text-sm font-semibold text-slate-700">ملاحظات (اختياري)</Label>
+                      <Textarea placeholder="أي ملاحظات..." value={orderNotes} onChange={(e) => setOrderNotes(e.target.value)} rows={2} className="mt-2 bg-white" />
+                    </div>
+                    <div>
+                      <Label className="text-sm font-semibold text-slate-700">الشروط والأحكام (اختياري)</Label>
+                      <Textarea placeholder="شروط الدفع والتسليم..." value={termsConditions} onChange={(e) => setTermsConditions(e.target.value)} rows={2} className="mt-2 bg-white" />
+                    </div>
                   </div>
 
                   <Button 
