@@ -1111,6 +1111,35 @@ export default function SystemAdminDashboard() {
                           </div>
                         </div>
 
+                        {/* Update Progress */}
+                        {updateStatus?.in_progress && (
+                          <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                            <div className="flex items-center gap-2 text-yellow-700 font-medium mb-2">
+                              <RefreshCw className="h-5 w-5 animate-spin" />
+                              جاري التحديث...
+                            </div>
+                            <p className="text-sm text-yellow-600 mb-2">{updateStatus.current_step}</p>
+                            <div className="h-2 bg-yellow-200 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-yellow-500 rounded-full transition-all duration-500"
+                                style={{ width: `${updateStatus.progress}%` }}
+                              />
+                            </div>
+                            <p className="text-xs text-yellow-600 mt-1 text-left">{updateStatus.progress}%</p>
+                          </div>
+                        )}
+
+                        {/* Update Error */}
+                        {updateStatus?.error && !updateStatus?.in_progress && (
+                          <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                            <div className="flex items-center gap-2 text-red-700 font-medium mb-1">
+                              <XCircle className="h-5 w-5" />
+                              فشل التحديث
+                            </div>
+                            <p className="text-sm text-red-600">{updateStatus.error}</p>
+                          </div>
+                        )}
+
                         {/* Update Status */}
                         {updateInfo.update_available ? (
                           <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
@@ -1155,6 +1184,32 @@ export default function SystemAdminDashboard() {
                             </p>
                           </div>
                         )}
+
+                        {/* Manual Upload Section */}
+                        <div className="p-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                          <div className="flex items-center gap-2 font-medium mb-2">
+                            <Upload className="h-5 w-5 text-gray-600" />
+                            رفع تحديث يدوي
+                          </div>
+                          <p className="text-sm text-muted-foreground mb-3">
+                            حمّل ملف ZIP من GitHub Releases وارفعه هنا
+                          </p>
+                          <div className="flex gap-2">
+                            <Input 
+                              type="file" 
+                              accept=".zip"
+                              onChange={handleUploadUpdate}
+                              disabled={uploadingUpdate || updateStatus?.in_progress}
+                              className="flex-1"
+                            />
+                          </div>
+                          {uploadingUpdate && (
+                            <div className="flex items-center gap-2 mt-2 text-sm text-blue-600">
+                              <RefreshCw className="h-4 w-4 animate-spin" />
+                              جاري رفع الملف...
+                            </div>
+                          )}
+                        </div>
 
                         {/* Release Notes */}
                         {systemInfo?.release_notes?.length > 0 && (
