@@ -208,9 +208,38 @@ const printHTML = (html, title) => {
           cursor: pointer;
           font-family: inherit;
           font-size: 12px;
+          z-index: 1000;
         }
         .print-btn:hover {
           background: #c2410c;
+        }
+        .close-btn {
+          position: fixed;
+          top: 15px;
+          left: 130px;
+          background: #64748b;
+          color: white;
+          border: none;
+          padding: 8px 16px;
+          border-radius: 6px;
+          cursor: pointer;
+          font-family: inherit;
+          font-size: 12px;
+          z-index: 1000;
+        }
+        .close-btn:hover {
+          background: #475569;
+        }
+        .btn-container {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          background: linear-gradient(to bottom, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.9) 70%, transparent 100%);
+          padding: 15px;
+          z-index: 999;
+          display: flex;
+          gap: 10px;
         }
         .compact-header {
           border: 2px solid #ea580c;
