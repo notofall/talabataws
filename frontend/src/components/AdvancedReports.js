@@ -285,6 +285,10 @@ export default function AdvancedReports({ onClose }) {
             </style>
           </head>
           <body>
+            <div class="btn-container">
+              <button class="print-btn" onclick="window.print()">🖨️ طباعة / حفظ PDF</button>
+              <button class="close-btn" onclick="window.close()">✕ إغلاق</button>
+            </div>
             <h1>✅ تحليل الاعتمادات</h1>
             <div class="filter-info">
               <strong>الفلاتر:</strong> ${filterText}<br>
