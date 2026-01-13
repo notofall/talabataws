@@ -51,10 +51,11 @@ class PostgresSettings(BaseSettings):
             return direct_url
         
         # Construct from individual components
+        ssl_param = f"?ssl={self.postgres_sslmode}" if self.postgres_sslmode != "disable" else ""
         return (
             f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
-            f"?ssl=require"
+            f"{ssl_param}"
         )
 
 
