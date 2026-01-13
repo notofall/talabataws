@@ -2064,30 +2064,34 @@ const ProcurementDashboard = () => {
 
                   {/* Item Prices with Catalog Suggestions */}
                   {selectedItemIndices.length > 0 && (
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">أسعار الأصناف المختارة</Label>
-                      <div className="space-y-2 bg-slate-50 p-3 rounded-lg max-h-72 overflow-y-auto">
+                    <div className="bg-slate-50 rounded-lg border">
+                      <div className="p-3 border-b bg-slate-100 rounded-t-lg">
+                        <Label className="text-sm font-semibold text-slate-700">أسعار الأصناف المختارة</Label>
+                      </div>
+                      <div className="p-3 space-y-3 max-h-60 overflow-y-auto">
                         {selectedItemIndices.map(idx => {
                           const item = remainingItems.find(i => i.index === idx);
                           if (!item) return null;
                           const catalogInfo = catalogPrices[idx];
                           return (
-                            <div key={idx} className={`p-3 rounded-lg border ${catalogInfo ? 'bg-green-50 border-green-200' : 'bg-white'}`}>
-                              <div className="flex items-center gap-2 mb-2">
+                            <div key={idx} className={`p-3 rounded-lg border-2 ${catalogInfo ? 'bg-green-50 border-green-300' : 'bg-white border-slate-200'}`}>
+                              <div className="flex items-center gap-3 mb-2">
                                 <div className="flex-1">
-                                  <p className="text-sm font-medium">{item.name}</p>
+                                  <p className="text-sm font-semibold text-slate-800">{item.name}</p>
                                   <p className="text-xs text-slate-500">{item.quantity} {item.unit}</p>
                                 </div>
-                                <Input 
-                                  type="number" 
-                                  min="0" 
-                                  step="0.01"
-                                  placeholder="السعر"
-                                  value={itemPrices[idx] || ""}
-                                  onChange={(e) => setItemPrices({...itemPrices, [idx]: e.target.value})}
-                                  className={`w-28 h-8 text-sm text-center ${catalogInfo ? 'border-green-300 bg-green-50' : ''}`}
-                                />
-                                <span className="text-xs text-slate-500">ر.س</span>
+                                <div className="flex items-center gap-1 bg-white rounded-lg border px-2">
+                                  <Input 
+                                    type="number" 
+                                    min="0" 
+                                    step="0.01"
+                                    placeholder="0.00"
+                                    value={itemPrices[idx] || ""}
+                                    onChange={(e) => setItemPrices({...itemPrices, [idx]: e.target.value})}
+                                    className={`w-24 h-9 text-sm text-center border-0 focus:ring-0 ${catalogInfo ? 'bg-green-50' : ''}`}
+                                  />
+                                  <span className="text-xs text-slate-500 font-medium">ر.س</span>
+                                </div>
                               </div>
                               
                               {/* Catalog linking - searchable dropdown */}
