@@ -248,11 +248,42 @@ const DeliveryTrackerDashboard = () => {
           }
           .status-delivered { background: #d1fae5; color: #065f46; }
           .status-partial { background: #ffedd5; color: #9a3412; }
+          .close-btn {
+            position: fixed;
+            top: 15px;
+            left: 150px;
+            background: #64748b;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 12px;
+            z-index: 1000;
+          }
+          .close-btn:hover { background: #475569; }
+          .btn-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to bottom, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.9) 70%, transparent 100%);
+            padding: 15px;
+            z-index: 999;
+            display: flex;
+            gap: 10px;
+          }
+          @media print { .btn-container, .close-btn { display: none !important; } }
         </style>
       </head>
       <body>
-        <button class="print-btn no-print" onclick="window.print()">طباعة / حفظ PDF</button>
+        <div class="btn-container no-print">
+          <button class="print-btn" onclick="window.print()">🖨️ طباعة / حفظ PDF</button>
+          <button class="close-btn" onclick="window.close()">✕ إغلاق</button>
+        </div>
         
+        <div style="margin-top: 60px;">
         <div class="header">
           <h1>إيصال استلام مواد</h1>
           <div class="order-num">أمر شراء رقم: ${order.id?.slice(0, 8).toUpperCase()}</div>
