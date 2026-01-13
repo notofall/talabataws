@@ -13,7 +13,7 @@ from pathlib import Path
 from routes.pg_auth_routes import get_current_user_pg, UserRole
 from database import User
 
-system_router = APIRouter(prefix="/api/system", tags=["System"])
+system_router = APIRouter(prefix="/api/pg/system", tags=["System"])
 
 # Version file
 VERSION_FILE = Path("/app/backend/version.json")
