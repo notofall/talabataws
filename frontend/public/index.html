@@ -140,5 +140,20 @@
                 person_profiles: "identified_only", // or 'always' to create profiles for anonymous users as well
             });
         </script>
+        
+        <!-- Service Worker Registration -->
+        <script>
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                    navigator.serviceWorker.register('/sw.js')
+                        .then(function(registration) {
+                            console.log('ServiceWorker registered successfully:', registration.scope);
+                        })
+                        .catch(function(error) {
+                            console.log('ServiceWorker registration failed:', error);
+                        });
+                });
+            }
+        </script>
     </body>
 </html>
