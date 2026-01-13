@@ -41,8 +41,9 @@ body {
 
 /* PWA App Shell - Fixed header safe area */
 .pwa-header {
-    padding-top: env(safe-area-inset-top, 0px);
-    padding-top: max(env(safe-area-inset-top, 0px), 20px);
+    padding-top: env(safe-area-inset-top, 0px) !important;
+    /* Minimum padding for status bar */
+    padding-top: max(env(safe-area-inset-top, 0px), 0px) !important;
 }
 
 /* PWA App Shell - Fixed bottom navigation safe area */
@@ -56,16 +57,43 @@ body {
     min-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
 }
 
-/* PWA: Standalone mode detection */
+/* PWA: Standalone mode detection - iOS Safari PWA */
 @media all and (display-mode: standalone) {
-    body {
-        /* Add extra padding at top for notch/status bar */
-        padding-top: env(safe-area-inset-top, 20px);
+    html {
+        /* Remove default padding, handle in header */
+        padding-top: 0 !important;
     }
     
-    /* Fixed header positioning in standalone mode */
-    .fixed-header, header, nav {
-        top: env(safe-area-inset-top, 0px) !important;
+    body {
+        /* No extra padding on body */
+        padding-top: 0 !important;
+    }
+    
+    /* Add safe area to headers in standalone mode */
+    .pwa-header {
+        padding-top: env(safe-area-inset-top, 20px) !important;
+        /* Fallback for older iOS */
+        padding-top: constant(safe-area-inset-top) !important;
+        padding-top: env(safe-area-inset-top) !important;
+    }
+    
+    /* Sticky headers need proper positioning */
+    header.sticky, .sticky.top-0 {
+        top: 0 !important;
+    }
+}
+
+/* iOS specific - when in standalone PWA mode */
+@supports (padding-top: env(safe-area-inset-top)) {
+    .pwa-header {
+        padding-top: env(safe-area-inset-top) !important;
+    }
+}
+
+/* Fallback for older iOS using constant() */
+@supports (padding-top: constant(safe-area-inset-top)) {
+    .pwa-header {
+        padding-top: constant(safe-area-inset-top) !important;
     }
 }
 
