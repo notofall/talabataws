@@ -95,6 +95,10 @@ const ProcurementDashboard = () => {
   const [exportStartDate, setExportStartDate] = useState("");
   const [exportEndDate, setExportEndDate] = useState("");
   const [exportType, setExportType] = useState("orders"); // "orders" or "requests"
+  const [exportProjectFilter, setExportProjectFilter] = useState(""); // فلتر المشروع
+  const [exportSupervisorFilter, setExportSupervisorFilter] = useState(""); // فلتر المشرف
+  const [exportEngineerFilter, setExportEngineerFilter] = useState(""); // فلتر المهندس
+  const [exportApprovalTypeFilter, setExportApprovalTypeFilter] = useState("all"); // نوع الموافقة: all, gm_approved, procurement_approved
   
   // Catalog item linking for PO - ربط الأصناف بالكتالوج
   const [catalogPrices, setCatalogPrices] = useState({});  // {itemIndex: {catalog_item_id, price, name}}
