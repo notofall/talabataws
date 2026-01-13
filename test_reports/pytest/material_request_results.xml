@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="6" skipped="0" tests="30" time="49.577" timestamp="2026-01-13T22:57:45.696661+00:00" hostname="agent-env-3f719071-75e4-41a2-a139-560da76ab7d9"><testcase classname="tests.test_material_request_system.TestHealthCheck" name="test_root_health_check" time="0.091"><failure message="requests.exceptions.JSONDecodeError: Expecting value: line 1 column 1 (char 0)">/root/.venv/lib/python3.11/site-packages/requests/models.py:976: in json
+    return complexjson.loads(self.text, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/json/__init__.py:346: in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/json/decoder.py:337: in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/json/decoder.py:355: in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+E   json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+During handling of the above exception, another exception occurred:
+tests/test_material_request_system.py:29: in test_root_health_check
+    data = response.json()
+           ^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/models.py:980: in json
+    raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
+E   requests.exceptions.JSONDecodeError: Expecting value: line 1 column 1 (char 0)</failure></testcase><testcase classname="tests.test_material_request_system.TestHealthCheck" name="test_pg_health_check" time="0.705" /><testcase classname="tests.test_material_request_system.TestAuthentication" name="test_login_system_admin" time="1.076" /><testcase classname="tests.test_material_request_system.TestAuthentication" name="test_login_procurement_manager" time="1.153" /><testcase classname="tests.test_material_request_system.TestAuthentication" name="test_login_general_manager" time="0.945" /><testcase classname="tests.test_material_request_system.TestAuthentication" name="test_login_engineer" time="0.937" /><testcase classname="tests.test_material_request_system.TestAuthentication" name="test_login_supervisor" time="0.935" /><testcase classname="tests.test_material_request_system.TestAuthentication" name="test_login_invalid_credentials" time="0.726" /><testcase classname="tests.test_material_request_system.TestAuthentication" name="test_get_current_user" time="1.628" /><testcase classname="tests.test_material_request_system.TestSystemAdminDashboard" name="test_get_system_stats" time="2.307" /><testcase classname="tests.test_material_request_system.TestSystemAdminDashboard" name="test_get_all_users" time="1.878" /><testcase classname="tests.test_material_request_system.TestSystemAdminDashboard" name="test_get_company_settings" time="2.616" /><testcase classname="tests.test_material_request_system.TestDomainSettings" name="test_get_domain_status" time="1.638" /><testcase classname="tests.test_material_request_system.TestDomainSettings" name="test_get_dns_instructions" time="1.653" /><testcase classname="tests.test_material_request_system.TestProjects" name="test_get_projects_list" time="2.513" /><testcase classname="tests.test_material_request_system.TestProjects" name="test_create_project" time="1.661"><failure message="assert 403 in [200, 201]&#10; +  where 403 = &lt;Response [403]&gt;.status_code">tests/test_material_request_system.py:246: in test_create_project
+    assert response.status_code in [200, 201]
+E   assert 403 in [200, 201]
+E    +  where 403 = &lt;Response [403]&gt;.status_code</failure></testcase><testcase classname="tests.test_material_request_system.TestSuppliers" name="test_get_suppliers_list" time="1.857" /><testcase classname="tests.test_material_request_system.TestSuppliers" name="test_create_supplier" time="1.855" /><testcase classname="tests.test_material_request_system.TestBudgetCategories" name="test_get_default_categories" time="1.025"><failure message="assert 404 == 200&#10; +  where 404 = &lt;Response [404]&gt;.status_code">tests/test_material_request_system.py:312: in test_get_default_categories
+    assert response.status_code == 200
+E   assert 404 == 200
+E    +  where 404 = &lt;Response [404]&gt;.status_code</failure></testcase><testcase classname="tests.test_material_request_system.TestMaterialRequests" name="test_get_requests_list" time="2.889" /><testcase classname="tests.test_material_request_system.TestEngineerDashboard" name="test_get_engineer_requests" time="2.875" /><testcase classname="tests.test_material_request_system.TestProcurementDashboard" name="test_get_approved_requests" time="1.877"><failure message="assert 404 == 200&#10; +  where 404 = &lt;Response [404]&gt;.status_code">tests/test_material_request_system.py:384: in test_get_approved_requests
+    assert response.status_code == 200
+E   assert 404 == 200
+E    +  where 404 = &lt;Response [404]&gt;.status_code</failure></testcase><testcase classname="tests.test_material_request_system.TestProcurementDashboard" name="test_get_purchase_orders" time="2.738" /><testcase classname="tests.test_material_request_system.TestGeneralManagerDashboard" name="test_get_pending_orders" time="1.885" /><testcase classname="tests.test_material_request_system.TestGeneralManagerDashboard" name="test_get_all_orders_gm_approved" time="1.906" /><testcase classname="tests.test_material_request_system.TestGeneralManagerDashboard" name="test_get_all_orders_manager_approved" time="2.072" /><testcase classname="tests.test_material_request_system.TestSystemTools" name="test_get_system_info" time="1.219"><failure message="assert 404 == 200&#10; +  where 404 = &lt;Response [404]&gt;.status_code">tests/test_material_request_system.py:462: in test_get_system_info
+    assert response.status_code == 200
+E   assert 404 == 200
+E    +  where 404 = &lt;Response [404]&gt;.status_code</failure></testcase><testcase classname="tests.test_material_request_system.TestSystemTools" name="test_get_database_stats" time="1.008"><failure message="assert 404 == 200&#10; +  where 404 = &lt;Response [404]&gt;.status_code">tests/test_material_request_system.py:472: in test_get_database_stats
+    assert response.status_code == 200
+E   assert 404 == 200
+E    +  where 404 = &lt;Response [404]&gt;.status_code</failure></testcase><testcase classname="tests.test_material_request_system.TestAuditLogs" name="test_get_audit_logs" time="1.857" /><testcase classname="tests.test_material_request_system.TestSettings" name="test_get_settings" time="1.846" /></testsuite></testsuites>
