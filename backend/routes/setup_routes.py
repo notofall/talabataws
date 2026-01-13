@@ -1,0 +1,258 @@
+"""
+Database Setup Wizard API
+Allows configuring database connection on first run
+"""
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+from typing import Optional
+import os
+import json
+from pathlib import Path
+
+setup_router = APIRouter(prefix="/api/setup", tags=["Setup"])
+
+# Configuration file path
+CONFIG_FILE = Path("/app/backend/db_config.json")
+
+class DatabaseConfig(BaseModel):
+    """Database configuration model"""
+    db_type: str  # "local" or "cloud"
+    host: str
+    port: int = 5432
+    database: str
+    username: str
+    password: str
+    ssl_mode: str = "require"  # "require" for cloud, "disable" for local
+    
+class SetupStatus(BaseModel):
+    """Setup status response"""
+    is_configured: bool
+    db_type: Optional[str] = None
+    host: Optional[str] = None
+    database: Optional[str] = None
+
+
+def get_config() -> Optional[dict]:
+    """Read saved database configuration"""
+    if CONFIG_FILE.exists():
+        try:
+            with open(CONFIG_FILE, 'r') as f:
+                return json.load(f)
+        except:
+            return None
+    return None
+
+
+def save_config(config: dict) -> bool:
+    """Save database configuration"""
+    try:
+        with open(CONFIG_FILE, 'w') as f:
+            json.dump(config, f, indent=2)
+        return True
+    except Exception as e:
+        print(f"Error saving config: {e}")
+        return False
+
+
+@setup_router.get("/status")
+async def get_setup_status():
+    """Check if database is configured"""
+    config = get_config()
+    
+    if config:
+        return SetupStatus(
+            is_configured=True,
+            db_type=config.get("db_type"),
+            host=config.get("host"),
+            database=config.get("database")
+        )
+    
+    # Check if using environment variables (backward compatibility)
+    if os.environ.get("POSTGRES_HOST"):
+        return SetupStatus(
+            is_configured=True,
+            db_type="env",
+            host=os.environ.get("POSTGRES_HOST"),
+            database=os.environ.get("POSTGRES_DB")
+        )
+    
+    return SetupStatus(is_configured=False)
+
+
+@setup_router.post("/test-connection")
+async def test_database_connection(config: DatabaseConfig):
+    """Test database connection without saving"""
+    try:
+        import asyncpg
+        
+        ssl_context = None
+        if config.ssl_mode == "require":
+            import ssl
+            ssl_context = ssl.create_default_context()
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_NONE
+        
+        # Try to connect
+        conn = await asyncpg.connect(
+            host=config.host,
+            port=config.port,
+            database=config.database,
+            user=config.username,
+            password=config.password,
+            ssl=ssl_context if config.ssl_mode == "require" else None,
+            timeout=10
+        )
+        
+        # Test query
+        version = await conn.fetchval("SELECT version()")
+        await conn.close()
+        
+        return {
+            "success": True,
+            "message": "تم الاتصال بنجاح!",
+            "version": version
+        }
+        
+    except asyncpg.InvalidCatalogNameError:
+        return {
+            "success": False,
+            "message": f"قاعدة البيانات '{config.database}' غير موجودة",
+            "error_type": "database_not_found"
+        }
+    except asyncpg.InvalidPasswordError:
+        return {
+            "success": False,
+            "message": "اسم المستخدم أو كلمة المرور غير صحيحة",
+            "error_type": "auth_failed"
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"فشل الاتصال: {str(e)}",
+            "error_type": "connection_failed"
+        }
+
+
+@setup_router.post("/configure")
+async def configure_database(config: DatabaseConfig):
+    """Save database configuration and initialize tables"""
+    
+    # First test the connection
+    test_result = await test_database_connection(config)
+    if not test_result["success"]:
+        raise HTTPException(status_code=400, detail=test_result["message"])
+    
+    # Save configuration
+    config_dict = {
+        "db_type": config.db_type,
+        "host": config.host,
+        "port": config.port,
+        "database": config.database,
+        "username": config.username,
+        "password": config.password,
+        "ssl_mode": config.ssl_mode
+    }
+    
+    if not save_config(config_dict):
+        raise HTTPException(status_code=500, detail="فشل في حفظ الإعدادات")
+    
+    # Update environment variables for current session
+    os.environ["POSTGRES_HOST"] = config.host
+    os.environ["POSTGRES_PORT"] = str(config.port)
+    os.environ["POSTGRES_DB"] = config.database
+    os.environ["POSTGRES_USER"] = config.username
+    os.environ["POSTGRES_PASSWORD"] = config.password
+    os.environ["POSTGRES_SSLMODE"] = config.ssl_mode
+    
+    # Initialize database tables
+    try:
+        from database.connection import init_postgres_db, engine
+        from database.models import Base
+        
+        # Recreate engine with new settings
+        from sqlalchemy.ext.asyncio import create_async_engine
+        from sqlalchemy.pool import AsyncAdaptedQueuePool
+        
+        ssl_param = "?ssl=require" if config.ssl_mode == "require" else ""
+        db_url = f"postgresql+asyncpg://{config.username}:{config.password}@{config.host}:{config.port}/{config.database}{ssl_param}"
+        
+        new_engine = create_async_engine(
+            db_url,
+            poolclass=AsyncAdaptedQueuePool,
+            pool_size=10,
+            max_overflow=5,
+            pool_pre_ping=True,
+            echo=False
+        )
+        
+        # Create all tables
+        async with new_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        
+        await new_engine.dispose()
+        
+        return {
+            "success": True,
+            "message": "تم إعداد قاعدة البيانات بنجاح! يرجى إعادة تشغيل التطبيق.",
+            "restart_required": True
+        }
+        
+    except Exception as e:
+        # Remove saved config on failure
+        if CONFIG_FILE.exists():
+            CONFIG_FILE.unlink()
+        raise HTTPException(status_code=500, detail=f"فشل في إنشاء الجداول: {str(e)}")
+
+
+@setup_router.delete("/reset")
+async def reset_configuration():
+    """Reset database configuration (for troubleshooting)"""
+    if CONFIG_FILE.exists():
+        CONFIG_FILE.unlink()
+        return {"success": True, "message": "تم إعادة ضبط الإعدادات"}
+    return {"success": False, "message": "لا توجد إعدادات محفوظة"}
+
+
+# Cloud provider presets
+@setup_router.get("/presets")
+async def get_cloud_presets():
+    """Get preset configurations for popular cloud providers"""
+    return {
+        "presets": [
+            {
+                "name": "PlanetScale",
+                "host": "aws.connect.psdb.cloud",
+                "port": 3306,
+                "ssl_mode": "require",
+                "notes": "استخدم بيانات الاتصال من لوحة PlanetScale"
+            },
+            {
+                "name": "Supabase",
+                "host": "db.xxxxx.supabase.co",
+                "port": 5432,
+                "ssl_mode": "require",
+                "notes": "استبدل xxxxx بمعرف مشروعك"
+            },
+            {
+                "name": "AWS RDS",
+                "host": "your-instance.region.rds.amazonaws.com",
+                "port": 5432,
+                "ssl_mode": "require",
+                "notes": "استخدم Endpoint من AWS Console"
+            },
+            {
+                "name": "Google Cloud SQL",
+                "host": "your-instance-ip",
+                "port": 5432,
+                "ssl_mode": "require",
+                "notes": "فعّل Public IP واستخدم SSL"
+            },
+            {
+                "name": "Local PostgreSQL",
+                "host": "localhost",
+                "port": 5432,
+                "ssl_mode": "disable",
+                "notes": "تأكد من تثبيت PostgreSQL على الخادم"
+            }
+        ]
+    }
