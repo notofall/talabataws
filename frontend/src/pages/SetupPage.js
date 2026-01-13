@@ -70,8 +70,8 @@ const SetupPage = () => {
       localStorage.setItem("token", res.data.access_token);
       localStorage.setItem("user", JSON.stringify(res.data.user));
       
-      toast.success("تم إعداد النظام بنجاح! مرحباً بك");
-      window.location.href = "/manager";
+      toast.success("تم إعداد النظام بنجاح! مرحباً بك كمدير نظام");
+      window.location.href = "/system-admin";
     } catch (error) {
       toast.error(error.response?.data?.detail || "فشل في إعداد النظام");
     } finally {
