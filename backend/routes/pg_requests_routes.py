@@ -46,6 +46,10 @@ class MaterialRequestUpdate(BaseModel):
     rejection_reason: Optional[str] = None
 
 
+class RejectRequestData(BaseModel):
+    reason: str
+
+
 # ==================== HELPER FUNCTIONS ====================
 
 async def log_audit_pg(session, entity_type, entity_id, action, user, description, changes=None):
