@@ -233,7 +233,6 @@ async def configure_database(config: DatabaseConfig):
     
     # Initialize database tables
     try:
-        from database.connection import init_postgres_db, engine
         from database.models import Base
         
         # Recreate engine with new settings
@@ -258,6 +257,9 @@ async def configure_database(config: DatabaseConfig):
         
         await new_engine.dispose()
         
+        # Mark setup as complete
+        mark_setup_complete()
+        
         return {
             "success": True,
             "message": "تم إعداد قاعدة البيانات بنجاح! يرجى إعادة تشغيل التطبيق.",
@@ -269,6 +271,109 @@ async def configure_database(config: DatabaseConfig):
         if CONFIG_FILE.exists():
             CONFIG_FILE.unlink()
         raise HTTPException(status_code=500, detail=f"فشل في إنشاء الجداول: {str(e)}")
+
+
+@setup_router.post("/complete-setup")
+async def complete_full_setup(setup_config: FullSetupConfig):
+    """Complete setup with database config and optional admin user"""
+    
+    # First configure database
+    db_config = setup_config.database
+    
+    # Test the connection
+    test_result = await test_database_connection(db_config)
+    if not test_result["success"]:
+        raise HTTPException(status_code=400, detail=test_result["message"])
+    
+    # Save configuration
+    config_dict = {
+        "db_type": db_config.db_type,
+        "host": db_config.host,
+        "port": db_config.port,
+        "database": db_config.database,
+        "username": db_config.username,
+        "password": db_config.password,
+        "ssl_mode": db_config.ssl_mode
+    }
+    
+    if not save_config(config_dict):
+        raise HTTPException(status_code=500, detail="فشل في حفظ الإعدادات")
+    
+    # Update environment variables
+    os.environ["POSTGRES_HOST"] = db_config.host
+    os.environ["POSTGRES_PORT"] = str(db_config.port)
+    os.environ["POSTGRES_DB"] = db_config.database
+    os.environ["POSTGRES_USER"] = db_config.username
+    os.environ["POSTGRES_PASSWORD"] = db_config.password
+    os.environ["POSTGRES_SSLMODE"] = db_config.ssl_mode
+    
+    try:
+        from database.models import Base, User
+        from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+        from sqlalchemy.pool import AsyncAdaptedQueuePool
+        from passlib.context import CryptContext
+        from sqlalchemy import select
+        import uuid
+        
+        pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+        
+        ssl_param = "?ssl=require" if db_config.ssl_mode == "require" else ""
+        db_url = f"postgresql+asyncpg://{db_config.username}:{db_config.password}@{db_config.host}:{db_config.port}/{db_config.database}{ssl_param}"
+        
+        new_engine = create_async_engine(
+            db_url,
+            poolclass=AsyncAdaptedQueuePool,
+            pool_size=10,
+            max_overflow=5,
+            pool_pre_ping=True,
+            echo=False
+        )
+        
+        # Create all tables
+        async with new_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        
+        # Create admin user if provided
+        admin_created = False
+        if setup_config.admin_user:
+            async_session = async_sessionmaker(new_engine, class_=AsyncSession, expire_on_commit=False)
+            async with async_session() as session:
+                # Check if user already exists
+                result = await session.execute(
+                    select(User).where(User.email == setup_config.admin_user.email)
+                )
+                existing_user = result.scalar_one_or_none()
+                
+                if not existing_user:
+                    # Create admin user
+                    admin_user = User(
+                        id=str(uuid.uuid4()),
+                        name=setup_config.admin_user.name,
+                        email=setup_config.admin_user.email,
+                        password_hash=pwd_context.hash(setup_config.admin_user.password),
+                        role="system_admin",
+                        is_active=True
+                    )
+                    session.add(admin_user)
+                    await session.commit()
+                    admin_created = True
+        
+        await new_engine.dispose()
+        
+        # Mark setup as complete
+        mark_setup_complete()
+        
+        return {
+            "success": True,
+            "message": "تم إعداد النظام بنجاح!",
+            "admin_created": admin_created,
+            "restart_required": True
+        }
+        
+    except Exception as e:
+        if CONFIG_FILE.exists():
+            CONFIG_FILE.unlink()
+        raise HTTPException(status_code=500, detail=f"فشل في إعداد النظام: {str(e)}")
 
 
 @setup_router.delete("/reset")
