@@ -539,7 +539,7 @@ export const exportPurchaseOrdersTableToPDF = (orders, exportedBy = null, dateRa
       : '-';
     return `
       <tr style="background: ${idx % 2 === 0 ? '#f8fafc' : '#fff'};">
-        <td style="font-weight: bold; color: #ea580c;">${o.id?.slice(0, 8).toUpperCase() || '-'}</td>
+        <td style="font-weight: bold; color: #ea580c;">${o.order_number || o.id?.slice(0, 8).toUpperCase() || '-'}</td>
         <td>${o.request_number || '-'}</td>
         <td>${itemsSummary}</td>
         <td>${o.project_name || '-'}</td>
