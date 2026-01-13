@@ -162,12 +162,12 @@ async def pg_health_check(session: AsyncSession = Depends(get_postgres_session))
 
 @pg_auth_router.get("/setup/check")
 async def check_setup_required(session: AsyncSession = Depends(get_postgres_session)):
-    """Check if system needs initial setup"""
+    """Check if system needs initial setup - now checks for system_admin"""
     result = await session.execute(
-        select(func.count()).select_from(User).where(User.role == UserRole.PROCUREMENT_MANAGER)
+        select(func.count()).select_from(User).where(User.role == UserRole.SYSTEM_ADMIN)
     )
-    manager_count = result.scalar()
-    return {"setup_required": manager_count == 0}
+    admin_count = result.scalar()
+    return {"setup_required": admin_count == 0}
 
 
 @pg_auth_router.post("/setup/first-admin", response_model=TokenResponse)
@@ -175,14 +175,14 @@ async def create_first_admin(
     admin_data: SetupFirstAdmin,
     session: AsyncSession = Depends(get_postgres_session)
 ):
-    """Create first procurement manager - only available if no manager exists"""
-    # Check if any manager exists
+    """Create first system admin - only available if no admin exists"""
+    # Check if any system admin exists
     result = await session.execute(
-        select(func.count()).select_from(User).where(User.role == UserRole.PROCUREMENT_MANAGER)
+        select(func.count()).select_from(User).where(User.role == UserRole.SYSTEM_ADMIN)
     )
-    manager_count = result.scalar()
+    admin_count = result.scalar()
     
-    if manager_count > 0:
+    if admin_count > 0:
         raise HTTPException(status_code=400, detail="تم إعداد النظام مسبقاً")
     
     # Check if email exists
@@ -194,7 +194,7 @@ async def create_first_admin(
     if len(admin_data.password) < 6:
         raise HTTPException(status_code=400, detail="كلمة المرور يجب أن تكون 6 أحرف على الأقل")
     
-    # Create admin user
+    # Create system admin user
     user_id = str(uuid.uuid4())
     hashed_password = get_password_hash(admin_data.password)
     
@@ -203,7 +203,7 @@ async def create_first_admin(
         name=admin_data.name,
         email=admin_data.email,
         password=hashed_password,
-        role=UserRole.PROCUREMENT_MANAGER,
+        role=UserRole.SYSTEM_ADMIN,  # Changed to system_admin
         is_active=True,
         assigned_projects="[]",
         assigned_engineers="[]"
@@ -221,7 +221,7 @@ async def create_first_admin(
             id=user_id,
             name=admin_data.name,
             email=admin_data.email,
-            role=UserRole.PROCUREMENT_MANAGER,
+            role=UserRole.SYSTEM_ADMIN,
             is_active=True
         )
     )
