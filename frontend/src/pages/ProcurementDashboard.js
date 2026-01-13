@@ -1451,6 +1451,28 @@ const ProcurementDashboard = () => {
             <div className="flex flex-wrap gap-2">
               <Button 
                 size="sm" 
+                variant={ordersViewMode === "pending" ? "default" : "outline"}
+                onClick={() => setOrdersViewMode("pending")}
+                className={`h-8 text-xs ${ordersViewMode === "pending" ? "bg-yellow-600" : "text-yellow-700 border-yellow-300"}`}
+              >
+                بانتظار الاعتماد
+                <Badge className="mr-1 bg-yellow-500 text-white text-xs">
+                  {filteredOrders.filter(o => o.status === "pending_approval").length}
+                </Badge>
+              </Button>
+              <Button 
+                size="sm" 
+                variant={ordersViewMode === "pending_gm" ? "default" : "outline"}
+                onClick={() => setOrdersViewMode("pending_gm")}
+                className={`h-8 text-xs ${ordersViewMode === "pending_gm" ? "bg-purple-600" : "text-purple-700 border-purple-300"}`}
+              >
+                بانتظار المدير العام
+                <Badge className="mr-1 bg-purple-500 text-white text-xs">
+                  {filteredOrders.filter(o => o.status === "pending_gm_approval").length}
+                </Badge>
+              </Button>
+              <Button 
+                size="sm" 
                 variant={ordersViewMode === "approved" ? "default" : "outline"}
                 onClick={() => setOrdersViewMode("approved")}
                 className={`h-8 text-xs ${ordersViewMode === "approved" ? "bg-green-600" : "text-green-700 border-green-300"}`}
