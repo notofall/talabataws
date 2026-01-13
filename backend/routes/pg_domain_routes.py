@@ -74,7 +74,7 @@ def load_domain_config() -> dict:
         try:
             with open(CONFIG_FILE, 'r') as f:
                 return json.load(f)
-        except:
+        except (json.JSONDecodeError, IOError):
             return {}
     return {}
 
