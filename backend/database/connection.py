@@ -30,6 +30,13 @@ def get_database_url():
                 config = json.load(f)
                 db_config = config.get('database', {})
                 
+                # Check for SQLite type
+                if db_config.get('type') == 'sqlite':
+                    db_path = CONFIG_DIR / "talabat.db"
+                    url = f"sqlite+aiosqlite:///{db_path}"
+                    logger.info(f"Using SQLite database: {db_path}")
+                    return url
+                
                 if db_config.get('host'):
                     host = db_config.get('host')
                     port = db_config.get('port', 5432)
