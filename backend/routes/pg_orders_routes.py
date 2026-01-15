@@ -756,18 +756,37 @@ async def get_gm_pending_orders(
         items_result = await session.execute(
             select(PurchaseOrderItem)
             .where(PurchaseOrderItem.order_id == order.id)
+            .order_by(PurchaseOrderItem.item_index)
         )
         items = items_result.scalars().all()
         
         response.append({
             "id": order.id,
             "order_number": order.order_number,
+            "request_number": order.request_number,
             "project_name": order.project_name,
             "supplier_name": order.supplier_name,
+            "category_name": order.category_name,
             "total_amount": order.total_amount,
+            "status": order.status,
             "manager_name": order.manager_name,
+            "supervisor_name": order.supervisor_name,
+            "engineer_name": order.engineer_name,
+            "notes": order.notes,
+            "terms_conditions": order.terms_conditions,
+            "expected_delivery_date": order.expected_delivery_date,
             "items_count": len(items),
-            "created_at": order.created_at.isoformat() if order.created_at else None
+            "created_at": order.created_at.isoformat() if order.created_at else None,
+            "items": [
+                {
+                    "name": item.name,
+                    "quantity": item.quantity,
+                    "unit": item.unit,
+                    "unit_price": item.unit_price,
+                    "total_price": item.total_price
+                }
+                for item in items
+            ]
         })
     
     return response
