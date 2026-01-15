@@ -335,7 +335,16 @@ const ProcurementDashboard = () => {
           by_category: savingsRes.data.by_category || [],
           by_supplier: savingsRes.data.by_supplier || []
         },
-        usage: { total_catalog_items: 0, used_items: 0, usage_rate: 0 },
+        usage: { 
+          summary: {
+            total_catalog_items: 0, 
+            items_with_usage: 0,
+            used_items: 0, 
+            unused_items: 0,
+            usage_rate: 0 
+          },
+          most_used_items: []
+        },
         suppliers: savingsRes.data.by_supplier || []
       });
     } catch (error) {
