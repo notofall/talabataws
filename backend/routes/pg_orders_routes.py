@@ -804,19 +804,44 @@ async def get_gm_all_orders(
     
     response = []
     for order in orders:
+        # Fetch order items for PDF export
+        items_result = await session.execute(
+            select(PurchaseOrderItem)
+            .where(PurchaseOrderItem.order_id == order.id)
+            .order_by(PurchaseOrderItem.item_index)
+        )
+        items = items_result.scalars().all()
+        
         response.append({
             "id": order.id,
             "order_number": order.order_number,
+            "request_number": order.request_number,
             "project_name": order.project_name,
             "supplier_name": order.supplier_name,
+            "category_name": order.category_name,
             "total_amount": order.total_amount,
             "status": order.status,
             "manager_name": order.manager_name,
+            "supervisor_name": order.supervisor_name,
+            "engineer_name": order.engineer_name,
             "approved_by_name": order.approved_by_name,
             "gm_approved_by_name": order.gm_approved_by_name,
+            "notes": order.notes,
+            "terms_conditions": order.terms_conditions,
+            "expected_delivery_date": order.expected_delivery_date,
             "created_at": order.created_at.isoformat() if order.created_at else None,
             "approved_at": order.approved_at.isoformat() if order.approved_at else None,
-            "gm_approved_at": order.gm_approved_at.isoformat() if order.gm_approved_at else None
+            "gm_approved_at": order.gm_approved_at.isoformat() if order.gm_approved_at else None,
+            "items": [
+                {
+                    "name": item.name,
+                    "quantity": item.quantity,
+                    "unit": item.unit,
+                    "unit_price": item.unit_price,
+                    "total_price": item.total_price
+                }
+                for item in items
+            ]
         })
     
     return response
