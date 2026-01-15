@@ -240,11 +240,42 @@ async def get_cost_savings_report(
     
     total_amount = sum(o.total_amount for o in orders)
     
+    # Calculate summary data for frontend compatibility
+    summary = {
+        "total_estimated": total_amount,  # Using actual as estimated for now
+        "total_actual": total_amount,
+        "total_saving": 0,
+        "saving_percent": 0
+    }
+    
+    # Add summary data to by_project for compatibility
+    by_project_with_summary = []
+    for p in by_project.values():
+        by_project_with_summary.append({
+            **p,
+            "estimated": p["total_amount"],
+            "actual": p["total_amount"],
+            "saving": 0,
+            "saving_percent": 0
+        })
+    
+    # Add summary data to by_category for compatibility
+    by_category_with_summary = []
+    for c in by_category.values():
+        by_category_with_summary.append({
+            **c,
+            "estimated": c["total_amount"],
+            "actual": c["total_amount"],
+            "saving": 0,
+            "saving_percent": 0
+        })
+    
     return {
         "total_orders": len(orders),
         "total_amount": total_amount,
-        "by_project": list(by_project.values()),
-        "by_category": list(by_category.values()),
+        "summary": summary,
+        "by_project": by_project_with_summary,
+        "by_category": by_category_with_summary,
         "by_supplier": list(by_supplier.values())
     }
 
