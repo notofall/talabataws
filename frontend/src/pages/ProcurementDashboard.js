@@ -751,7 +751,6 @@ const ProcurementDashboard = () => {
     setTermsConditions("");
     setExpectedDeliveryDate("");
     setSelectedItemIndices([]);
-    setItemPrices({});
     setCatalogPrices({});  // Reset catalog prices
     setSelectedCategoryId("");  // Reset category selection
     setLoadingItems(true);
@@ -767,10 +766,28 @@ const ProcurementDashboard = () => {
       setRemainingItems(remaining);
       // Select all remaining items by default
       setSelectedItemIndices(remaining.map(item => item.index));
+      
+      // Pre-fill item prices from estimated_price or catalog price
+      const initialPrices = {};
+      remaining.forEach(item => {
+        if (item.estimated_price && item.estimated_price > 0) {
+          initialPrices[item.index] = item.estimated_price.toString();
+        }
+      });
+      setItemPrices(initialPrices);
     } catch (error) {
       // If API fails, show all items
       setRemainingItems(request.items.map((item, idx) => ({ index: idx, ...item })));
       setSelectedItemIndices(request.items.map((_, idx) => idx));
+      
+      // Pre-fill from original request items
+      const initialPrices = {};
+      request.items.forEach((item, idx) => {
+        if (item.estimated_price && item.estimated_price > 0) {
+          initialPrices[idx] = item.estimated_price.toString();
+        }
+      });
+      setItemPrices(initialPrices);
     } finally {
       setLoadingItems(false);
     }
