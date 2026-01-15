@@ -324,11 +324,22 @@ const ProcurementDashboard = () => {
     try {
       const savingsRes = await axios.get(`${API_URL}/reports/cost-savings`, getAuthHeaders());
       setReportsData({
-        savings: savingsRes.data,
+        savings: {
+          summary: savingsRes.data.summary || {
+            total_estimated: savingsRes.data.total_amount || 0,
+            total_actual: savingsRes.data.total_amount || 0,
+            total_saving: 0,
+            saving_percent: 0
+          },
+          by_project: savingsRes.data.by_project || [],
+          by_category: savingsRes.data.by_category || [],
+          by_supplier: savingsRes.data.by_supplier || []
+        },
         usage: { total_catalog_items: 0, used_items: 0, usage_rate: 0 },
         suppliers: savingsRes.data.by_supplier || []
       });
     } catch (error) {
+      console.error("Error fetching reports:", error);
       toast.error("فشل في تحميل التقارير");
     } finally {
       setReportsLoading(false);
