@@ -1,311 +1,193 @@
 <analysis>**original_problem_statement:**
-The user initiated a project to migrate from MongoDB to PostgreSQL and then evolve the application into a distributable, enterprise-ready product. This includes creating a Progressive Web App (PWA), a self-hosted installation model with a first-run setup wizard, and advanced system administration tools for updates and logging.
+The user's initial goal was to create a distributable, enterprise-ready version of their application with a simple installation process, leading to a first-run setup wizard. This wizard was buggy, and the user pivoted to deploying the application on a custom domain, which then evolved into a full deployment effort on a cloud VPS (AWS Lightsail).
 
-Most recently, the user requested detailed, step-by-step instructions to install and run the entire application from the source code on their local Windows machine, both with and without Docker. They have also reported and requested fixes for several UI/UX issues related to the PWA and mobile experience, providing screenshots for clarity.
+After a lengthy debugging session to get the application running on AWS, the user has now reported four new critical bugs related to core application functionality. The immediate priority is to fix these new bugs.
 
 **User's preferred language**: Arabic (العربية)
 
 **what currently exists?**
-The application is a full-stack FastAPI and React application using PostgreSQL. All major features from the previous sessions are complete, including role-based access control, CRUD operations, audit trails, and advanced reporting with export functionality.
-
-Key work completed in this session includes:
--   **System Admin Tools:** A new System Tools dashboard for administrators to view system info, resource usage, application logs, and check for updates.
--   **Application Update System:** A dual-mode update mechanism was implemented:
-    1.  **Automatic:** Using a GitHub Actions workflow to build and push Docker images, with a script on the server to pull the latest version.
-    2.  **Manual:** A file upload interface in the admin dashboard for uploading and applying updates from a ZIP file.
--   **Self-Hosted Setup Completion:** The database setup wizard was finalized to include the creation of an initial admin user and saving credentials to a  file.
--   **Deployment & PWA Fixes:** Resolved deployment failures on the Emergent platform by configuring it for an external PostgreSQL database. Fixed multiple PWA-related UI bugs, including header/status bar overlap and adding close buttons to print views.
--   **UI/UX Improvements:** Redesigned the Create Purchase Order dialog and the link from catalog searchable dropdown for better mobile usability.
--   **Installation Guides:** The agent has provided comprehensive, step-by-step guides for setting up the application on Windows, both manually and with Docker.
+The application is a full-stack FastAPI (backend) and React (frontend) system. It is fully containerized using Docker and . The application is currently deployed and running on an AWS Lightsail VPS instance located in Mumbai. The PostgreSQL database is also running as a Docker container on the same server. A new Domain Settings feature was recently added to the System Admin dashboard.
 
 **Last working item**:
--   **Last item agent was working**: Assisting the user with a manual installation on their local Windows machine (without Docker). The user is encountering a series of Python  issues when trying to run a script to create the initial admin user, indicating that the backend dependencies from  were not installed correctly.
--   **Status**: USER VERIFICATION PENDING
--   **Agent Testing Done**: N/A
--   **Which testing method agent to use?**: Manual guidance. The agent needs to wait for the user to report the result of the last command.
--   **User Testing Done**: N
+-   **Last item agent was working**: The user has just reported four new bugs after the agent successfully deployed the application on an AWS Lightsail server and fixed a critical CORS issue. The agent was about to start investigating these new bugs.
+-   **Status**: NOT STARTED
+-   **Agent Testing Done**: N
+-   **Which testing method agent to use?**: backend testing agent for the data-related issues (1, 3, 4) and frontend testing agent for the UI issue (2). The agent should reproduce each bug first.
+-   **User Testing Done**: Y (User discovered the new bugs)
 
 **All Pending/In progress Issue list**:
--   **Issue 1: Manual Installation on Windows is failing (P0)**
-    -   **Description**: The user is unable to complete the manual setup on Windows. After resolving PowerShell and npm <command>
+-   **Issue 1: Catalog item price is not appearing in the purchase order (P0)**
+-   **Issue 2: The Reports button in the catalog leads to a blank page (P0)**
+-   **Issue 3: Settings in the General Manager dashboard are not working (P0)**
+-   **Issue 4: Exporting purchase orders as a General Manager results in no data (P0)**
 
-Usage:
-
-npm install        install all the dependencies in your project
-npm install <foo>  add the <foo> dependency to your project
-npm test           run this project's tests
-npm run <foo>      run the script named <foo>
-npm <command> -h   quick help on <command>
-npm -l             display usage info for all commands
-npm help <term>    search for help on <term>
-npm help npm       more involved overview
-
-All commands:
-
-    access, adduser, audit, bugs, cache, ci, completion,
-    config, dedupe, deprecate, diff, dist-tag, docs, doctor,
-    edit, exec, explain, explore, find-dupes, fund, get, help,
-    help-search, hook, init, install, install-ci-test,
-    install-test, link, ll, login, logout, ls, org, outdated,
-    owner, pack, ping, pkg, prefix, profile, prune, publish,
-    query, rebuild, repo, restart, root, run-script, sbom,
-    search, set, shrinkwrap, star, stars, start, stop, team,
-    test, token, uninstall, unpublish, unstar, update, version,
-    view, whoami
-
-Specify configs in the ini-formatted file:
-    /root/.npmrc
-or on the command line via: npm <command> --key=value
-
-More configuration info: npm help config
-Configuration fields: npm help 7 config
-
-npm@10.8.2 /usr/lib/node_modules/npm issues, they are now stuck on the backend setup, facing  when running the admin creation script.
-    -   **Attempted fixes**:
-        -   Advised using  instead of  to bypass script execution policies.
-        -   Advised using  to fix frontend dependency conflicts.
-        -   After the first , advised Looking in indexes: https://pypi.org/simple, https://d33sy5i8bnduwe.cloudfront.net/simple/
-Requirement already satisfied: pydantic-settings in /root/.venv/lib/python3.11/site-packages (2.12.0)
-Requirement already satisfied: pydantic>=2.7.0 in /root/.venv/lib/python3.11/site-packages (from pydantic-settings) (2.12.5)
-Requirement already satisfied: python-dotenv>=0.21.0 in /root/.venv/lib/python3.11/site-packages (from pydantic-settings) (1.2.1)
-Requirement already satisfied: typing-inspection>=0.4.0 in /root/.venv/lib/python3.11/site-packages (from pydantic-settings) (0.4.2)
-Requirement already satisfied: annotated-types>=0.6.0 in /root/.venv/lib/python3.11/site-packages (from pydantic>=2.7.0->pydantic-settings) (0.7.0)
-Requirement already satisfied: pydantic-core==2.41.5 in /root/.venv/lib/python3.11/site-packages (from pydantic>=2.7.0->pydantic-settings) (2.41.5)
-Requirement already satisfied: typing-extensions>=4.14.1 in /root/.venv/lib/python3.11/site-packages (from pydantic>=2.7.0->pydantic-settings) (4.15.0).
-        -   After subsequent errors, the last instruction was to run  to install all dependencies at once.
+**Issues Detail:**
+-   **Issue 1: Catalog item price is not appearing in the purchase order (P0)**
+    -   **Attempted fixes**: None. This is a new issue.
     -   **Next debug checklist**:
-        1.  Wait for the user to confirm if  completed successfully.
-        2.  If it failed, ask for the full error log to identify the specific package causing the issue.
-        3.  Re-confirm that the user has activated the virtual environment ( should be visible in the command prompt) before running 
-Usage:   
-  pip <command> [options]
+        1.  Examine the frontend code for creating a purchase order to see how catalog item data is fetched and passed.
+        2.  Check the backend API endpoint that handles purchase order creation/fetching.
+        3.  Verify if the price data is correctly being sent from the frontend and processed/saved by the backend.
+        4.  Files to check:  (likely), and relevant backend routes ().
+    -   **Why fix this issue and what will be achieved with the fix?**: This is critical for the application's core purpose of managing purchase orders.
+    -   **Status**: NOT STARTED
+    -   **Is recurring issue?**: N
+    -   **Should Test frontend/backend/both after fix?**: Both.
+    -   **Blocked on other issue**: None.
 
-Commands:
-  install                     Install packages.
-  lock                        Generate a lock file.
-  download                    Download packages.
-  uninstall                   Uninstall packages.
-  freeze                      Output installed packages in requirements format.
-  inspect                     Inspect the python environment.
-  list                        List installed packages.
-  show                        Show information about installed packages.
-  check                       Verify installed packages have compatible dependencies.
-  config                      Manage local and global configuration.
-  search                      Search PyPI for packages.
-  cache                       Inspect and manage pip's wheel cache.
-  index                       Inspect information available from package indexes.
-  wheel                       Build wheels from your requirements.
-  hash                        Compute hashes of package archives.
-  completion                  A helper command used for command completion.
-  debug                       Show information useful for debugging.
-  help                        Show help for commands.
+-   **Issue 2: The Reports button in the catalog leads to a blank page (P0)**
+    -   **Attempted fixes**: None. This is a new issue.
+    -   **Next debug checklist**:
+        1.  Check the  handler or link for the Reports button in the Catalog UI.
+        2.  Verify the React Router route it points to.
+        3.  Examine the component rendered by that route for any rendering errors or missing data dependencies.
+        4.  Check the browser's developer console for any JavaScript errors on that page.
+    -   **Why fix this issue and what will be achieved with the fix?**: Fixes a broken link/feature in the UI.
+    -   **Status**: NOT STARTED
+    -   **Is recurring issue?**: N
+    -   **Should Test frontend/backend/both after fix?**: Frontend.
+    -   **Blocked on other issue**: None.
 
-General Options:
-  -h, --help                  Show help.
-  --debug                     Let unhandled exceptions propagate outside the
-                              main subroutine, instead of logging them to
-                              stderr.
-  --isolated                  Run pip in an isolated mode, ignoring
-                              environment variables and user configuration.
-  --require-virtualenv        Allow pip to only run in a virtual environment;
-                              exit with an error otherwise.
-  --python <python>           Run pip with the specified Python interpreter.
-  -v, --verbose               Give more output. Option is additive, and can be
-                              used up to 3 times.
-  -V, --version               Show version and exit.
-  -q, --quiet                 Give less output. Option is additive, and can be
-                              used up to 3 times (corresponding to WARNING,
-                              ERROR, and CRITICAL logging levels).
-  --log <path>                Path to a verbose appending log.
-  --no-input                  Disable prompting for input.
-  --keyring-provider <keyring_provider>
-                              Enable the credential lookup via the keyring
-                              library if user input is allowed. Specify which
-                              mechanism to use [auto, disabled, import,
-                              subprocess]. (default: auto)
-  --proxy <proxy>             Specify a proxy in the form
-                              scheme://[user:passwd@]proxy.server:port.
-  --retries <retries>         Maximum attempts to establish a new HTTP
-                              connection. (default: 5)
-  --timeout <sec>             Set the socket timeout (default 15 seconds).
-  --exists-action <action>    Default action when a path already exists:
-                              (s)witch, (i)gnore, (w)ipe, (b)ackup, (a)bort.
-  --trusted-host <hostname>   Mark this host or host:port pair as trusted,
-                              even though it does not have valid or any HTTPS.
-  --cert <path>               Path to PEM-encoded CA certificate bundle. If
-                              provided, overrides the default. See 'SSL
-                              Certificate Verification' in pip documentation
-                              for more information.
-  --client-cert <path>        Path to SSL client certificate, a single file
-                              containing the private key and the certificate
-                              in PEM format.
-  --cache-dir <dir>           Store the cache data in <dir>.
-  --no-cache-dir              Disable the cache.
-  --disable-pip-version-check
-                              Don't periodically check PyPI to determine
-                              whether a new version of pip is available for
-                              download. Implied with --no-index.
-  --no-color                  Suppress colored output.
-  --use-feature <feature>     Enable new functionality, that may be backward
-                              incompatible.
-  --use-deprecated <feature>  Enable deprecated functionality, that will be
-                              removed in the future.
-  --resume-retries <resume_retries>
-                              Maximum attempts to resume or restart an
-                              incomplete download. (default: 5) and  commands.
-        4.  Once all dependencies are installed, guide the user to re-run the admin creation script.
-    -   **Why fix this issue and what will be achieved with the fix?**: This is the user's highest priority. Resolving it will allow them to run and test the application on their own computer.
-    -   **Status**: IN PROGRESS
-    -   **Is recurring issue?**: Y
-    -   **Should Test frontend/backend/both after fix?**: N/A
-    -   **Blocked on other issue**: None
+-   **Issue 3: Settings in the General Manager dashboard are not working (P0)**
+    -   **Attempted fixes**: None. This is a new issue.
+    -   **Next debug checklist**:
+        1.  Inspect the API calls made when the General Manager tries to save settings.
+        2.  Check the backend endpoint ( likely) that handles saving these settings.
+        3.  Review the frontend state management in .
+        4.  This might be related to the original first-run setup bug, where configuration files are not being read/written correctly.
+    -   **Why fix this issue and what will be achieved with the fix?**: Allows General Managers to configure their section of the application.
+    -   **Status**: NOT STARTED
+    -   **Is recurring issue?**: N
+    -   **Should Test frontend/backend/both after fix?**: Both.
+    -   **Blocked on other issue**: None.
+
+-   **Issue 4: Exporting purchase orders as a General Manager results in no data (P0)**
+    -   **Attempted fixes**: None. This is a new issue.
+    -   **Next debug checklist**:
+        1.  Examine the backend API endpoint responsible for exporting purchase orders for the General Manager.
+        2.  Check the database query to ensure it's correctly filtering orders for the GM.
+        3.  Verify the logic that generates the export file (e.g., CSV, PDF).
+        4.  Files to check:  and the corresponding backend route.
+    -   **Why fix this issue and what will be achieved with the fix?**: Fixes a core reporting feature for a key user role.
+    -   **Status**: NOT STARTED
+    -   **Is recurring issue?**: N
+    -   **Should Test frontend/backend/both after fix?**: Backend.
+    -   **Blocked on other issue**: None.
 
 **In progress Task List**:
--   None. All development work is paused pending the resolution of the user's installation issue.
+-   None.
 
 **Upcoming and Future Tasks**
 -   **Upcoming Tasks**:
-    -   **P1: Implement a Licensing System:** Introduce a license key validation system to manage enterprise deployments.
+    -   **P1: Implement a Licensing System**: Introduce a license key validation system to manage enterprise deployments.
 -   **Future Tasks**:
-    -   **P2: Implement File Attachments**: Allow users to attach files (e.g., quotations, invoices) to purchase orders.
-    -   **P3: Interactive Charts**: Enhance the advanced reports dashboard with interactive charts for better data visualization.
+    -   **P2: Implement File Attachments**: Allow users to attach files to purchase orders.
+    -   **P3: Interactive Charts**: Enhance the reports dashboard with interactive charts.
 
 **Completed work in this session**
--   **Feature: System Admin Tools (Update & Logs) (DONE)**: Implemented and tested a full-featured system administration dashboard.
--   **Feature: Application Update Mechanism (Manual & Auto) (DONE)**: Created the backend logic, scripts, and UI for both GitHub-based and file-upload-based application updates.
--   **Feature: Self-Hosted Setup Completion (DONE)**: Finalized the multi-step database and admin user setup wizard.
--   **Bug Fix: Emergent Platform Deployment Failure (DONE)**: Patched the application to allow deployment with an external PostgreSQL database.
--   **Bug Fix: PWA Header Overlap (DONE)**: Fixed UI to respect the safe area on mobile devices, preventing the app from rendering under the status bar.
--   **Bug Fix: Missing Close Button in Print Views (DONE)**: Added a close button to all PDF/print preview screens.
--   **UI/UX Improvement: Mobile Dialogs and Controls (DONE)**: Redesigned the Create Purchase Order modal and the Searchable Select component for a better mobile experience.
--   **Support: Created Installation Guides (DONE)**: Provided detailed, step-by-step guides for installing the application on Windows (with and without Docker).
+-   **Deployment to AWS Lightsail**: Successfully guided the user to deploy the application on a production-like cloud VPS, including server setup, Docker installation, firewall configuration, and extensive debugging.
+-   **CORS Issue Resolution**: Fixed a critical CORS error that was preventing the frontend from communicating with the backend in the deployed environment.
+-   **Domain & SSL Feature**: Implemented a new UI and backend for managing custom domains and SSL certificates from the System Admin dashboard.
+-   **Bug Fix (Project Creation)**: Resolved a bug related to project creation that was identified by the testing agent.
+-   **Comprehensive Testing**: Ran a full test suite using the testing agent and achieved a 100% pass rate at that time.
 
 **Earlier issues found/mentioned but not fixed**
--   None.
+-   **Issue 1: First-Run Setup Wizard is Not Triggered Correctly**
+    -   **Debug checklist**: The original issue from the previous handoff (wizard not showing on clean install) was bypassed by manually creating the admin user and config files directly in the database and on the server (, ). The root cause in  and  was never truly fixed.
+    -   **Why to solve this issue and what will be achieved with this?**: This is a fundamental feature for new users. Fixing it would ensure a smooth, user-friendly initial setup and might resolve other configuration-related bugs (like Issue #3 above).
+    -   **Should Test frontend/backend/both after fix**: Both.
+    -   **Is recurring issue?**: Y
 
 **Known issue recurrence from previous fork**
--   None.
+-   **Issue recurrence in previous fork**: The First-Run Setup Wizard is Not Triggered on Clean Install bug from the previous fork recurred in this session.
+-   **Recurrence count**: 1
+-   **Status**: BLOCKED (Bypassed with a manual workaround, but the underlying bug remains).
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
--   **PWA Safe Area Customization**: Using  in conjunction with CSS  to build edge-to-edge layouts that don't conflict with mobile device notches and status bars.
--   **On-Premise Update Strategy**: Implementing both an automated (Docker image pull) and manual (ZIP file upload) update mechanism for self-hosted software.
--   **Deployment Environment Configuration**: Adapting the application to run in a containerized production environment by reading database credentials from a single  secret, as opposed to multiple individual  variables used in development.
--   **End-User Technical Support**: Guiding a non-technical user through complex local environment setup (Python venv, Node dependencies, PostgreSQL setup, dependency conflicts) on Windows.
+-   **Cloud Deployment**: The application is now running on a live AWS Lightsail VPS, not just a local Docker environment.
+-   **Production Configuration**: Using  files (specifically ) is critical for pointing the frontend to the correct backend IP address.
+-   **CORS**: Cross-Origin Resource Sharing is a key security concept that was the source of a major bug, fixed by ensuring the frontend calls the public IP of the backend.
+-   **Docker Data Persistence**: Using named volumes in  to persist application data and the database.
 
 **key DB schema**
--   No new schema changes were made.
+-   **users**: {id, name, email, password (hashed), role, is_active, created_at, updated_at}
 
 **changes in tech stack**
--   **psutil**: Added to the backend for monitoring system resource usage.
--   **httpx**: Added to the backend for making asynchronous HTTP requests to check for updates.
+-   None. The stack is the same, but the deployment environment is now a cloud VPS.
 
 **All files of reference**
--    (System tools implementation)
--    (System tools UI)
--    (Self-host setup logic)
--    (Self-host setup UI)
--    (Major UI fixes)
--    (PWA safe area fix)
--    (PWA viewport fix)
--    (PWA display fix)
--    (Deployment config fix)
--    (New documentation)
--    (New documentation)
+-    (CRITICAL file for the frontend to find the backend)
+-    (Defines the entire stack)
+-    (Related to new bugs #3 and #4)
+-    (Contains the original, unfixed setup bug)
+-    (Contains routing logic that directs to the setup page)
+-    (New feature for domain management)
+-    (Modified for domain management UI)
 
 **Areas that need refactoring**:
--   The Python script for manually creating an admin user is complex for a non-developer. This could be simplified into a single, robust command-line tool within the project for easier execution.
+-   **CORS Fix**: The current fix uses  to replace  in the built JS file (). This is a fragile hack. The frontend build process must be fixed to correctly use the  from  during the  step.
+-   **Setup Wizard Logic**: The entire first-run setup flow needs to be revisited and fixed properly instead of relying on manual workarounds.
 
 **key api endpoints**
--   : (GET) Fetches system and resource information.
--   : (GET) Checks GitHub for new application versions.
--   : (POST) Handles manual update via ZIP file upload.
--   : (POST) Applies a pending update.
--   : (POST) Saves database settings and creates the initial admin user.
+-   : Checks if the app is configured. The frontend uses this to route to login or setup.
+-   : The endpoint that failed during user testing, leading to manual setup.
+-   : Fetches domain/SSL configuration.
+-   : Saves new domain configuration.
 
 **Critical Info for New Agent**
--   **You MUST respond in Arabic (العربية).**
--   **Immediate Priority**: The user is blocked trying to install the app locally on Windows without Docker. Your first task is to resume the conversation and help them resolve the Python dependency errors. The last instruction given was to run . Do not proceed with any other tasks until the user can successfully run the application locally.
--   **User Persona**: The user is the project owner but not a professional developer. Instructions must be extremely clear, simple, and anticipate common issues (like command prompt vs. PowerShell, or forgetting to activate a virtual environment).
+-   **أنت تتحدث العربية. يجب أن ترد دائمًا باللغة العربية.**
+-   Your immediate priority is the four new bugs reported by the user. Do not work on anything else until these are addressed.
+-   The application is live on a cloud server. The frontend was fixed by manually editing a built JS file to replace  with the server's public IP. This is a hack and may break if the frontend is rebuilt. The root cause is likely in the Docker/build configuration and should be properly fixed.
+-   The First-Run Setup Wizard bug from the initial handoff was never truly solved; it was bypassed with manual database and file creation. This is a significant piece of technical debt and may be related to the new GM settings not working bug.
 
 **documents and test reports created in this job**
 -   
--   
--    (Updated)
--    (New)
--    (New)
--    (New)
+-    (updated)
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **User**: Shared screenshot of a PowerShell error when trying to activate the Python virtual environment. (RESOLVED)
-2.  **User**: Shared screenshot of npm <command>
-
-Usage:
-
-npm install        install all the dependencies in your project
-npm install <foo>  add the <foo> dependency to your project
-npm test           run this project's tests
-npm run <foo>      run the script named <foo>
-npm <command> -h   quick help on <command>
-npm -l             display usage info for all commands
-npm help <term>    search for help on <term>
-npm help npm       more involved overview
-
-All commands:
-
-    access, adduser, audit, bugs, cache, ci, completion,
-    config, dedupe, deprecate, diff, dist-tag, docs, doctor,
-    edit, exec, explain, explore, find-dupes, fund, get, help,
-    help-search, hook, init, install, install-ci-test,
-    install-test, link, ll, login, logout, ls, org, outdated,
-    owner, pack, ping, pkg, prefix, profile, prune, publish,
-    query, rebuild, repo, restart, root, run-script, sbom,
-    search, set, shrinkwrap, star, stars, start, stop, team,
-    test, token, uninstall, unpublish, unstar, update, version,
-    view, whoami
-
-Specify configs in the ini-formatted file:
-    /root/.npmrc
-or on the command line via: npm <command> --key=value
-
-More configuration info: npm help config
-Configuration fields: npm help 7 config
-
-npm@10.8.2 /usr/lib/node_modules/npm dependency resolution errors. (RESOLVED)
-3.  **User**: Shared screenshot of a  for . (IN PROGRESS)
-4.  **User**: Shared screenshot showing more  issues after fixing the first one. (IN PROGRESS)
-5.  **User**: Asked to clarify which  to type and where. (RESOLVED)
-6.  **User**: Asked for an explanation on how to add PostgreSQL environment variables for deployment. (RESOLVED)
-7.  **User**: Shared a screenshot showing the PWA sidebar overlapping the iOS status bar. (RESOLVED)
-8.  **User**: Shared screenshots of a poorly formatted Create PO dialog and a PDF print view with no back/close button. (RESOLVED)
-9.  **User**: Shared a screenshot of a poorly styled link from catalog dropdown menu. (RESOLVED)
-10. **User**: Requested that the close button be added to all print dialogs across the application. (RESOLVED)
+10. **User**: This is the IP - Provides the new server IP: . (DONE)
+9.  **User**: Confirms the  and  outputs look correct, but the setup page still appears. (IN PROGRESS)
+8.  **User**: Shows frontend logs, but the issue persists. (IN PROGRESS)
+7.  **User**: Output of  command shows  is still hardcoded in the built JS file. (IN PROGRESS)
+6.  **User**: Reports four new bugs: catalog item price missing, catalog reports blank, GM settings broken, GM export empty. (NOT STARTED)
+5.  **User**: Asks about   prompt. (RESOLVED)
+4.  **User**: Reports  error . (RESOLVED)
+3.  **User**: Reports console error: . (RESOLVED with a hack)
+2.  **User**: Reports  error:  for . (RESOLVED)
+1.  **User**: Reports  error: . (RESOLVED)
 
 **Project Health Check:**
--   **Broken**: The user's local manual installation on Windows is non-functional due to Python dependency errors.
--   **Mocked**: SendGrid integration remains inactive pending a user-provided API key.
+-   **Broken**:
+    -   Purchase order creation (missing price).
+    -   Catalog reports page.
+    -   General Manager settings.
+    -   General Manager data export.
+-   **Mocked**:
+    -   SendGrid email integration is still inactive.
+-   **Technical Debt**:
+    -   The frontend build does not correctly use the  env variable, requiring a post-build  command hack.
+    -   The initial setup wizard logic is still broken and was bypassed with manual steps.
 
 **3rd Party Integrations**
--   **PostgreSQL (PlanetScale)**: Primary database.
--   **Docker**: Used for application packaging and deployment.
--   **SQLAlchemy / psycopg2-binary / asyncpg**: Backend libraries for PostgreSQL.
--   **openpyxl**: Used for Excel export.
--   **SendGrid**: Integrated but inactive (pending API key).
+-   **PostgreSQL**: Core database.
+-   **Docker / Docker Compose**: Core deployment technology.
+-   **AWS Lightsail**: The cloud VPS provider where the application is hosted.
+-   **SendGrid**: Integrated but inactive.
 
 **Testing status**
--   **Testing agent used after significant changes**: YES (for System Admin tools and Self-hosted setup)
+-   **Testing agent used after significant changes**: YES (but before the latest deployment and bug reports).
 -   **Troubleshoot agent used after agent stuck in loop**: NO
--   **Test files created**: None.
--   **Known regressions**: None.
+-   **Test files created**: Yes, by the testing agent in a previous step.
+-   **Known regressions**: Four new regressions have been reported by the user.
 
 **Credentials to test flow:**
-| Role | Email | Password |
-| :--- | :--- | :--- |
-| System Admin |  |  |
-| Procurement Manager |  |  |
-| General Manager |  |  |
+-   **URL**:  (The agent should verify with the user if the IP has changed).
+-   **Admin Email**: 
+-   **Admin Password**: 
 
 **What agent forgot to execute**
--   Nothing. The agent correctly prioritized the user's immediate, blocking issue (local installation) over previously planned tasks.</analysis>
+-   The agent did not fix the root cause of the frontend build ignoring the  variable. It applied a temporary fix using  on the compiled JavaScript file instead.
+-   The agent did not fix the original first-run setup bug, instead opting for a series of manual  commands to bypass it. This technical debt likely contributes to ongoing configuration-related issues.</analysis>
