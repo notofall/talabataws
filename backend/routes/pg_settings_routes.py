@@ -845,6 +845,244 @@ async def get_supplier_performance_report(
     }
 
 
+# ==================== PRICE VARIANCE REPORT ====================
+
+@pg_settings_router.get("/reports/advanced/price-variance")
+async def get_price_variance_report(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    item_name: Optional[str] = None,
+    period: str = "monthly",  # monthly, quarterly, yearly
+    current_user: User = Depends(get_current_user_pg),
+    session: AsyncSession = Depends(get_postgres_session)
+):
+    """
+    تقرير اختلاف الأسعار - تحليل زمني
+    يعرض الأصناف التي تغيّر سعرها عبر الزمن
+    """
+    if current_user.role not in [UserRole.PROCUREMENT_MANAGER, UserRole.GENERAL_MANAGER, UserRole.SYSTEM_ADMIN]:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    
+    # Base query for order items
+    query = select(
+        PurchaseOrderItem,
+        PurchaseOrder
+    ).join(
+        PurchaseOrder, PurchaseOrderItem.order_id == PurchaseOrder.id
+    ).where(
+        PurchaseOrder.status.in_(['approved', 'printed', 'shipped', 'delivered', 'partially_delivered'])
+    )
+    
+    # Apply date filters
+    if start_date:
+        try:
+            start = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+            query = query.where(PurchaseOrder.created_at >= start)
+        except:
+            pass
+    
+    if end_date:
+        try:
+            end = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+            query = query.where(PurchaseOrder.created_at <= end)
+        except:
+            pass
+    
+    # Filter by item name
+    if item_name:
+        query = query.where(PurchaseOrderItem.name.ilike(f"%{item_name}%"))
+    
+    query = query.order_by(PurchaseOrder.created_at)
+    result = await session.execute(query)
+    rows = result.all()
+    
+    # Collect price data by item
+    item_prices = {}  # {item_name: [{date, price, supplier, order_number, quantity}]}
+    
+    for item, order in rows:
+        item_key = item.name.strip().lower()
+        
+        if item_key not in item_prices:
+            item_prices[item_key] = {
+                "name": item.name,
+                "unit": item.unit,
+                "prices": []
+            }
+        
+        item_prices[item_key]["prices"].append({
+            "date": order.created_at.strftime("%Y-%m-%d") if order.created_at else None,
+            "price": item.unit_price,
+            "supplier": order.supplier_name,
+            "order_number": order.order_number,
+            "quantity": item.quantity
+        })
+    
+    # Analyze price changes
+    variance_report = []
+    increased_items = []
+    decreased_items = []
+    
+    for item_key, data in item_prices.items():
+        if len(data["prices"]) < 2:
+            continue  # Need at least 2 prices to compare
+        
+        prices = data["prices"]
+        first_price = prices[0]["price"]
+        last_price = prices[-1]["price"]
+        min_price = min(p["price"] for p in prices)
+        max_price = max(p["price"] for p in prices)
+        avg_price = sum(p["price"] for p in prices) / len(prices)
+        
+        price_change = last_price - first_price
+        price_change_percent = round((price_change / first_price * 100), 1) if first_price > 0 else 0
+        
+        variance_data = {
+            "name": data["name"],
+            "unit": data["unit"],
+            "first_price": round(first_price, 2),
+            "last_price": round(last_price, 2),
+            "min_price": round(min_price, 2),
+            "max_price": round(max_price, 2),
+            "avg_price": round(avg_price, 2),
+            "price_change": round(price_change, 2),
+            "price_change_percent": price_change_percent,
+            "variance_count": len(prices),
+            "price_history": prices[-10:],  # Last 10 entries
+            "trend": "increased" if price_change > 0 else "decreased" if price_change < 0 else "stable"
+        }
+        
+        variance_report.append(variance_data)
+        
+        if price_change > 0:
+            increased_items.append(variance_data)
+        elif price_change < 0:
+            decreased_items.append(variance_data)
+    
+    # Sort by absolute price change
+    variance_report.sort(key=lambda x: abs(x["price_change"]), reverse=True)
+    increased_items.sort(key=lambda x: x["price_change"], reverse=True)
+    decreased_items.sort(key=lambda x: x["price_change"])
+    
+    return {
+        "items": variance_report[:50],  # Top 50 items with price changes
+        "summary": {
+            "total_items_analyzed": len(item_prices),
+            "items_with_changes": len(variance_report),
+            "increased_items": len(increased_items),
+            "decreased_items": len(decreased_items),
+            "stable_items": len(item_prices) - len(variance_report)
+        },
+        "increased": increased_items[:10],  # Top 10 increased
+        "decreased": decreased_items[:10],  # Top 10 decreased
+        "filters": {
+            "start_date": start_date,
+            "end_date": end_date,
+            "item_name": item_name,
+            "period": period
+        }
+    }
+
+
+@pg_settings_router.get("/reports/advanced/price-variance/export")
+async def export_price_variance_report(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    format: str = "excel",
+    current_user: User = Depends(get_current_user_pg),
+    session: AsyncSession = Depends(get_postgres_session)
+):
+    """تصدير تقرير اختلاف الأسعار"""
+    if current_user.role not in [UserRole.PROCUREMENT_MANAGER, UserRole.GENERAL_MANAGER, UserRole.SYSTEM_ADMIN]:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    
+    # Get data
+    report_data = await get_price_variance_report(
+        start_date=start_date,
+        end_date=end_date,
+        current_user=current_user,
+        session=session
+    )
+    
+    if format == "excel":
+        try:
+            from openpyxl import Workbook
+            from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+        except ImportError:
+            raise HTTPException(status_code=500, detail="مكتبة Excel غير متوفرة")
+        
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "تقرير اختلاف الأسعار"
+        ws.sheet_view.rightToLeft = True
+        
+        # Styles
+        header_font = Font(bold=True, color="FFFFFF")
+        header_fill = PatternFill(start_color="9333EA", end_color="9333EA", fill_type="solid")
+        increase_fill = PatternFill(start_color="FEE2E2", end_color="FEE2E2", fill_type="solid")
+        decrease_fill = PatternFill(start_color="D1FAE5", end_color="D1FAE5", fill_type="solid")
+        thin_border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+        
+        # Title
+        ws.merge_cells('A1:H1')
+        ws['A1'] = "تقرير اختلاف الأسعار (التحليل الزمني)"
+        ws['A1'].font = Font(bold=True, size=14)
+        ws['A1'].alignment = Alignment(horizontal='center')
+        
+        # Headers
+        headers = ['الصنف', 'الوحدة', 'أول سعر', 'آخر سعر', 'أقل سعر', 'أعلى سعر', 'التغير', 'نسبة التغير %']
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=3, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.border = thin_border
+        
+        # Data
+        for row_num, item in enumerate(report_data["items"], 4):
+            ws.cell(row=row_num, column=1, value=item["name"]).border = thin_border
+            ws.cell(row=row_num, column=2, value=item["unit"]).border = thin_border
+            ws.cell(row=row_num, column=3, value=item["first_price"]).border = thin_border
+            ws.cell(row=row_num, column=4, value=item["last_price"]).border = thin_border
+            ws.cell(row=row_num, column=5, value=item["min_price"]).border = thin_border
+            ws.cell(row=row_num, column=6, value=item["max_price"]).border = thin_border
+            
+            change_cell = ws.cell(row=row_num, column=7, value=item["price_change"])
+            change_cell.border = thin_border
+            
+            percent_cell = ws.cell(row=row_num, column=8, value=f"{item['price_change_percent']}%")
+            percent_cell.border = thin_border
+            
+            # Color code based on trend
+            if item["price_change"] > 0:
+                for c in range(1, 9):
+                    ws.cell(row=row_num, column=c).fill = increase_fill
+            elif item["price_change"] < 0:
+                for c in range(1, 9):
+                    ws.cell(row=row_num, column=c).fill = decrease_fill
+        
+        # Column widths
+        ws.column_dimensions['A'].width = 35
+        ws.column_dimensions['B'].width = 12
+        for c in 'CDEFGH':
+            ws.column_dimensions[c].width = 14
+        
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        return StreamingResponse(
+            output,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f"attachment; filename=price_variance_{datetime.now().strftime('%Y%m%d')}.xlsx"}
+        )
+    
+    return report_data
+
+
 # ==================== EXPORT ENDPOINTS ====================
 from fastapi.responses import StreamingResponse
 import io
