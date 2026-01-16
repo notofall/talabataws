@@ -137,6 +137,31 @@ async def get_catalog_items_for_planning(
     }
 
 
+@pg_quantity_router.get("/budget-categories/{project_id}")
+async def get_budget_categories_for_project(
+    project_id: str,
+    current_user: User = Depends(get_current_user_pg),
+    session: AsyncSession = Depends(get_postgres_session)
+):
+    """جلب فئات الميزانية لمشروع معين - لاختيارها عند إضافة كمية مخططة"""
+    require_quantity_access(current_user)
+    
+    result = await session.execute(
+        select(BudgetCategory).where(BudgetCategory.project_id == project_id).order_by(BudgetCategory.name)
+    )
+    categories = result.scalars().all()
+    
+    return [
+        {
+            "id": cat.id,
+            "code": cat.code,
+            "name": cat.name,
+            "estimated_budget": cat.estimated_budget
+        }
+        for cat in categories
+    ]
+
+
 # ==================== PLANNED QUANTITIES CRUD ====================
 
 @pg_quantity_router.get("/planned")
