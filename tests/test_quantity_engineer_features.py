@@ -166,8 +166,9 @@ class TestQuantityEngineerDashboard:
         
         assert response.status_code == 200, f"Failed to get projects: {response.text}"
         data = response.json()
-        print(f"✓ Got projects list: {len(data.get('projects', []))} projects")
-        return data.get('projects', [])
+        # API returns list directly
+        projects = data if isinstance(data, list) else data.get('projects', [])
+        print(f"✓ Got projects list: {len(projects)} projects")
 
 
 class TestPlannedQuantities:
