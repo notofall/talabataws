@@ -246,6 +246,22 @@ async def create_planned_quantity(
     if not project:
         raise HTTPException(status_code=404, detail="المشروع غير موجود")
     
+    # جلب فئة الميزانية إذا تم تحديدها
+    category_id = data.category_id or catalog_item.category_id
+    category_name = None
+    if category_id:
+        cat_result = await session.execute(
+            select(BudgetCategory).where(BudgetCategory.id == category_id)
+        )
+        category = cat_result.scalar_one_or_none()
+        if category:
+            category_name = category.name
+        else:
+            # استخدام category_name من الكتالوج إذا لم نجد الفئة
+            category_name = catalog_item.category_name
+    else:
+        category_name = catalog_item.category_name
+    
     # Parse expected order date
     expected_date = None
     if data.expected_order_date:
