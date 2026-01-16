@@ -13,7 +13,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 
 class V2PerformanceAPITester:
-    def __init__(self, base_url="https://app-manager-20.preview.emergentagent.com"):
+    def __init__(self, base_url="https://planner-tool-6.preview.emergentagent.com"):
         self.base_url = base_url
         self.tokens = {}
         self.tests_run = 0
