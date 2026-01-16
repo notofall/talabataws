@@ -277,7 +277,7 @@ async def create_planned_quantity(
         id=str(uuid.uuid4()),
         # بيانات الصنف من الكتالوج
         item_name=catalog_item.name,
-        item_code=catalog_item.id[:8].upper(),  # استخدام جزء من ID ككود
+        item_code=catalog_item.item_code or f"ITM{catalog_item.id[:5].upper()}",  # استخدام item_code من الكتالوج
         unit=catalog_item.unit,
         description=catalog_item.description,
         # الكميات
@@ -287,9 +287,9 @@ async def create_planned_quantity(
         # المشروع
         project_id=data.project_id,
         project_name=project.name,
-        # الفئة من الكتالوج
-        category_id=catalog_item.category_id,
-        category_name=catalog_item.category_name,
+        # الفئة (من اختيار المستخدم أو من الكتالوج)
+        category_id=category_id,
+        category_name=category_name,
         # ربط بالكتالوج
         catalog_item_id=data.catalog_item_id,
         # تاريخ الطلب المتوقع
