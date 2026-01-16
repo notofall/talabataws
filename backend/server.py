@@ -44,6 +44,7 @@ from routes.pg_settings_routes import pg_settings_router
 from routes.pg_sysadmin_routes import pg_sysadmin_router
 from routes.pg_catalog_routes import pg_catalog_router
 from routes.pg_domain_routes import pg_domain_router
+from routes.pg_quantity_routes import pg_quantity_router
 
 # Include all PostgreSQL routers
 app.include_router(pg_auth_router)
@@ -56,6 +57,7 @@ app.include_router(pg_settings_router)
 app.include_router(pg_sysadmin_router)
 app.include_router(pg_catalog_router)
 app.include_router(pg_domain_router)
+app.include_router(pg_quantity_router)
 
 # ==================== CORS Configuration ====================
 app.add_middleware(
