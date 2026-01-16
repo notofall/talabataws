@@ -9,13 +9,13 @@ from typing import Optional, List
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, desc
 import uuid
 import json
 import io
 import csv
 
-from database import get_postgres_session, User, PriceCatalogItem, ItemAlias, BudgetCategory, Supplier
+from database import get_postgres_session, User, PriceCatalogItem, ItemAlias, BudgetCategory, Supplier, PurchaseOrder, PurchaseOrderItem
 from routes.pg_auth_routes import get_current_user_pg, UserRole
 
 # Create router
