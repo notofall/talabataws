@@ -264,7 +264,7 @@ const ProcurementDashboard = () => {
         price: parseFloat(newCatalogItem.price)
       }, getAuthHeaders());
       toast.success("تم إضافة الصنف بنجاح");
-      setNewCatalogItem({ name: "", description: "", unit: "قطعة", price: "", supplier_name: "", category_id: "" });
+      setNewCatalogItem({ item_code: "", name: "", description: "", unit: "قطعة", price: "", supplier_name: "", category_id: "" });
       fetchCatalog(catalogSearch, catalogPage);
     } catch (error) {
       toast.error(error.response?.data?.detail || "فشل في إضافة الصنف");
