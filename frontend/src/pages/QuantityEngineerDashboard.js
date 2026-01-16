@@ -1196,9 +1196,41 @@ const QuantityEngineerDashboard = () => {
           {editingItem && (
             <div className="space-y-4">
               <div className="bg-slate-50 p-3 rounded-lg">
-                <p className="font-bold">{editingItem.item_name}</p>
+                <div className="flex items-center gap-2">
+                  {editingItem.item_code && (
+                    <span className="text-xs px-1.5 py-0.5 bg-purple-100 text-purple-600 rounded font-mono">
+                      {editingItem.item_code}
+                    </span>
+                  )}
+                  <span className="font-bold">{editingItem.item_name}</span>
+                </div>
                 <p className="text-sm text-slate-500">{editingItem.project_name}</p>
-                <p className="text-xs text-purple-600">{editingItem.category_name || "بدون تصنيف"}</p>
+              </div>
+              
+              {/* Budget Category Selector for Edit */}
+              <div>
+                <Label>فئة الميزانية</Label>
+                <select
+                  value={editingItem.category_id || ""}
+                  onChange={(e) => {
+                    const selectedCat = editCategories.find(c => c.id === e.target.value);
+                    setEditingItem({ 
+                      ...editingItem, 
+                      category_id: e.target.value,
+                      category_name: selectedCat?.name || ""
+                    });
+                  }}
+                  className="w-full h-9 border rounded-lg px-2"
+                  disabled={loadingEditCategories}
+                  data-testid="edit-category-select"
+                >
+                  <option value="">{loadingEditCategories ? "جاري التحميل..." : "-- بدون تصنيف --"}</option>
+                  {editCategories.map(cat => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.code ? `${cat.code} - ` : ""}{cat.name}
+                    </option>
+                  ))}
+                </select>
               </div>
               
               <div className="grid grid-cols-2 gap-3">
