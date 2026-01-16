@@ -1109,6 +1109,191 @@ export default function AdvancedReports({ onClose }) {
             </>
           )}
         </TabsContent>
+
+        {/* Price Variance Tab - تقرير اختلاف الأسعار */}
+        <TabsContent value="price-variance" className="space-y-4">
+          {priceVarianceReport && (
+            <>
+              {/* Export Buttons */}
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={() => exportToPDF("price-variance")}>
+                  <FileText className="h-4 w-4 ml-1" /> تصدير PDF
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => exportToExcel("price-variance")}>
+                  <FileSpreadsheet className="h-4 w-4 ml-1" /> تصدير Excel
+                </Button>
+              </div>
+              
+              {/* Summary Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Card className="border-r-4 border-blue-500">
+                  <CardContent className="p-4 text-center">
+                    <Package className="h-8 w-8 mx-auto text-blue-500 mb-2" />
+                    <p className="text-3xl font-bold">{priceVarianceReport.summary?.total_items_analyzed || 0}</p>
+                    <p className="text-sm text-slate-500">أصناف تم تحليلها</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-r-4 border-purple-500">
+                  <CardContent className="p-4 text-center">
+                    <TrendingUp className="h-8 w-8 mx-auto text-purple-500 mb-2" />
+                    <p className="text-3xl font-bold">{priceVarianceReport.summary?.items_with_changes || 0}</p>
+                    <p className="text-sm text-slate-500">أصناف متغيرة</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-r-4 border-red-500">
+                  <CardContent className="p-4 text-center">
+                    <TrendingUp className="h-8 w-8 mx-auto text-red-500 mb-2 transform rotate-45" />
+                    <p className="text-3xl font-bold text-red-600">{priceVarianceReport.summary?.increased_items || 0}</p>
+                    <p className="text-sm text-slate-500">ارتفع سعرها</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-r-4 border-green-500">
+                  <CardContent className="p-4 text-center">
+                    <TrendingUp className="h-8 w-8 mx-auto text-green-500 mb-2 transform -rotate-45" />
+                    <p className="text-3xl font-bold text-green-600">{priceVarianceReport.summary?.decreased_items || 0}</p>
+                    <p className="text-sm text-slate-500">انخفض سعرها</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Price Increased Items */}
+              {priceVarianceReport.increased?.length > 0 && (
+                <Card className="border-r-4 border-red-400">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-red-600">
+                      <TrendingUp className="h-5 w-5 transform rotate-45" />
+                      أصناف ارتفع سعرها
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-red-50">
+                          <tr>
+                            <th className="px-4 py-3 text-right">الصنف</th>
+                            <th className="px-4 py-3 text-center">الوحدة</th>
+                            <th className="px-4 py-3 text-left">أول سعر</th>
+                            <th className="px-4 py-3 text-left">آخر سعر</th>
+                            <th className="px-4 py-3 text-left">التغير</th>
+                            <th className="px-4 py-3 text-center">النسبة</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {priceVarianceReport.increased.map((item, idx) => (
+                            <tr key={idx} className="hover:bg-red-50/50">
+                              <td className="px-4 py-3 font-medium">{item.name}</td>
+                              <td className="px-4 py-3 text-center text-slate-500">{item.unit}</td>
+                              <td className="px-4 py-3 text-left">{formatCurrency(item.first_price)}</td>
+                              <td className="px-4 py-3 text-left font-bold">{formatCurrency(item.last_price)}</td>
+                              <td className="px-4 py-3 text-left text-red-600">+{formatCurrency(item.price_change)}</td>
+                              <td className="px-4 py-3 text-center">
+                                <Badge className="bg-red-100 text-red-700">+{item.price_change_percent}%</Badge>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Price Decreased Items */}
+              {priceVarianceReport.decreased?.length > 0 && (
+                <Card className="border-r-4 border-green-400">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-green-600">
+                      <TrendingUp className="h-5 w-5 transform -rotate-45" />
+                      أصناف انخفض سعرها
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-green-50">
+                          <tr>
+                            <th className="px-4 py-3 text-right">الصنف</th>
+                            <th className="px-4 py-3 text-center">الوحدة</th>
+                            <th className="px-4 py-3 text-left">أول سعر</th>
+                            <th className="px-4 py-3 text-left">آخر سعر</th>
+                            <th className="px-4 py-3 text-left">التوفير</th>
+                            <th className="px-4 py-3 text-center">النسبة</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {priceVarianceReport.decreased.map((item, idx) => (
+                            <tr key={idx} className="hover:bg-green-50/50">
+                              <td className="px-4 py-3 font-medium">{item.name}</td>
+                              <td className="px-4 py-3 text-center text-slate-500">{item.unit}</td>
+                              <td className="px-4 py-3 text-left">{formatCurrency(item.first_price)}</td>
+                              <td className="px-4 py-3 text-left font-bold">{formatCurrency(item.last_price)}</td>
+                              <td className="px-4 py-3 text-left text-green-600">{formatCurrency(item.price_change)}</td>
+                              <td className="px-4 py-3 text-center">
+                                <Badge className="bg-green-100 text-green-700">{item.price_change_percent}%</Badge>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* All Items Table */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5" />
+                    جميع الأصناف المتغيرة
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {priceVarianceReport.items?.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-slate-50">
+                          <tr>
+                            <th className="px-4 py-3 text-right">الصنف</th>
+                            <th className="px-4 py-3 text-center">الوحدة</th>
+                            <th className="px-4 py-3 text-left">أقل سعر</th>
+                            <th className="px-4 py-3 text-left">أعلى سعر</th>
+                            <th className="px-4 py-3 text-left">متوسط</th>
+                            <th className="px-4 py-3 text-left">التغير</th>
+                            <th className="px-4 py-3 text-center">الاتجاه</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {priceVarianceReport.items.map((item, idx) => (
+                            <tr key={idx} className={`hover:bg-slate-50 ${item.trend === 'increased' ? 'bg-red-50/30' : item.trend === 'decreased' ? 'bg-green-50/30' : ''}`}>
+                              <td className="px-4 py-3 font-medium">{item.name}</td>
+                              <td className="px-4 py-3 text-center text-slate-500">{item.unit}</td>
+                              <td className="px-4 py-3 text-left text-green-600">{formatCurrency(item.min_price)}</td>
+                              <td className="px-4 py-3 text-left text-red-600">{formatCurrency(item.max_price)}</td>
+                              <td className="px-4 py-3 text-left">{formatCurrency(item.avg_price)}</td>
+                              <td className="px-4 py-3 text-left font-bold">
+                                <span className={item.price_change > 0 ? 'text-red-600' : 'text-green-600'}>
+                                  {item.price_change > 0 ? '+' : ''}{formatCurrency(item.price_change)}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <Badge className={`${item.trend === 'increased' ? 'bg-red-100 text-red-700' : item.trend === 'decreased' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-700'}`}>
+                                  {item.trend === 'increased' ? '↑ ارتفاع' : item.trend === 'decreased' ? '↓ انخفاض' : '— مستقر'}
+                                </Badge>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="text-center text-slate-500 py-8">لا توجد بيانات كافية لتحليل اختلاف الأسعار</p>
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          )}
+        </TabsContent>
       </Tabs>
     </div>
   );
