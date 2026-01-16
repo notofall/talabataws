@@ -58,9 +58,32 @@ async def get_company_settings(
     current_user: User = Depends(get_current_user_pg),
     session: AsyncSession = Depends(get_postgres_session)
 ):
-    """Get company settings for PDF customization"""
+    """Get company settings for PDF customization - System Admin only"""
     require_system_admin(current_user)
     
+    # Define company setting keys
+    setting_keys = [
+        "company_name", "company_logo", "company_address", "company_phone",
+        "company_email", "report_header", "report_footer", "pdf_primary_color", "pdf_show_logo"
+    ]
+    
+    settings = {}
+    for key in setting_keys:
+        result = await session.execute(
+            select(SystemSetting).where(SystemSetting.key == key)
+        )
+        setting = result.scalar_one_or_none()
+        settings[key] = setting.value if setting else ""
+    
+    return settings
+
+
+@pg_sysadmin_router.get("/company-settings/public")
+async def get_company_settings_public(
+    current_user: User = Depends(get_current_user_pg),
+    session: AsyncSession = Depends(get_postgres_session)
+):
+    """Get company settings for PDF customization - Available for all authenticated users"""
     # Define company setting keys
     setting_keys = [
         "company_name", "company_logo", "company_address", "company_phone",
