@@ -107,7 +107,7 @@ async def get_catalog_items_for_planning(
     
     # Pagination
     offset = (page - 1) * page_size
-    query = query.order_by(PriceCatalogItem.name).offset(offset).limit(page_size)
+    query = query.order_by(PriceCatalogItem.item_code.asc().nullslast(), PriceCatalogItem.name).offset(offset).limit(page_size)
     
     result = await session.execute(query)
     items = result.scalars().all()
@@ -116,6 +116,7 @@ async def get_catalog_items_for_planning(
         "items": [
             {
                 "id": item.id,
+                "item_code": item.item_code,
                 "name": item.name,
                 "description": item.description,
                 "unit": item.unit,
