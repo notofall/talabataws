@@ -3485,7 +3485,12 @@ const ProcurementDashboard = () => {
               {/* Add New Item Form */}
               <div className="border rounded-lg p-3 bg-slate-50">
                 <h4 className="font-medium text-sm mb-2">إضافة صنف جديد</h4>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <Input 
+                    placeholder="كود الصنف (مثال: MAT001)"
+                    value={newCatalogItem.item_code}
+                    onChange={(e) => setNewCatalogItem({...newCatalogItem, item_code: e.target.value})}
+                  />
                   <Input 
                     placeholder="اسم الصنف *"
                     value={newCatalogItem.name}
