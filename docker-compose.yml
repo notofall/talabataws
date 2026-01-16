@@ -2,11 +2,12 @@
 # نظام إدارة طلبات المواد - Docker Compose
 # Material Requests Management System
 # ============================================
-# 
-# التشغيل: docker-compose up -d --build
-# الإيقاف: docker-compose down
-# 
-# ⚠️ مهم: غيّر SERVER_IP إلى IP الخادم الخاص بك
+#
+# 📋 التعليمات:
+# 1. انسخ .env.example إلى .env وعدّل القيم
+# 2. شغّل: docker-compose up -d --build
+# 3. للتحديث: ./deploy.sh
+#
 # ============================================
 
 services:
@@ -15,16 +16,16 @@ services:
     image: postgres:14-alpine
     container_name: talabat_db
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: admin123
-      POSTGRES_DB: talabat_db
+      POSTGRES_USER: ${POSTGRES_USER:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
+      POSTGRES_DB: ${POSTGRES_DB:-talabat_db}
     volumes:
       - ./postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U admin -d talabat_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-admin} -d ${POSTGRES_DB:-talabat_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -40,15 +41,15 @@ services:
     environment:
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
-      - POSTGRES_DB=talabat_db
-      - POSTGRES_USER=admin
-      - POSTGRES_PASSWORD=admin123
+      - POSTGRES_DB=${POSTGRES_DB:-talabat_db}
+      - POSTGRES_USER=${POSTGRES_USER:-admin}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-admin123}
       - POSTGRES_SSLMODE=disable
-      - SECRET_KEY=my-super-secret-key-for-jwt-tokens
+      - SECRET_KEY=${SECRET_KEY:-my-super-secret-key-for-jwt-tokens}
     volumes:
       - ./backend/data:/app/data
     ports:
-      - "8001:8001"
+      - "${BACKEND_PORT:-8001}:8001"
     depends_on:
       postgres:
         condition: service_healthy
@@ -63,13 +64,12 @@ services:
       dockerfile: Dockerfile
     container_name: talabat_frontend
     environment:
-      - REACT_APP_BACKEND_URL=${SERVER_IP:-http://localhost:8001}
+      - REACT_APP_BACKEND_URL=${BACKEND_URL:-http://localhost:8001}
     ports:
-      - "3000:3000"
+      - "${FRONTEND_PORT:-3000}:3000"
     depends_on:
       - backend
     restart: unless-stopped
-    command: /bin/sh -c "find /app/build -name '*.js' -exec sed -i \"s|http://localhost:8001|$${REACT_APP_BACKEND_URL}|g\" {} \\; && serve -s build -l 3000"
     networks:
       - talabat_network
 
