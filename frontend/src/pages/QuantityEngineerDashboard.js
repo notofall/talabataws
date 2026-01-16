@@ -70,6 +70,10 @@ const QuantityEngineerDashboard = () => {
   const [projectCategories, setProjectCategories] = useState([]);
   const [loadingCategories, setLoadingCategories] = useState(false);
   
+  // Edit dialog categories
+  const [editCategories, setEditCategories] = useState([]);
+  const [loadingEditCategories, setLoadingEditCategories] = useState(false);
+  
   // Reports
   const [reportData, setReportData] = useState(null);
   const [reportProject, setReportProject] = useState("");
