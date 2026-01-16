@@ -245,8 +245,10 @@ const QuantityEngineerDashboard = () => {
         planned_quantity: "",
         expected_order_date: "",
         priority: 2,
-        notes: ""
+        notes: "",
+        category_id: ""
       });
+      setProjectCategories([]);
       fetchPlannedItems();
       fetchData();
       
