@@ -11,6 +11,7 @@ import { Badge } from "../components/ui/badge";
 import { Package, LogOut, Clock, CheckCircle, XCircle, RefreshCw, FileText, Check, X, Eye, Download, KeyRound, Loader2, Send } from "lucide-react";
 import { exportRequestToPDF, exportRequestsTableToPDF, fetchAndCacheCompanySettings } from "../utils/pdfExport";
 import ChangePasswordDialog from "../components/ChangePasswordDialog";
+import PlannedQuantitiesView from "../components/PlannedQuantitiesView";
 
 const EngineerDashboard = () => {
   const { user, logout, getAuthHeaders, API_URL } = useAuth();
