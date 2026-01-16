@@ -171,7 +171,7 @@ function App() {
               <Route
                 path="/quantity-engineer"
                 element={
-                  <ProtectedRoute allowedRoles={["quantity_engineer"]}>
+                  <ProtectedRoute allowedRoles={["quantity_engineer", "procurement_manager"]}>
                     <QuantityEngineerDashboard />
                   </ProtectedRoute>
                 }
