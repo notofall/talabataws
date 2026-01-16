@@ -97,7 +97,8 @@ export default function SystemAdminDashboard() {
     procurement_manager: "مدير مشتريات",
     general_manager: "المدير العام",
     printer: "طابعة",
-    delivery_tracker: "متتبع التسليم"
+    delivery_tracker: "متتبع التسليم",
+    quantity_engineer: "مهندس كميات"
   };
 
   const entityTypeLabels = {
