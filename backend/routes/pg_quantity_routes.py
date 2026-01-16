@@ -993,108 +993,133 @@ async def download_planned_template(
     current_user: User = Depends(get_current_user_pg),
     session: AsyncSession = Depends(get_postgres_session)
 ):
-    """تحميل نموذج Excel للاستيراد"""
+    """تحميل نموذج Excel للاستيراد - شيت واحد يحتوي على كل البيانات"""
     require_quantity_access(current_user)
     
     try:
         from openpyxl import Workbook
         from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
+        from openpyxl.utils.dataframe import dataframe_to_rows
         from openpyxl.utils import get_column_letter
+        from openpyxl.worksheet.datavalidation import DataValidation
     except ImportError:
         raise HTTPException(status_code=500, detail="مكتبة Excel غير متوفرة")
     
     wb = Workbook()
-    
-    # الصفحة الأولى: نموذج الإدخال
     ws = wb.active
     ws.title = "الكميات المخططة"
     ws.sheet_view.rightToLeft = True
     
-    header_font = Font(bold=True, color="FFFFFF")
+    # Styles
+    header_font = Font(bold=True, color="FFFFFF", size=11)
     header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
-    required_fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+    item_header_fill = PatternFill(start_color="70AD47", end_color="70AD47", fill_type="solid")
+    example_fill = PatternFill(start_color="E2EFDA", end_color="E2EFDA", fill_type="solid")
     thin_border = Border(
         left=Side(style='thin'), right=Side(style='thin'),
         top=Side(style='thin'), bottom=Side(style='thin')
     )
+    center_align = Alignment(horizontal='center', vertical='center', wrap_text=True)
     
-    headers = ['كود الصنف *', 'كود المشروع *', 'الكمية المخططة *', 'تاريخ الطلب المتوقع', 'الأولوية (1=عالية، 2=متوسطة، 3=منخفضة)', 'ملاحظات']
-    for col, header in enumerate(headers, 1):
-        cell = ws.cell(row=1, column=col, value=header)
-        cell.font = header_font
-        cell.fill = header_fill
-        cell.border = thin_border
-        cell.alignment = Alignment(horizontal='center', wrap_text=True)
-    
-    # أمثلة
-    ws.cell(row=2, column=1, value="ITM001")
-    ws.cell(row=2, column=2, value="PRJ001")
-    ws.cell(row=2, column=3, value=100)
-    ws.cell(row=2, column=4, value="2026-02-01")
-    ws.cell(row=2, column=5, value=2)
-    ws.cell(row=2, column=6, value="ملاحظة اختيارية")
-    
-    for col in range(1, 7):
-        ws.cell(row=2, column=col).border = thin_border
-    
-    ws.column_dimensions['A'].width = 20
-    ws.column_dimensions['B'].width = 20
-    ws.column_dimensions['C'].width = 18
-    ws.column_dimensions['D'].width = 20
-    ws.column_dimensions['E'].width = 35
-    ws.column_dimensions['F'].width = 30
-    
-    # الصفحة الثانية: قائمة الأصناف
-    ws2 = wb.create_sheet(title="أصناف الكتالوج")
-    ws2.sheet_view.rightToLeft = True
-    
-    catalog_headers = ['كود الصنف', 'اسم الصنف', 'الوحدة', 'السعر', 'المورد', 'التصنيف']
-    for col, header in enumerate(catalog_headers, 1):
-        cell = ws2.cell(row=1, column=col, value=header)
-        cell.font = header_font
-        cell.fill = header_fill
-        cell.border = thin_border
-    
+    # جلب بيانات الكتالوج والمشاريع
     catalog_result = await session.execute(
         select(PriceCatalogItem).where(PriceCatalogItem.is_active == True).order_by(PriceCatalogItem.item_code.asc().nullslast())
     )
     catalog_items = catalog_result.scalars().all()
     
-    for row_num, item in enumerate(catalog_items, 2):
-        ws2.cell(row=row_num, column=1, value=item.item_code or f"(بدون كود) {item.id[:8]}").border = thin_border
-        ws2.cell(row=row_num, column=2, value=item.name).border = thin_border
-        ws2.cell(row=row_num, column=3, value=item.unit).border = thin_border
-        ws2.cell(row=row_num, column=4, value=item.price).border = thin_border
-        ws2.cell(row=row_num, column=5, value=item.supplier_name or "-").border = thin_border
-        ws2.cell(row=row_num, column=6, value=item.category_name or "-").border = thin_border
+    projects_result = await session.execute(select(Project).order_by(Project.name))
+    projects = projects_result.scalars().all()
     
-    ws2.column_dimensions['A'].width = 20
-    ws2.column_dimensions['B'].width = 30
-    ws2.column_dimensions['C'].width = 12
-    ws2.column_dimensions['D'].width = 12
-    ws2.column_dimensions['E'].width = 25
-    ws2.column_dimensions['F'].width = 20
+    # === قسم الأصناف المتاحة ===
+    ws.merge_cells('A1:F1')
+    title_cell = ws['A1']
+    title_cell.value = "📋 الأصناف المتاحة للاستيراد"
+    title_cell.font = Font(bold=True, size=14, color="FFFFFF")
+    title_cell.fill = item_header_fill
+    title_cell.alignment = center_align
     
-    # الصفحة الثالثة: قائمة المشاريع
-    ws3 = wb.create_sheet(title="المشاريع")
-    ws3.sheet_view.rightToLeft = True
-    
-    project_headers = ['كود المشروع', 'اسم المشروع']
-    for col, header in enumerate(project_headers, 1):
-        cell = ws3.cell(row=1, column=col, value=header)
+    # رؤوس الأصناف
+    item_headers = ['كود الصنف', 'اسم الصنف', 'الوحدة', 'السعر', 'المورد', 'التصنيف']
+    for col, header in enumerate(item_headers, 1):
+        cell = ws.cell(row=2, column=col, value=header)
         cell.font = header_font
         cell.fill = header_fill
         cell.border = thin_border
+        cell.alignment = center_align
     
-    projects_result = await session.execute(select(Project).order_by(Project.code.asc().nullslast()))
-    projects = projects_result.scalars().all()
+    # بيانات الأصناف
+    for row_num, item in enumerate(catalog_items, 3):
+        ws.cell(row=row_num, column=1, value=item.item_code or f"ITM{item.id[:5].upper()}").border = thin_border
+        ws.cell(row=row_num, column=2, value=item.name).border = thin_border
+        ws.cell(row=row_num, column=3, value=item.unit).border = thin_border
+        ws.cell(row=row_num, column=4, value=item.price).border = thin_border
+        ws.cell(row=row_num, column=5, value=item.supplier_name or "-").border = thin_border
+        ws.cell(row=row_num, column=6, value=item.category_name or "-").border = thin_border
     
-    for row_num, project in enumerate(projects, 2):
-        ws3.cell(row=row_num, column=1, value=getattr(project, 'code', None) or project.name).border = thin_border
-        ws3.cell(row=row_num, column=2, value=project.name).border = thin_border
+    # === قسم المشاريع ===
+    projects_start_row = len(catalog_items) + 5
     
-    ws3.column_dimensions['A'].width = 20
-    ws3.column_dimensions['B'].width = 30
+    ws.merge_cells(f'A{projects_start_row}:B{projects_start_row}')
+    projects_title = ws[f'A{projects_start_row}']
+    projects_title.value = "📁 المشاريع المتاحة"
+    projects_title.font = Font(bold=True, size=14, color="FFFFFF")
+    projects_title.fill = PatternFill(start_color="ED7D31", end_color="ED7D31", fill_type="solid")
+    projects_title.alignment = center_align
+    
+    project_headers = ['اسم المشروع', 'كود المشروع']
+    for col, header in enumerate(project_headers, 1):
+        cell = ws.cell(row=projects_start_row + 1, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.border = thin_border
+        cell.alignment = center_align
+    
+    for row_num, project in enumerate(projects, projects_start_row + 2):
+        ws.cell(row=row_num, column=1, value=project.name).border = thin_border
+        ws.cell(row=row_num, column=2, value=getattr(project, 'code', None) or "-").border = thin_border
+    
+    # === قسم الإدخال ===
+    input_start_row = projects_start_row + len(projects) + 4
+    
+    ws.merge_cells(f'A{input_start_row}:F{input_start_row}')
+    input_title = ws[f'A{input_start_row}']
+    input_title.value = "✏️ أدخل الكميات المخططة هنا (انسخ كود الصنف من القائمة أعلاه)"
+    input_title.font = Font(bold=True, size=14, color="FFFFFF")
+    input_title.fill = PatternFill(start_color="7030A0", end_color="7030A0", fill_type="solid")
+    input_title.alignment = center_align
+    
+    input_headers = ['كود الصنف *', 'اسم المشروع *', 'الكمية المخططة *', 'تاريخ الطلب المتوقع', 'الأولوية (1-3)', 'ملاحظات']
+    for col, header in enumerate(input_headers, 1):
+        cell = ws.cell(row=input_start_row + 1, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.border = thin_border
+        cell.alignment = center_align
+    
+    # صف مثال
+    example_row = input_start_row + 2
+    if catalog_items and projects:
+        example_item = catalog_items[0]
+        example_project = projects[0]
+        ws.cell(row=example_row, column=1, value=example_item.item_code or f"ITM{example_item.id[:5].upper()}")
+        ws.cell(row=example_row, column=2, value=example_project.name)
+        ws.cell(row=example_row, column=3, value=100)
+        ws.cell(row=example_row, column=4, value="2026-02-01")
+        ws.cell(row=example_row, column=5, value=2)
+        ws.cell(row=example_row, column=6, value="مثال - احذف هذا الصف")
+        
+        for col in range(1, 7):
+            cell = ws.cell(row=example_row, column=col)
+            cell.fill = example_fill
+            cell.border = thin_border
+    
+    # ضبط عرض الأعمدة
+    ws.column_dimensions['A'].width = 20
+    ws.column_dimensions['B'].width = 35
+    ws.column_dimensions['C'].width = 18
+    ws.column_dimensions['D'].width = 20
+    ws.column_dimensions['E'].width = 20
+    ws.column_dimensions['F'].width = 25
     
     output = io.BytesIO()
     wb.save(output)
