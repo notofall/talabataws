@@ -948,7 +948,7 @@ export default function AdvancedReports({ onClose }) {
               </div>
               
               {/* Summary Cards */}
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <Card className="border-r-4 border-blue-500">
                   <CardContent className="p-4 text-center">
                     <Truck className="h-8 w-8 mx-auto text-blue-500 mb-2" />
@@ -970,53 +970,116 @@ export default function AdvancedReports({ onClose }) {
                     <p className="text-sm text-slate-500">إجمالي المشتريات</p>
                   </CardContent>
                 </Card>
+                <Card className="border-r-4 border-purple-500">
+                  <CardContent className="p-4 text-center">
+                    <Clock className="h-8 w-8 mx-auto text-purple-500 mb-2" />
+                    <p className="text-3xl font-bold">{supplierReport.summary.avg_on_time_rate || 0}%</p>
+                    <p className="text-sm text-slate-500">متوسط الالتزام</p>
+                  </CardContent>
+                </Card>
               </div>
 
-              {/* Suppliers Table */}
+              {/* Suppliers Table with Items */}
               <Card>
                 <CardHeader>
-                  <CardTitle>تفاصيل أداء الموردين</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    <Truck className="h-5 w-5" />
+                    تفاصيل أداء الموردين
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   {supplierReport.suppliers?.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead className="bg-slate-50">
-                          <tr>
-                            <th className="px-4 py-3 text-right">المورد</th>
-                            <th className="px-4 py-3 text-right">جهة الاتصال</th>
-                            <th className="px-4 py-3 text-center">الطلبات</th>
-                            <th className="px-4 py-3 text-center">المكتملة</th>
-                            <th className="px-4 py-3 text-center">نسبة الإكمال</th>
-                            <th className="px-4 py-3 text-left">إجمالي المشتريات</th>
-                            <th className="px-4 py-3 text-left">متوسط الطلب</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y">
-                          {supplierReport.suppliers.map((supplier, idx) => (
-                            <tr key={idx} className="hover:bg-slate-50">
-                              <td className="px-4 py-3">
-                                <div className="font-medium">{supplier.supplier_name}</div>
-                                <div className="text-xs text-slate-500">{supplier.phone}</div>
-                              </td>
-                              <td className="px-4 py-3 text-slate-600">{supplier.contact_person || "-"}</td>
-                              <td className="px-4 py-3 text-center font-medium">{supplier.total_orders}</td>
-                              <td className="px-4 py-3 text-center text-green-600">{supplier.completed_orders}</td>
-                              <td className="px-4 py-3 text-center">
-                                <Badge className={`${supplier.completion_rate >= 80 ? 'bg-green-100 text-green-700' : supplier.completion_rate >= 50 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
-                                  {supplier.completion_rate}%
-                                </Badge>
-                              </td>
-                              <td className="px-4 py-3 text-left font-bold text-green-600">
-                                {formatCurrency(supplier.total_amount)}
-                              </td>
-                              <td className="px-4 py-3 text-left text-slate-600">
-                                {formatCurrency(supplier.avg_order_value)}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                    <div className="space-y-6">
+                      {supplierReport.suppliers.map((supplier, idx) => (
+                        <div key={idx} className="border rounded-lg p-4 bg-slate-50/50">
+                          {/* Supplier Header */}
+                          <div className="flex items-start justify-between mb-4">
+                            <div>
+                              <h3 className="text-lg font-bold text-slate-800">{supplier.supplier_name}</h3>
+                              <div className="flex gap-4 text-sm text-slate-500 mt-1">
+                                {supplier.contact_person && <span>👤 {supplier.contact_person}</span>}
+                                {supplier.phone && <span>📞 {supplier.phone}</span>}
+                                {supplier.email && <span>✉️ {supplier.email}</span>}
+                              </div>
+                            </div>
+                            <div className="text-left">
+                              <p className="text-lg font-bold text-green-600">{formatCurrency(supplier.total_amount)}</p>
+                              <p className="text-xs text-slate-500">إجمالي المشتريات</p>
+                            </div>
+                          </div>
+                          
+                          {/* Performance Stats */}
+                          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+                            <div className="bg-white rounded p-2 text-center border">
+                              <p className="text-xl font-bold text-blue-600">{supplier.total_orders}</p>
+                              <p className="text-xs text-slate-500">أوامر الشراء</p>
+                            </div>
+                            <div className="bg-white rounded p-2 text-center border">
+                              <p className="text-xl font-bold text-green-600">{supplier.completed_orders}</p>
+                              <p className="text-xs text-slate-500">مكتملة</p>
+                            </div>
+                            <div className="bg-white rounded p-2 text-center border">
+                              <p className="text-xl font-bold text-emerald-600">{supplier.on_time_deliveries || 0}</p>
+                              <p className="text-xs text-slate-500">في الوقت</p>
+                            </div>
+                            <div className="bg-white rounded p-2 text-center border">
+                              <p className="text-xl font-bold text-red-600">{supplier.late_deliveries || 0}</p>
+                              <p className="text-xs text-slate-500">متأخرة</p>
+                            </div>
+                            <div className="bg-white rounded p-2 text-center border">
+                              <Badge className={`text-lg ${supplier.on_time_rate >= 80 ? 'bg-green-100 text-green-700' : supplier.on_time_rate >= 50 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
+                                {supplier.on_time_rate || 0}%
+                              </Badge>
+                              <p className="text-xs text-slate-500 mt-1">نسبة الالتزام</p>
+                            </div>
+                          </div>
+                          
+                          {/* Items Table */}
+                          {supplier.items && supplier.items.length > 0 && (
+                            <div className="mt-4">
+                              <h4 className="font-medium text-sm text-slate-700 mb-2 flex items-center gap-1">
+                                <Package className="h-4 w-4" />
+                                الأصناف المرتبطة ({supplier.total_items || supplier.items.length})
+                              </h4>
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-xs border rounded">
+                                  <thead className="bg-slate-100">
+                                    <tr>
+                                      <th className="px-2 py-2 text-right">الصنف</th>
+                                      <th className="px-2 py-2 text-center">الوحدة</th>
+                                      <th className="px-2 py-2 text-center">الكمية</th>
+                                      <th className="px-2 py-2 text-center">عدد الطلبات</th>
+                                      <th className="px-2 py-2 text-left">أقل سعر</th>
+                                      <th className="px-2 py-2 text-left">أعلى سعر</th>
+                                      <th className="px-2 py-2 text-left">متوسط السعر</th>
+                                      <th className="px-2 py-2 text-left">الإجمالي</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y bg-white">
+                                    {supplier.items.slice(0, 10).map((item, itemIdx) => (
+                                      <tr key={itemIdx} className="hover:bg-slate-50">
+                                        <td className="px-2 py-2 font-medium">{item.name}</td>
+                                        <td className="px-2 py-2 text-center text-slate-500">{item.unit}</td>
+                                        <td className="px-2 py-2 text-center">{item.total_quantity}</td>
+                                        <td className="px-2 py-2 text-center">{item.order_count}</td>
+                                        <td className="px-2 py-2 text-left text-green-600">{formatCurrency(item.min_price)}</td>
+                                        <td className="px-2 py-2 text-left text-red-600">{formatCurrency(item.max_price)}</td>
+                                        <td className="px-2 py-2 text-left text-blue-600">{formatCurrency(item.avg_price)}</td>
+                                        <td className="px-2 py-2 text-left font-bold">{formatCurrency(item.total_price)}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                              {supplier.items.length > 10 && (
+                                <p className="text-xs text-slate-500 mt-2 text-center">
+                                  + {supplier.items.length - 10} صنف آخر
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   ) : (
                     <p className="text-center text-slate-500 py-8">لا توجد بيانات موردين</p>
