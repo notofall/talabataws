@@ -26,10 +26,12 @@ export const getCompanySettings = () => {
 // Fetch company settings from API and cache them
 export const fetchAndCacheCompanySettings = async (token) => {
   try {
+    console.log('Fetching company settings...');
     const res = await axios.get(`${API_URL}/api/pg/sysadmin/company-settings/public`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     if (res.data) {
+      console.log('Company settings fetched:', res.data);
       companySettingsCache = res.data;
       return res.data;
     }
