@@ -459,7 +459,6 @@ export const exportRequestToPDF = (request, companySettings = null) => {
 
 export const exportPurchaseOrderToPDF = (order, companySettings = null) => {
   const settings = companySettings || getCompanySettings();
-  const companyHeader = generateCompanyHeader(settings);
   const companyFooter = generateCompanyFooter(settings);
   
   const items = Array.isArray(order.items) ? order.items : [];
@@ -484,13 +483,29 @@ export const exportPurchaseOrderToPDF = (order, companySettings = null) => {
   const requestNumber = order.request_number || order.request_id?.slice(0, 8).toUpperCase() || '-';
   const expectedDelivery = order.expected_delivery_date ? formatDateShort(order.expected_delivery_date) : '-';
 
-  const html = `
-    ${companyHeader}
-    <div class="compact-header">
-      <div class="title">أمر شراء</div>
-      <div class="order-number">رقم: ${order.order_number || order.id?.slice(0, 8).toUpperCase() || '-'}</div>
-      <div class="subtitle">طلب رقم: ${requestNumber}</div>
+  // Combined header with company info on right and order info on left
+  const combinedHeader = `
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; border: 2px solid ${settings.pdf_primary_color || '#ea580c'}; border-radius: 8px; padding: 15px; margin-bottom: 15px; background: linear-gradient(135deg, #fff7ed 0%, #ffffff 100%);">
+      <!-- Order Info - Left Side -->
+      <div style="text-align: left; flex: 1;">
+        <div style="font-size: 20px; font-weight: bold; color: ${settings.pdf_primary_color || '#ea580c'};">أمر شراء</div>
+        <div style="font-size: 14px; color: #666; margin-top: 5px;">رقم: ${order.order_number || order.id?.slice(0, 8).toUpperCase() || '-'}</div>
+        <div style="font-size: 11px; color: #888; margin-top: 3px;">طلب رقم: ${requestNumber}</div>
+      </div>
+      
+      <!-- Company Info - Right Side -->
+      <div style="text-align: right; flex: 1;">
+        ${settings.company_logo ? `<img src="${settings.company_logo}" style="max-height: 50px; margin-bottom: 5px;" />` : ''}
+        ${settings.company_name ? `<div style="font-size: 16px; font-weight: bold; color: ${settings.pdf_primary_color || '#ea580c'};">${settings.company_name}</div>` : ''}
+        ${settings.company_address ? `<div style="font-size: 10px; color: #666;">${settings.company_address}</div>` : ''}
+        ${settings.company_phone || settings.company_email ? `<div style="font-size: 10px; color: #666;">${settings.company_phone || ''} ${settings.company_phone && settings.company_email ? ' | ' : ''} ${settings.company_email || ''}</div>` : ''}
+        ${settings.report_header ? `<div style="font-size: 11px; color: #444; margin-top: 3px;">${settings.report_header}</div>` : ''}
+      </div>
     </div>
+  `;
+
+  const html = `
+    ${combinedHeader}
     
     <div class="info-box">
       <div class="info-grid">
