@@ -35,6 +35,7 @@ class PlannedQuantityCreate(BaseModel):
     expected_order_date: Optional[str] = None  # تاريخ الطلب المتوقع
     priority: int = 2  # الأولوية (1=عالية، 2=متوسطة، 3=منخفضة)
     notes: Optional[str] = None  # ملاحظات
+    category_id: Optional[str] = None  # فئة الميزانية (اختياري - يمكن اختيارها يدوياً)
 
 
 class PlannedQuantityUpdate(BaseModel):
