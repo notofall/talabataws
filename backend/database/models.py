@@ -84,6 +84,7 @@ class Project(Base):
     __tablename__ = "projects"
     
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid_lib.uuid4()))
+    code: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, unique=True, index=True)  # كود المشروع
     name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     owner_name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -96,6 +97,7 @@ class Project(Base):
     
     __table_args__ = (
         Index('idx_projects_status_created_at', 'status', 'created_at'),
+        Index('idx_projects_code', 'code'),
     )
 
 
