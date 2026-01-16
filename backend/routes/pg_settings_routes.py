@@ -419,6 +419,167 @@ async def get_budget_report(
     }
 
 
+@pg_settings_router.get("/reports/budget/export")
+async def export_budget_report(
+    project_id: Optional[str] = None,
+    format: str = "excel",
+    current_user: User = Depends(get_current_user_pg),
+    session: AsyncSession = Depends(get_postgres_session)
+):
+    """تصدير تقرير الميزانية إلى Excel"""
+    
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
+    except ImportError:
+        raise HTTPException(status_code=500, detail="مكتبة Excel غير متوفرة")
+    
+    # Get budget data
+    projects_query = select(Project).where(Project.status == "active")
+    if project_id:
+        projects_query = projects_query.where(Project.id == project_id)
+    projects_result = await session.execute(projects_query.order_by(Project.name))
+    projects = projects_result.scalars().all()
+    
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "تقرير الميزانية"
+    ws.sheet_view.rightToLeft = True
+    
+    # Styles
+    header_font = Font(bold=True, color="FFFFFF", size=11)
+    header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+    title_fill = PatternFill(start_color="2E75B6", end_color="2E75B6", fill_type="solid")
+    warning_fill = PatternFill(start_color="FFC000", end_color="FFC000", fill_type="solid")
+    danger_fill = PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
+    thin_border = Border(
+        left=Side(style='thin'), right=Side(style='thin'),
+        top=Side(style='thin'), bottom=Side(style='thin')
+    )
+    center_align = Alignment(horizontal='center', vertical='center')
+    
+    # Title
+    ws.merge_cells('A1:F1')
+    title_cell = ws['A1']
+    title_cell.value = f"📊 تقرير الميزانية - {datetime.now().strftime('%Y-%m-%d')}"
+    title_cell.font = Font(bold=True, size=16, color="FFFFFF")
+    title_cell.fill = title_fill
+    title_cell.alignment = center_align
+    
+    row_num = 3
+    total_all_budget = 0
+    total_all_spent = 0
+    
+    for project in projects:
+        # Project header
+        ws.merge_cells(f'A{row_num}:F{row_num}')
+        project_cell = ws.cell(row=row_num, column=1, value=f"🏢 {project.name}")
+        project_cell.font = Font(bold=True, size=12)
+        project_cell.fill = PatternFill(start_color="E2EFDA", end_color="E2EFDA", fill_type="solid")
+        row_num += 1
+        
+        # Headers
+        headers = ['التصنيف', 'الميزانية', 'المصروف', 'المتبقي', 'النسبة %', 'الحالة']
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=row_num, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.border = thin_border
+            cell.alignment = center_align
+        row_num += 1
+        
+        # Get categories for project
+        cats_result = await session.execute(
+            select(BudgetCategory).where(BudgetCategory.project_id == project.id)
+        )
+        categories = cats_result.scalars().all()
+        
+        project_total_budget = 0
+        project_total_spent = 0
+        
+        for category in categories:
+            # Calculate spending
+            spending_result = await session.execute(
+                select(func.coalesce(func.sum(PurchaseOrder.total_amount), 0))
+                .select_from(PurchaseOrder)
+                .where(
+                    PurchaseOrder.project_id == project.id,
+                    PurchaseOrder.category_id == category.id,
+                    PurchaseOrder.status.in_(["approved", "printed", "shipped", "delivered"])
+                )
+            )
+            spent = float(spending_result.scalar() or 0)
+            budget = float(category.estimated_budget or 0)
+            remaining = budget - spent
+            percentage = round((spent / budget * 100), 1) if budget > 0 else 0
+            
+            # Determine status
+            if percentage >= 100:
+                status = "تجاوز"
+                status_fill = danger_fill
+            elif percentage >= 80:
+                status = "تحذير"
+                status_fill = warning_fill
+            else:
+                status = "طبيعي"
+                status_fill = None
+            
+            ws.cell(row=row_num, column=1, value=category.name).border = thin_border
+            ws.cell(row=row_num, column=2, value=budget).border = thin_border
+            ws.cell(row=row_num, column=3, value=spent).border = thin_border
+            ws.cell(row=row_num, column=4, value=remaining).border = thin_border
+            ws.cell(row=row_num, column=5, value=f"{percentage}%").border = thin_border
+            status_cell = ws.cell(row=row_num, column=6, value=status)
+            status_cell.border = thin_border
+            status_cell.alignment = center_align
+            if status_fill:
+                status_cell.fill = status_fill
+                status_cell.font = Font(bold=True, color="FFFFFF")
+            
+            row_num += 1
+            project_total_budget += budget
+            project_total_spent += spent
+        
+        # Project totals
+        ws.cell(row=row_num, column=1, value="المجموع").font = Font(bold=True)
+        ws.cell(row=row_num, column=1).border = thin_border
+        ws.cell(row=row_num, column=2, value=project_total_budget).font = Font(bold=True)
+        ws.cell(row=row_num, column=2).border = thin_border
+        ws.cell(row=row_num, column=3, value=project_total_spent).font = Font(bold=True)
+        ws.cell(row=row_num, column=3).border = thin_border
+        ws.cell(row=row_num, column=4, value=project_total_budget - project_total_spent).font = Font(bold=True)
+        ws.cell(row=row_num, column=4).border = thin_border
+        
+        total_all_budget += project_total_budget
+        total_all_spent += project_total_spent
+        row_num += 2
+    
+    # Grand total
+    ws.merge_cells(f'A{row_num}:F{row_num}')
+    grand_total = ws.cell(row=row_num, column=1, value=f"الإجمالي الكلي: الميزانية {total_all_budget:,.0f} | المصروف {total_all_spent:,.0f} | المتبقي {total_all_budget - total_all_spent:,.0f}")
+    grand_total.font = Font(bold=True, size=12)
+    grand_total.fill = title_fill
+    grand_total.font = Font(bold=True, color="FFFFFF", size=12)
+    
+    # Column widths
+    ws.column_dimensions['A'].width = 25
+    ws.column_dimensions['B'].width = 15
+    ws.column_dimensions['C'].width = 15
+    ws.column_dimensions['D'].width = 15
+    ws.column_dimensions['E'].width = 12
+    ws.column_dimensions['F'].width = 12
+    
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename=budget_report_{datetime.now().strftime('%Y%m%d')}.xlsx"}
+    )
+
+
 # ==================== ADVANCED REPORTS ====================
 
 @pg_settings_router.get("/reports/advanced/summary")
