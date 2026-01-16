@@ -323,7 +323,37 @@ const printHTML = (html, title) => {
   printWindow.document.close();
 };
 
-export const exportRequestToPDF = (request) => {
+// Helper function to generate company header HTML
+const generateCompanyHeader = (settings) => {
+  if (!settings || !settings.company_name) return '';
+  
+  return `
+    <div style="text-align: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid ${settings.pdf_primary_color || '#ea580c'};">
+      ${settings.company_logo ? `<img src="${settings.company_logo}" style="max-height: 60px; margin-bottom: 5px;" />` : ''}
+      <div style="font-size: 16px; font-weight: bold; color: ${settings.pdf_primary_color || '#ea580c'};">${settings.company_name}</div>
+      ${settings.company_address ? `<div style="font-size: 10px; color: #666;">${settings.company_address}</div>` : ''}
+      ${settings.company_phone || settings.company_email ? `<div style="font-size: 10px; color: #666;">${settings.company_phone || ''} ${settings.company_phone && settings.company_email ? ' | ' : ''} ${settings.company_email || ''}</div>` : ''}
+      ${settings.report_header ? `<div style="font-size: 11px; margin-top: 5px;">${settings.report_header}</div>` : ''}
+    </div>
+  `;
+};
+
+// Helper function to generate company footer HTML
+const generateCompanyFooter = (settings) => {
+  if (!settings || !settings.report_footer) return '';
+  
+  return `
+    <div style="text-align: center; margin-top: 20px; padding-top: 10px; border-top: 1px solid #ddd; font-size: 10px; color: #666;">
+      ${settings.report_footer}
+    </div>
+  `;
+};
+
+export const exportRequestToPDF = (request, companySettings = null) => {
+  const settings = companySettings || getCompanySettings();
+  const companyHeader = generateCompanyHeader(settings);
+  const companyFooter = generateCompanyFooter(settings);
+  
   const items = Array.isArray(request.items) ? request.items : [];
   const itemsRows = items.map((item, idx) => `
     <tr style="background: ${idx % 2 === 0 ? '#f9fafb' : '#fff'};">
@@ -338,6 +368,7 @@ export const exportRequestToPDF = (request) => {
   const requestNumber = request.request_number || request.id?.slice(0, 8).toUpperCase() || '-';
 
   const html = `
+    ${companyHeader}
     <div class="compact-header">
       <div class="title">طلب مواد</div>
       <div class="order-number">رقم: ${requestNumber}</div>
@@ -378,6 +409,7 @@ export const exportRequestToPDF = (request) => {
       <p>نظام إدارة طلبات المواد</p>
       <p style="margin-top: 3px;">تاريخ الطباعة: ${formatDateShort(new Date().toISOString())}</p>
     </div>
+    ${companyFooter}
   `;
 
   printHTML(html, `طلب مواد - ${requestNumber}`);
