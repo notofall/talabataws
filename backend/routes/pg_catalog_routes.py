@@ -700,6 +700,296 @@ async def suggest_alias(
     return {"found": False, "suggestions": []}
 
 
+# ==================== ITEM VALIDATION & BEST PRICE ALERT ====================
+
+class ItemValidationRequest(BaseModel):
+    items: List[dict]  # [{name: str, quantity: float, unit: str}]
+    supplier_id: Optional[str] = None
+
+class QuickCatalogAdd(BaseModel):
+    name: str
+    unit: str
+    price: float
+    currency: str = "SAR"
+    supplier_name: Optional[str] = None
+
+
+@pg_catalog_router.post("/price-catalog/validate-items")
+async def validate_items_for_order(
+    request: ItemValidationRequest,
+    current_user: User = Depends(get_current_user_pg),
+    session: AsyncSession = Depends(get_postgres_session)
+):
+    """
+    التحقق من الأصناف قبل اعتماد أمر الشراء
+    - التحقق من وجود كل صنف في الكتالوج
+    - إرجاع قائمة الأصناف غير الموجودة
+    - إقتراح أصناف مشابهة من الكتالوج
+    """
+    results = []
+    missing_items = []
+    
+    for item in request.items:
+        item_name = item.get("name", "").strip()
+        if not item_name:
+            continue
+        
+        # Search in catalog by exact name first
+        exact_result = await session.execute(
+            select(PriceCatalogItem).where(
+                PriceCatalogItem.is_active == True,
+                PriceCatalogItem.name == item_name
+            )
+        )
+        exact_match = exact_result.scalars().all()
+        
+        if exact_match:
+            results.append({
+                "item_name": item_name,
+                "found": True,
+                "catalog_items": [
+                    {
+                        "id": ci.id,
+                        "name": ci.name,
+                        "price": ci.price,
+                        "unit": ci.unit,
+                        "currency": ci.currency,
+                        "supplier_name": ci.supplier_name
+                    }
+                    for ci in exact_match
+                ]
+            })
+            continue
+        
+        # Search for similar items
+        similar_result = await session.execute(
+            select(PriceCatalogItem).where(
+                PriceCatalogItem.is_active == True,
+                PriceCatalogItem.name.ilike(f"%{item_name}%")
+            ).limit(5)
+        )
+        similar_items = similar_result.scalars().all()
+        
+        # Also check aliases
+        alias_result = await session.execute(
+            select(ItemAlias).where(ItemAlias.alias_name.ilike(f"%{item_name}%"))
+        )
+        aliases = alias_result.scalars().all()
+        
+        suggestions = []
+        for si in similar_items:
+            suggestions.append({
+                "id": si.id,
+                "name": si.name,
+                "price": si.price,
+                "unit": si.unit,
+                "supplier_name": si.supplier_name
+            })
+        
+        for alias in aliases:
+            # Get catalog item for alias
+            cat_result = await session.execute(
+                select(PriceCatalogItem).where(PriceCatalogItem.id == alias.catalog_item_id)
+            )
+            cat_item = cat_result.scalar_one_or_none()
+            if cat_item and cat_item.id not in [s["id"] for s in suggestions]:
+                suggestions.append({
+                    "id": cat_item.id,
+                    "name": cat_item.name,
+                    "price": cat_item.price,
+                    "unit": cat_item.unit,
+                    "supplier_name": cat_item.supplier_name,
+                    "matched_alias": alias.alias_name
+                })
+        
+        results.append({
+            "item_name": item_name,
+            "found": False,
+            "suggestions": suggestions
+        })
+        missing_items.append({
+            "name": item_name,
+            "unit": item.get("unit", ""),
+            "quantity": item.get("quantity", 0)
+        })
+    
+    return {
+        "all_valid": len(missing_items) == 0,
+        "total_items": len(request.items),
+        "found_items": len(request.items) - len(missing_items),
+        "missing_items": len(missing_items),
+        "results": results,
+        "missing_list": missing_items
+    }
+
+
+@pg_catalog_router.post("/price-catalog/check-best-price")
+async def check_best_price(
+    item_name: str,
+    supplier_id: Optional[str] = None,
+    unit_price: float = 0,
+    current_user: User = Depends(get_current_user_pg),
+    session: AsyncSession = Depends(get_postgres_session)
+):
+    """
+    تنبيه السعر الأفضل
+    - البحث عن نفس الصنف من موردين آخرين بسعر أقل
+    - إرجاع قائمة الموردين مع أسعارهم
+    """
+    # Get supplier name if supplier_id provided
+    supplier_name = None
+    if supplier_id:
+        sup_result = await session.execute(
+            select(Supplier).where(Supplier.id == supplier_id)
+        )
+        supplier = sup_result.scalar_one_or_none()
+        if supplier:
+            supplier_name = supplier.name
+    
+    # Search for this item in catalog from other suppliers
+    query = select(PriceCatalogItem).where(
+        PriceCatalogItem.is_active == True,
+        PriceCatalogItem.name.ilike(f"%{item_name}%")
+    )
+    
+    result = await session.execute(query)
+    catalog_items = result.scalars().all()
+    
+    # Also search in historical purchase orders
+    po_items_query = select(PurchaseOrderItem).where(
+        PurchaseOrderItem.name.ilike(f"%{item_name}%")
+    ).order_by(desc(PurchaseOrderItem.id)).limit(20)
+    
+    po_result = await session.execute(po_items_query)
+    po_items = po_result.scalars().all()
+    
+    # Collect all prices from different suppliers
+    supplier_prices = {}  # {supplier_name: {price, source, date}}
+    
+    for ci in catalog_items:
+        sup_name = ci.supplier_name or "غير محدد"
+        if sup_name not in supplier_prices or ci.price < supplier_prices[sup_name]["price"]:
+            supplier_prices[sup_name] = {
+                "price": ci.price,
+                "source": "catalog",
+                "unit": ci.unit,
+                "currency": ci.currency,
+                "item_name": ci.name,
+                "catalog_item_id": ci.id
+            }
+    
+    # Check historical PO prices
+    for poi in po_items:
+        # Get order to find supplier
+        order_result = await session.execute(
+            select(PurchaseOrder).where(PurchaseOrder.id == poi.order_id)
+        )
+        order = order_result.scalar_one_or_none()
+        if order:
+            sup_name = order.supplier_name or "غير محدد"
+            if sup_name not in supplier_prices or poi.unit_price < supplier_prices[sup_name]["price"]:
+                supplier_prices[sup_name] = {
+                    "price": poi.unit_price,
+                    "source": "purchase_order",
+                    "unit": poi.unit,
+                    "currency": order.currency or "SAR",
+                    "item_name": poi.name,
+                    "order_number": order.order_number,
+                    "order_date": order.created_at.strftime("%Y-%m-%d") if order.created_at else None
+                }
+    
+    # Find better prices (excluding current supplier)
+    better_prices = []
+    for sup_name, data in supplier_prices.items():
+        if supplier_name and sup_name.lower() == supplier_name.lower():
+            continue  # Skip current supplier
+        
+        if unit_price > 0 and data["price"] < unit_price:
+            savings = round(unit_price - data["price"], 2)
+            savings_percent = round((savings / unit_price) * 100, 1)
+            better_prices.append({
+                "supplier_name": sup_name,
+                "price": data["price"],
+                "unit": data.get("unit", ""),
+                "currency": data.get("currency", "SAR"),
+                "source": data["source"],
+                "savings": savings,
+                "savings_percent": savings_percent,
+                "item_name": data["item_name"]
+            })
+    
+    # Sort by price
+    better_prices.sort(key=lambda x: x["price"])
+    
+    has_better_price = len(better_prices) > 0
+    
+    return {
+        "item_name": item_name,
+        "current_price": unit_price,
+        "current_supplier": supplier_name,
+        "has_better_price": has_better_price,
+        "better_options": better_prices[:5],  # Top 5 better prices
+        "all_suppliers": [
+            {
+                "supplier_name": k,
+                "price": v["price"],
+                "unit": v.get("unit", ""),
+                "source": v["source"]
+            }
+            for k, v in sorted(supplier_prices.items(), key=lambda x: x[1]["price"])
+        ][:10]
+    }
+
+
+@pg_catalog_router.post("/price-catalog/quick-add")
+async def quick_add_catalog_item(
+    item: QuickCatalogAdd,
+    current_user: User = Depends(get_current_user_pg),
+    session: AsyncSession = Depends(get_postgres_session)
+):
+    """
+    إضافة صنف سريعة للكتالوج (من شاشة أمر الشراء)
+    """
+    if current_user.role not in [UserRole.PROCUREMENT_MANAGER, UserRole.SYSTEM_ADMIN]:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بإضافة أصناف")
+    
+    # Check if item already exists with same name and supplier
+    existing = await session.execute(
+        select(PriceCatalogItem).where(
+            PriceCatalogItem.name == item.name,
+            PriceCatalogItem.supplier_name == item.supplier_name
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="هذا الصنف موجود مسبقاً لهذا المورد")
+    
+    new_item = PriceCatalogItem(
+        id=str(uuid.uuid4()),
+        name=item.name,
+        unit=item.unit,
+        price=item.price,
+        currency=item.currency,
+        supplier_name=item.supplier_name,
+        is_active=True,
+        created_by=current_user.id,
+        created_by_name=current_user.name
+    )
+    
+    session.add(new_item)
+    await session.commit()
+    
+    return {
+        "message": "تم إضافة الصنف للكتالوج بنجاح",
+        "item": {
+            "id": new_item.id,
+            "name": new_item.name,
+            "price": new_item.price,
+            "unit": new_item.unit,
+            "supplier_name": new_item.supplier_name
+        }
+    }
+
+
 @pg_catalog_router.post("/item-aliases")
 async def create_alias(
     alias_data: AliasCreate,
