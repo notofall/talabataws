@@ -33,7 +33,8 @@ export default function AdvancedReports({ onClose }) {
     supervisor_id: "",
     supplier_id: "",
     start_date: "",
-    end_date: ""
+    end_date: "",
+    item_name: ""  // New filter for item name
   });
 
   // Fetch filter options
