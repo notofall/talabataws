@@ -1912,6 +1912,7 @@ export default function SystemAdminDashboard() {
                   <SelectItem value="general_manager">المدير العام</SelectItem>
                   <SelectItem value="printer">طابعة</SelectItem>
                   <SelectItem value="delivery_tracker">متتبع التسليم</SelectItem>
+                  <SelectItem value="quantity_engineer">مهندس كميات</SelectItem>
                 </SelectContent>
               </Select>
             </div>
