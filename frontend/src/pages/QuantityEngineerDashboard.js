@@ -1054,7 +1054,7 @@ const QuantityEngineerDashboard = () => {
               <Label>المشروع *</Label>
               <select
                 value={newPlan.project_id}
-                onChange={(e) => setNewPlan({ ...newPlan, project_id: e.target.value })}
+                onChange={(e) => handleProjectChange(e.target.value)}
                 className="w-full h-9 border rounded-lg px-2"
                 data-testid="project-select"
               >
@@ -1064,6 +1064,30 @@ const QuantityEngineerDashboard = () => {
                 ))}
               </select>
             </div>
+            
+            {/* Budget Category Selector */}
+            {newPlan.project_id && (
+              <div>
+                <Label>فئة الميزانية (اختياري)</Label>
+                <select
+                  value={newPlan.category_id}
+                  onChange={(e) => setNewPlan({ ...newPlan, category_id: e.target.value })}
+                  className="w-full h-9 border rounded-lg px-2"
+                  data-testid="category-select"
+                  disabled={loadingCategories}
+                >
+                  <option value="">{loadingCategories ? "جاري التحميل..." : "-- اختر فئة الميزانية --"}</option>
+                  {projectCategories.map(cat => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.code ? `${cat.code} - ` : ""}{cat.name}
+                    </option>
+                  ))}
+                </select>
+                {projectCategories.length === 0 && !loadingCategories && (
+                  <p className="text-xs text-slate-500 mt-1">لا توجد فئات ميزانية لهذا المشروع</p>
+                )}
+              </div>
+            )}
             
             <div className="grid grid-cols-2 gap-3">
               <div>
