@@ -6,11 +6,11 @@
 # التشغيل: docker-compose up -d --build
 # الإيقاف: docker-compose down
 # 
-# بعد التشغيل افتح: http://localhost:3000
+# ⚠️ مهم: غيّر SERVER_IP إلى IP الخادم الخاص بك
 # ============================================
 
 services:
-  # قاعدة البيانات PostgreSQL (اختياري - يمكن استخدام قاعدة بيانات خارجية)
+  # قاعدة البيانات PostgreSQL
   postgres:
     image: postgres:14-alpine
     container_name: talabat_db
@@ -19,7 +19,7 @@ services:
       POSTGRES_PASSWORD: admin123
       POSTGRES_DB: talabat_db
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ./postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     restart: unless-stopped
@@ -38,7 +38,6 @@ services:
       dockerfile: Dockerfile
     container_name: talabat_backend
     environment:
-      # Default to Docker PostgreSQL - can be overridden by setup wizard
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
       - POSTGRES_DB=talabat_db
@@ -47,8 +46,7 @@ services:
       - POSTGRES_SSLMODE=disable
       - SECRET_KEY=my-super-secret-key-for-jwt-tokens
     volumes:
-      # Mount data directory to persist setup configuration
-      - backend_data:/app/data
+      - ./backend/data:/app/data
     ports:
       - "8001:8001"
     depends_on:
@@ -63,24 +61,17 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      args:
-        - REACT_APP_BACKEND_URL=http://localhost:8001
     container_name: talabat_frontend
     environment:
-      - REACT_APP_BACKEND_URL=http://localhost:8001
+      - REACT_APP_BACKEND_URL=${SERVER_IP:-http://localhost:8001}
     ports:
       - "3000:3000"
     depends_on:
       - backend
     restart: unless-stopped
+    command: /bin/sh -c "find /app/build -name '*.js' -exec sed -i \"s|http://localhost:8001|$${REACT_APP_BACKEND_URL}|g\" {} \\; && serve -s build -l 3000"
     networks:
       - talabat_network
-
-volumes:
-  postgres_data:
-    name: talabat_postgres_data
-  backend_data:
-    name: talabat_backend_data
 
 networks:
   talabat_network:
