@@ -42,6 +42,7 @@ class UserRole:
     PRINTER = "printer"
     DELIVERY_TRACKER = "delivery_tracker"
     GENERAL_MANAGER = "general_manager"
+    QUANTITY_ENGINEER = "quantity_engineer"  # مهندس الكميات - جديد
 
 
 class UserCreate(BaseModel):
