@@ -26,6 +26,7 @@ class UserRole(str, enum.Enum):
     DELIVERY_TRACKER = "delivery_tracker"
     GENERAL_MANAGER = "general_manager"
     SYSTEM_ADMIN = "system_admin"
+    QUANTITY_ENGINEER = "quantity_engineer"  # مهندس الكميات - دور جديد
 
 
 class RequestStatus(str, enum.Enum):
