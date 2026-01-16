@@ -299,12 +299,14 @@ const QuantityEngineerDashboard = () => {
         planned_quantity: parseFloat(editingItem.planned_quantity),
         expected_order_date: editingItem.expected_order_date,
         priority: editingItem.priority,
-        notes: editingItem.notes
+        notes: editingItem.notes,
+        category_id: editingItem.category_id
       }, getAuthHeaders());
       
       toast.success("تم تحديث الكمية بنجاح");
       setEditDialogOpen(false);
       setEditingItem(null);
+      setEditCategories([]);
       fetchPlannedItems();
       
     } catch (error) {
