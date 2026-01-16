@@ -665,11 +665,16 @@ async def get_approval_analytics(
 async def get_supplier_performance_report(
     supplier_id: Optional[str] = None,
     project_id: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    item_name: Optional[str] = None,
     current_user: User = Depends(get_current_user_pg),
     session: AsyncSession = Depends(get_postgres_session)
 ):
-    """تقرير أداء الموردين - للمدير العام ومدير المشتريات"""
-    if current_user.role not in [UserRole.PROCUREMENT_MANAGER, UserRole.GENERAL_MANAGER]:
+    """تقرير أداء الموردين - للمدير العام ومدير المشتريات
+    يشمل: الأصناف المرتبطة، أسعار الشراء، الالتزام الزمني
+    """
+    if current_user.role not in [UserRole.PROCUREMENT_MANAGER, UserRole.GENERAL_MANAGER, UserRole.SYSTEM_ADMIN]:
         raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
     
     # Get suppliers
@@ -686,7 +691,23 @@ async def get_supplier_performance_report(
         orders_query = select(PurchaseOrder).where(PurchaseOrder.supplier_id == supplier.id)
         if project_id:
             orders_query = orders_query.where(PurchaseOrder.project_id == project_id)
-        orders_result = await session.execute(orders_query)
+        
+        # Date filters
+        if start_date:
+            try:
+                start = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+                orders_query = orders_query.where(PurchaseOrder.created_at >= start)
+            except:
+                pass
+        
+        if end_date:
+            try:
+                end = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+                orders_query = orders_query.where(PurchaseOrder.created_at <= end)
+            except:
+                pass
+        
+        orders_result = await session.execute(orders_query.order_by(desc(PurchaseOrder.created_at)))
         orders = orders_result.scalars().all()
         
         if not orders:
@@ -694,23 +715,113 @@ async def get_supplier_performance_report(
         
         total_orders = len(orders)
         completed_orders = len([o for o in orders if o.status in ["delivered"]])
-        approved_orders = len([o for o in orders if o.status in ["approved", "printed", "shipped", "delivered"]])
-        total_amount = sum(o.total_amount or 0 for o in orders if o.status in ["approved", "printed", "shipped", "delivered"])
+        approved_orders = len([o for o in orders if o.status in ["approved", "printed", "shipped", "delivered", "partially_delivered"]])
+        total_amount = sum(o.total_amount or 0 for o in orders if o.status in ["approved", "printed", "shipped", "delivered", "partially_delivered"])
         
-        # On-time delivery rate (simplified - based on status)
-        delivered = [o for o in orders if o.status == "delivered"]
+        # Calculate on-time delivery rate
+        on_time_deliveries = 0
+        late_deliveries = 0
+        pending_late = 0  # Orders that are late but not yet delivered
+        
+        for order in orders:
+            if order.expected_delivery_date:
+                try:
+                    expected = datetime.strptime(order.expected_delivery_date, "%Y-%m-%d")
+                    
+                    if order.status == "delivered" and order.delivered_at:
+                        if order.delivered_at.replace(tzinfo=None) <= expected:
+                            on_time_deliveries += 1
+                        else:
+                            late_deliveries += 1
+                    elif order.status not in ["delivered"] and datetime.now() > expected:
+                        pending_late += 1  # Should have been delivered but wasn't
+                except:
+                    pass
+        
+        # Get items for this supplier's orders
+        items_data = {}
+        for order in orders:
+            items_result = await session.execute(
+                select(PurchaseOrderItem).where(PurchaseOrderItem.order_id == order.id)
+            )
+            items = items_result.scalars().all()
+            
+            for item in items:
+                # Filter by item name if specified
+                if item_name and item_name.lower() not in item.name.lower():
+                    continue
+                
+                if item.name not in items_data:
+                    items_data[item.name] = {
+                        "name": item.name,
+                        "unit": item.unit,
+                        "total_quantity": 0,
+                        "total_price": 0,
+                        "prices": [],
+                        "order_count": 0,
+                        "min_price": None,
+                        "max_price": None
+                    }
+                
+                items_data[item.name]["total_quantity"] += item.quantity
+                items_data[item.name]["total_price"] += item.total_price or 0
+                items_data[item.name]["order_count"] += 1
+                items_data[item.name]["prices"].append({
+                    "unit_price": item.unit_price,
+                    "quantity": item.quantity,
+                    "order_number": order.order_number,
+                    "date": order.created_at.strftime("%Y-%m-%d") if order.created_at else None
+                })
+                
+                # Track min/max prices
+                if items_data[item.name]["min_price"] is None or item.unit_price < items_data[item.name]["min_price"]:
+                    items_data[item.name]["min_price"] = item.unit_price
+                if items_data[item.name]["max_price"] is None or item.unit_price > items_data[item.name]["max_price"]:
+                    items_data[item.name]["max_price"] = item.unit_price
+        
+        # Calculate average prices
+        items_list = []
+        for item_name_key, item_info in items_data.items():
+            avg_price = round(item_info["total_price"] / item_info["total_quantity"], 2) if item_info["total_quantity"] > 0 else 0
+            items_list.append({
+                "name": item_info["name"],
+                "unit": item_info["unit"],
+                "total_quantity": item_info["total_quantity"],
+                "total_price": round(item_info["total_price"], 2),
+                "order_count": item_info["order_count"],
+                "avg_price": avg_price,
+                "min_price": item_info["min_price"] or 0,
+                "max_price": item_info["max_price"] or 0,
+                "price_history": item_info["prices"][-5:]  # Last 5 price entries
+            })
+        
+        # Sort items by total quantity
+        items_list.sort(key=lambda x: x["total_quantity"], reverse=True)
+        
+        # Calculate on-time rate
+        delivered_count = on_time_deliveries + late_deliveries
+        on_time_rate = round((on_time_deliveries / delivered_count * 100), 1) if delivered_count > 0 else 0
         
         performance_data.append({
             "supplier_id": supplier.id,
             "supplier_name": supplier.name,
             "contact_person": supplier.contact_person,
             "phone": supplier.phone,
+            "email": supplier.email,
             "total_orders": total_orders,
             "completed_orders": completed_orders,
             "approved_orders": approved_orders,
-            "total_amount": total_amount,
+            "total_amount": round(total_amount, 2),
             "completion_rate": round((completed_orders / total_orders * 100), 1) if total_orders > 0 else 0,
-            "avg_order_value": round(total_amount / approved_orders, 2) if approved_orders > 0 else 0
+            "avg_order_value": round(total_amount / approved_orders, 2) if approved_orders > 0 else 0,
+            # Delivery performance
+            "on_time_deliveries": on_time_deliveries,
+            "late_deliveries": late_deliveries,
+            "pending_late": pending_late,
+            "on_time_rate": on_time_rate,
+            # Items data
+            "items": items_list[:20],  # Top 20 items
+            "total_items": len(items_list)
         })
     
     # Sort by total amount
@@ -721,7 +832,15 @@ async def get_supplier_performance_report(
         "summary": {
             "total_suppliers": len(performance_data),
             "total_orders": sum(s["total_orders"] for s in performance_data),
-            "total_spending": sum(s["total_amount"] for s in performance_data)
+            "total_spending": round(sum(s["total_amount"] for s in performance_data), 2),
+            "avg_on_time_rate": round(sum(s["on_time_rate"] for s in performance_data) / len(performance_data), 1) if performance_data else 0
+        },
+        "filters_applied": {
+            "supplier_id": supplier_id,
+            "project_id": project_id,
+            "start_date": start_date,
+            "end_date": end_date,
+            "item_name": item_name
         }
     }
 
