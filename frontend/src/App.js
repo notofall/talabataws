@@ -110,18 +110,6 @@ function App() {
                 }
               />
               <Route
-                path="/setup"
-                element={<SetupPage />}
-              />
-              <Route
-                path="/db-setup"
-                element={<DatabaseSetupPage />}
-              />
-              <Route
-                path="/first-run"
-                element={<FirstRunSetup />}
-              />
-              <Route
                 path="/supervisor"
                 element={
                   <ProtectedRoute allowedRoles={["supervisor"]}>
