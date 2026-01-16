@@ -93,6 +93,7 @@ const ProcurementDashboard = () => {
   const [budgetReportProjectFilter, setBudgetReportProjectFilter] = useState("");  // فلتر المشروع في تقرير الميزانية
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [advancedReportsOpen, setAdvancedReportsOpen] = useState(false);  // التقارير المتقدمة
+  const [quantityAlertsOpen, setQuantityAlertsOpen] = useState(false);  // تنبيهات وتقارير الكميات
   
   // Export Dialog - نافذة التصدير
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
