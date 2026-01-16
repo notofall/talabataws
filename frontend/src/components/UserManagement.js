@@ -21,6 +21,7 @@ const roleLabels = {
   printer: { label: "موظف طباعة", icon: "🖨️", color: "bg-purple-100 text-purple-800" },
   delivery_tracker: { label: "متتبع التوريد", icon: "🚚", color: "bg-cyan-100 text-cyan-800" },
   general_manager: { label: "المدير العام", icon: "👔", color: "bg-red-100 text-red-800" },
+  quantity_engineer: { label: "مهندس الكميات", icon: "📊", color: "bg-indigo-100 text-indigo-800" },
 };
 
 export default function UserManagement({ open, onOpenChange }) {
