@@ -583,6 +583,9 @@ export default function AdvancedReports({ onClose }) {
           <TabsTrigger value="suppliers" className="gap-2">
             <Truck className="h-4 w-4" /> أداء الموردين
           </TabsTrigger>
+          <TabsTrigger value="price-variance" className="gap-2">
+            <TrendingUp className="h-4 w-4" /> اختلاف الأسعار
+          </TabsTrigger>
         </TabsList>
 
         {/* Summary Tab */}
