@@ -1138,7 +1138,7 @@ async def import_planned_quantities(
     current_user: User = Depends(get_current_user_pg),
     session: AsyncSession = Depends(get_postgres_session)
 ):
-    """استيراد الكميات المخططة من Excel - يدعم الكود والمعرف"""
+    """استيراد الكميات المخططة من Excel - يدعم الكود واسم المشروع"""
     require_quantity_access(current_user)
     
     if not file.filename.endswith(('.xlsx', '.xls')):
@@ -1156,19 +1156,55 @@ async def import_planned_quantities(
     created = 0
     errors = []
     
-    for row_num, row in enumerate(ws.iter_rows(min_row=2, values_only=True), 2):
+    # البحث عن صف بداية الإدخال (يحتوي على "كود الصنف")
+    start_row = 2  # افتراضياً
+    for row_num, row in enumerate(ws.iter_rows(min_row=1, max_row=50, values_only=True), 1):
+        if row and row[0] and 'كود الصنف' in str(row[0]):
+            start_row = row_num + 1
+            break
+    
+    for row_num, row in enumerate(ws.iter_rows(min_row=start_row, values_only=True), start_row):
+        # تجاهل الصفوف الفارغة أو التي تحتوي على عناوين
         if not row or not row[0] or not row[1] or not row[2]:
             continue
         
-        item_code_or_id = str(row[0]).strip()
-        project_code_or_name = str(row[1]).strip()
-        planned_quantity = float(row[2]) if row[2] else 0
-        expected_order_date = None
-        priority = int(row[4]) if row[4] and str(row[4]).isdigit() else 2
-        notes = str(row[5]).strip() if row[5] else None
+        # تجاهل صفوف العناوين والأقسام
+        first_cell = str(row[0]).strip()
+        if first_cell.startswith('📋') or first_cell.startswith('📁') or first_cell.startswith('✏️'):
+            continue
+        if 'الصنف' in first_cell or 'المشروع' in first_cell or 'اسم' in first_cell:
+            continue
         
-        # Parse date
-        if row[3]:
+        item_code_or_id = first_cell
+        project_name_or_id = str(row[1]).strip()
+        
+        try:
+            planned_quantity = float(row[2]) if row[2] else 0
+        except (ValueError, TypeError):
+            errors.append(f"صف {row_num}: الكمية '{row[2]}' غير صالحة")
+            continue
+        
+        expected_order_date = None
+        priority = 2
+        notes = None
+        
+        # معالجة الأولوية
+        if len(row) > 4 and row[4]:
+            try:
+                priority = int(row[4])
+                if priority not in [1, 2, 3]:
+                    priority = 2
+            except (ValueError, TypeError):
+                priority = 2
+        
+        # معالجة الملاحظات
+        if len(row) > 5 and row[5]:
+            notes = str(row[5]).strip()
+            if notes.lower() in ['none', 'مثال', 'مثال - احذف هذا الصف']:
+                continue  # تجاهل صف المثال
+        
+        # معالجة التاريخ
+        if len(row) > 3 and row[3]:
             try:
                 if hasattr(row[3], 'strftime'):
                     expected_order_date = row[3]
@@ -1177,12 +1213,13 @@ async def import_planned_quantities(
             except:
                 pass
         
-        # Validate catalog item - try by item_code first, then by id
+        # البحث عن الصنف بالكود أولاً
         catalog_result = await session.execute(
             select(PriceCatalogItem).where(
                 or_(
                     PriceCatalogItem.item_code == item_code_or_id,
-                    PriceCatalogItem.id == item_code_or_id
+                    PriceCatalogItem.id == item_code_or_id,
+                    PriceCatalogItem.name == item_code_or_id
                 )
             )
         )
@@ -1191,25 +1228,26 @@ async def import_planned_quantities(
             errors.append(f"صف {row_num}: الصنف '{item_code_or_id}' غير موجود في الكتالوج")
             continue
         
-        # Validate project - try by code/name first, then by id
+        # البحث عن المشروع بالاسم أو الكود
         project_result = await session.execute(
             select(Project).where(
                 or_(
-                    Project.name == project_code_or_name,
-                    Project.id == project_code_or_name,
-                    func.lower(Project.name) == func.lower(project_code_or_name)
+                    Project.name == project_name_or_id,
+                    Project.id == project_name_or_id,
+                    func.lower(Project.name) == func.lower(project_name_or_id),
+                    Project.code == project_name_or_id
                 )
             )
         )
         project = project_result.scalar_one_or_none()
         if not project:
-            errors.append(f"صف {row_num}: المشروع '{project_code_or_name}' غير موجود")
+            errors.append(f"صف {row_num}: المشروع '{project_name_or_id}' غير موجود")
             continue
         
         new_item = PlannedQuantity(
             id=str(uuid.uuid4()),
             item_name=catalog_item.name,
-            item_code=catalog_item.item_code or catalog_item.id[:8].upper(),
+            item_code=catalog_item.item_code or f"ITM{catalog_item.id[:5].upper()}",
             unit=catalog_item.unit,
             description=catalog_item.description,
             planned_quantity=planned_quantity,
