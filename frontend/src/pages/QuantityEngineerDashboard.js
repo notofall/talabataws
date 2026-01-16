@@ -945,7 +945,12 @@ const QuantityEngineerDashboard = () => {
                     >
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="font-medium">{item.name}</p>
+                          <div className="flex items-center gap-2">
+                            {item.item_code && (
+                              <Badge className="bg-slate-100 text-slate-700 text-xs">{item.item_code}</Badge>
+                            )}
+                            <p className="font-medium">{item.name}</p>
+                          </div>
                           <p className="text-xs text-slate-500">
                             {item.unit} | {item.supplier_name || "بدون مورد"} | {item.price?.toLocaleString()} {item.currency}
                           </p>
