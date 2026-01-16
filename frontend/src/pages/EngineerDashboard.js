@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Badge } from "../components/ui/badge";
 import { Package, LogOut, Clock, CheckCircle, XCircle, RefreshCw, FileText, Check, X, Eye, Download, KeyRound, Loader2, Send } from "lucide-react";
-import { exportRequestToPDF, exportRequestsTableToPDF } from "../utils/pdfExport";
+import { exportRequestToPDF, exportRequestsTableToPDF, fetchAndCacheCompanySettings } from "../utils/pdfExport";
 import ChangePasswordDialog from "../components/ChangePasswordDialog";
 
 const EngineerDashboard = () => {
