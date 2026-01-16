@@ -165,6 +165,12 @@ const ProcurementDashboard = () => {
 
   const fetchData = async () => {
     try {
+      // Fetch company settings for PDF export
+      const token = localStorage.getItem('token');
+      if (token) {
+        fetchAndCacheCompanySettings(token);
+      }
+      
       // Using PostgreSQL APIs
       const [requestsRes, ordersRes, suppliersRes, categoriesRes, projectsRes, defaultCatsRes, dashboardRes, usersRes] = await Promise.all([
         axios.get(`${API_URL}/requests`, getAuthHeaders()),
