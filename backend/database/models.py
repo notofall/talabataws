@@ -138,6 +138,7 @@ class BudgetCategory(Base):
     __tablename__ = "budget_categories"
     
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid_lib.uuid4()))
+    code: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, index=True)  # كود التصنيف
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     project_id: Mapped[str] = mapped_column(String(36), ForeignKey("projects.id"), nullable=False, index=True)
     project_name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -148,6 +149,7 @@ class BudgetCategory(Base):
     
     __table_args__ = (
         Index('idx_budget_categories_project_name', 'project_id', 'name'),
+        Index('idx_budget_categories_code', 'code'),
     )
 
 
