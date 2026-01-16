@@ -11,9 +11,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/
 import { Badge } from "../components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { 
-  Package, LogOut, RefreshCw, Plus, Search, Download, Upload, 
+  Package, LogOut, RefreshCw, Plus, Search, Download,
   Edit, Trash2, Calendar, AlertTriangle, Clock, CheckCircle,
-  Building2, FileSpreadsheet, TrendingUp, Filter
+  Building2, FileSpreadsheet, TrendingUp, ShoppingCart, List
 } from "lucide-react";
 import ChangePasswordDialog from "../components/ChangePasswordDialog";
 
@@ -28,6 +28,12 @@ const QuantityEngineerDashboard = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 20;
   
+  // Catalog items for selection
+  const [catalogItems, setCatalogItems] = useState([]);
+  const [catalogSearch, setCatalogSearch] = useState("");
+  const [catalogPage, setCatalogPage] = useState(1);
+  const [catalogTotal, setCatalogTotal] = useState(0);
+  
   // Filters
   const [searchTerm, setSearchTerm] = useState("");
   const [filterProject, setFilterProject] = useState("");
@@ -40,18 +46,16 @@ const QuantityEngineerDashboard = () => {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
-  const [importDialogOpen, setImportDialogOpen] = useState(false);
-  const [importFile, setImportFile] = useState(null);
-  const [importProjectId, setImportProjectId] = useState("");
+  const [selectItemDialogOpen, setSelectItemDialogOpen] = useState(false);
   
-  // New item form
-  const [newItem, setNewItem] = useState({
-    item_name: "",
-    item_code: "",
-    unit: "قطعة",
-    description: "",
-    planned_quantity: "",
+  // Selected catalog item for adding
+  const [selectedCatalogItem, setSelectedCatalogItem] = useState(null);
+  
+  // New planned quantity form
+  const [newPlan, setNewPlan] = useState({
+    catalog_item_id: "",
     project_id: "",
+    planned_quantity: "",
     expected_order_date: "",
     priority: 2,
     notes: ""
@@ -60,13 +64,15 @@ const QuantityEngineerDashboard = () => {
   // Reports
   const [reportData, setReportData] = useState(null);
   
+  // Alerts
+  const [alerts, setAlerts] = useState(null);
+  
   // Password dialog
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
 
-  // Fetch data
+  // Fetch initial data
   const fetchData = useCallback(async () => {
     try {
-      // Fetch stats and projects in parallel
       const [statsRes, projectsRes] = await Promise.all([
         axios.get(`${API_URL}/quantity/dashboard/stats`, getAuthHeaders()),
         axios.get(`${API_URL}/projects`, getAuthHeaders())
@@ -83,6 +89,7 @@ const QuantityEngineerDashboard = () => {
     }
   }, [API_URL, getAuthHeaders]);
 
+  // Fetch planned items
   const fetchPlannedItems = useCallback(async () => {
     try {
       const params = new URLSearchParams();
@@ -101,6 +108,24 @@ const QuantityEngineerDashboard = () => {
     }
   }, [API_URL, getAuthHeaders, currentPage, searchTerm, filterProject, filterStatus]);
 
+  // Fetch catalog items for selection
+  const fetchCatalogItems = useCallback(async () => {
+    try {
+      const params = new URLSearchParams();
+      params.append("page", catalogPage);
+      params.append("page_size", 20);
+      if (catalogSearch) params.append("search", catalogSearch);
+      
+      const res = await axios.get(`${API_URL}/quantity/catalog-items?${params.toString()}`, getAuthHeaders());
+      setCatalogItems(res.data.items || []);
+      setCatalogTotal(res.data.total || 0);
+      
+    } catch (error) {
+      console.error("Error fetching catalog items:", error);
+    }
+  }, [API_URL, getAuthHeaders, catalogPage, catalogSearch]);
+
+  // Fetch reports
   const fetchReports = useCallback(async () => {
     try {
       const params = filterProject ? `?project_id=${filterProject}` : "";
@@ -111,6 +136,16 @@ const QuantityEngineerDashboard = () => {
     }
   }, [API_URL, getAuthHeaders, filterProject]);
 
+  // Fetch alerts
+  const fetchAlerts = useCallback(async () => {
+    try {
+      const res = await axios.get(`${API_URL}/quantity/alerts?days_threshold=7`, getAuthHeaders());
+      setAlerts(res.data);
+    } catch (error) {
+      console.error("Error fetching alerts:", error);
+    }
+  }, [API_URL, getAuthHeaders]);
+
   useEffect(() => {
     fetchData();
   }, [fetchData]);
@@ -119,36 +154,51 @@ const QuantityEngineerDashboard = () => {
     fetchPlannedItems();
   }, [fetchPlannedItems]);
 
-  // Create new planned item
-  const handleCreateItem = async () => {
-    if (!newItem.item_name.trim()) {
-      toast.error("الرجاء إدخال اسم الصنف");
+  useEffect(() => {
+    if (selectItemDialogOpen) {
+      fetchCatalogItems();
+    }
+  }, [selectItemDialogOpen, fetchCatalogItems]);
+
+  // Select catalog item
+  const handleSelectCatalogItem = (item) => {
+    setSelectedCatalogItem(item);
+    setNewPlan({
+      ...newPlan,
+      catalog_item_id: item.id
+    });
+    setSelectItemDialogOpen(false);
+    setAddDialogOpen(true);
+  };
+
+  // Create new planned quantity
+  const handleCreatePlan = async () => {
+    if (!newPlan.catalog_item_id) {
+      toast.error("الرجاء اختيار صنف من الكتالوج");
       return;
     }
-    if (!newItem.project_id) {
+    if (!newPlan.project_id) {
       toast.error("الرجاء اختيار المشروع");
       return;
     }
-    if (!newItem.planned_quantity || parseFloat(newItem.planned_quantity) <= 0) {
+    if (!newPlan.planned_quantity || parseFloat(newPlan.planned_quantity) <= 0) {
       toast.error("الرجاء إدخال الكمية المخططة");
       return;
     }
     
     try {
       await axios.post(`${API_URL}/quantity/planned`, {
-        ...newItem,
-        planned_quantity: parseFloat(newItem.planned_quantity)
+        ...newPlan,
+        planned_quantity: parseFloat(newPlan.planned_quantity)
       }, getAuthHeaders());
       
       toast.success("تم إضافة الكمية المخططة بنجاح");
       setAddDialogOpen(false);
-      setNewItem({
-        item_name: "",
-        item_code: "",
-        unit: "قطعة",
-        description: "",
-        planned_quantity: "",
+      setSelectedCatalogItem(null);
+      setNewPlan({
+        catalog_item_id: "",
         project_id: "",
+        planned_quantity: "",
         expected_order_date: "",
         priority: 2,
         notes: ""
@@ -157,7 +207,7 @@ const QuantityEngineerDashboard = () => {
       fetchData();
       
     } catch (error) {
-      toast.error(error.response?.data?.detail || "فشل في إضافة العنصر");
+      toast.error(error.response?.data?.detail || "فشل في إضافة الكمية");
     }
   };
 
@@ -167,23 +217,19 @@ const QuantityEngineerDashboard = () => {
     
     try {
       await axios.put(`${API_URL}/quantity/planned/${editingItem.id}`, {
-        item_name: editingItem.item_name,
-        item_code: editingItem.item_code,
-        unit: editingItem.unit,
-        description: editingItem.description,
         planned_quantity: parseFloat(editingItem.planned_quantity),
         expected_order_date: editingItem.expected_order_date,
         priority: editingItem.priority,
         notes: editingItem.notes
       }, getAuthHeaders());
       
-      toast.success("تم تحديث العنصر بنجاح");
+      toast.success("تم تحديث الكمية بنجاح");
       setEditDialogOpen(false);
       setEditingItem(null);
       fetchPlannedItems();
       
     } catch (error) {
-      toast.error(error.response?.data?.detail || "فشل في تحديث العنصر");
+      toast.error(error.response?.data?.detail || "فشل في تحديث الكمية");
     }
   };
 
@@ -198,67 +244,6 @@ const QuantityEngineerDashboard = () => {
       fetchData();
     } catch (error) {
       toast.error(error.response?.data?.detail || "فشل في حذف العنصر");
-    }
-  };
-
-  // Download template
-  const downloadTemplate = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/quantity/planned/template`, {
-        ...getAuthHeaders(),
-        responseType: 'blob'
-      });
-      
-      const blob = new Blob([response.data], { 
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
-      });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'quantity_template.xlsx';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      
-      toast.success("تم تحميل النموذج");
-    } catch (error) {
-      toast.error("فشل في تحميل النموذج");
-    }
-  };
-
-  // Import from file
-  const handleImport = async () => {
-    if (!importFile || !importProjectId) {
-      toast.error("الرجاء اختيار الملف والمشروع");
-      return;
-    }
-    
-    try {
-      const formData = new FormData();
-      formData.append("file", importFile);
-      
-      const response = await axios.post(
-        `${API_URL}/quantity/planned/import?project_id=${importProjectId}`,
-        formData,
-        {
-          ...getAuthHeaders(),
-          headers: {
-            ...getAuthHeaders().headers,
-            'Content-Type': 'multipart/form-data'
-          }
-        }
-      );
-      
-      toast.success(response.data.message);
-      setImportDialogOpen(false);
-      setImportFile(null);
-      setImportProjectId("");
-      fetchPlannedItems();
-      fetchData();
-      
-    } catch (error) {
-      toast.error(error.response?.data?.detail || "فشل في الاستيراد");
     }
   };
 
@@ -289,7 +274,7 @@ const QuantityEngineerDashboard = () => {
     }
   };
 
-  // Status badge color
+  // Status badge
   const getStatusBadge = (status) => {
     const statusMap = {
       planned: { label: "مخطط", className: "bg-blue-100 text-blue-700" },
@@ -356,7 +341,7 @@ const QuantityEngineerDashboard = () => {
         {/* Stats Cards */}
         {stats && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <Card className="border-r-4 border-purple-500">
+            <Card className="border-r-4 border-purple-500" data-testid="total-items-card">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
@@ -368,7 +353,7 @@ const QuantityEngineerDashboard = () => {
               </CardContent>
             </Card>
             
-            <Card className="border-r-4 border-blue-500">
+            <Card className="border-r-4 border-blue-500" data-testid="remaining-qty-card">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
@@ -380,7 +365,7 @@ const QuantityEngineerDashboard = () => {
               </CardContent>
             </Card>
             
-            <Card className="border-r-4 border-orange-500">
+            <Card className="border-r-4 border-orange-500" data-testid="due-soon-card">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
@@ -392,7 +377,7 @@ const QuantityEngineerDashboard = () => {
               </CardContent>
             </Card>
             
-            <Card className="border-r-4 border-red-500">
+            <Card className="border-r-4 border-red-500" data-testid="overdue-card">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
@@ -407,11 +392,14 @@ const QuantityEngineerDashboard = () => {
         )}
 
         <Tabs defaultValue="quantities" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="quantities" className="gap-2">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="quantities" className="gap-2" data-testid="quantities-tab">
               <Package className="h-4 w-4" /> الكميات المخططة
             </TabsTrigger>
-            <TabsTrigger value="reports" className="gap-2" onClick={fetchReports}>
+            <TabsTrigger value="alerts" className="gap-2" onClick={fetchAlerts} data-testid="alerts-tab">
+              <AlertTriangle className="h-4 w-4" /> التنبيهات
+            </TabsTrigger>
+            <TabsTrigger value="reports" className="gap-2" onClick={fetchReports} data-testid="reports-tab">
               <FileSpreadsheet className="h-4 w-4" /> التقارير
             </TabsTrigger>
           </TabsList>
@@ -422,17 +410,15 @@ const QuantityEngineerDashboard = () => {
             <Card>
               <CardContent className="p-4">
                 <div className="flex flex-wrap items-center gap-3">
-                  <Button onClick={() => setAddDialogOpen(true)} className="bg-purple-600 hover:bg-purple-700">
-                    <Plus className="h-4 w-4 ml-1" /> إضافة صنف
+                  <Button 
+                    onClick={() => setSelectItemDialogOpen(true)} 
+                    className="bg-purple-600 hover:bg-purple-700"
+                    data-testid="add-quantity-btn"
+                  >
+                    <Plus className="h-4 w-4 ml-1" /> إضافة كمية مخططة
                   </Button>
-                  <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
-                    <Upload className="h-4 w-4 ml-1" /> استيراد
-                  </Button>
-                  <Button variant="outline" onClick={handleExport}>
-                    <Download className="h-4 w-4 ml-1" /> تصدير
-                  </Button>
-                  <Button variant="outline" onClick={downloadTemplate}>
-                    <FileSpreadsheet className="h-4 w-4 ml-1" /> تحميل النموذج
+                  <Button variant="outline" onClick={handleExport} data-testid="export-btn">
+                    <Download className="h-4 w-4 ml-1" /> تصدير Excel
                   </Button>
                   
                   <div className="flex-1"></div>
@@ -444,11 +430,13 @@ const QuantityEngineerDashboard = () => {
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="w-40"
+                      data-testid="search-input"
                     />
                     <select
                       value={filterProject}
                       onChange={(e) => setFilterProject(e.target.value)}
                       className="h-9 border rounded-lg px-2 text-sm"
+                      data-testid="project-filter"
                     >
                       <option value="">كل المشاريع</option>
                       {projects.map(p => (
@@ -459,12 +447,12 @@ const QuantityEngineerDashboard = () => {
                       value={filterStatus}
                       onChange={(e) => setFilterStatus(e.target.value)}
                       className="h-9 border rounded-lg px-2 text-sm"
+                      data-testid="status-filter"
                     >
                       <option value="">كل الحالات</option>
                       <option value="planned">مخطط</option>
                       <option value="partially_ordered">طلب جزئي</option>
                       <option value="fully_ordered">مكتمل</option>
-                      <option value="overdue">متأخر</option>
                     </select>
                   </div>
                 </div>
@@ -475,7 +463,7 @@ const QuantityEngineerDashboard = () => {
             <Card>
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+                  <table className="w-full text-sm" data-testid="planned-items-table">
                     <thead className="bg-slate-50 border-b">
                       <tr>
                         <th className="px-4 py-3 text-right">الصنف</th>
@@ -493,20 +481,22 @@ const QuantityEngineerDashboard = () => {
                       {plannedItems.length === 0 ? (
                         <tr>
                           <td colSpan="9" className="px-4 py-8 text-center text-slate-500">
-                            لا توجد بيانات
+                            <div className="flex flex-col items-center gap-2">
+                              <Package className="h-12 w-12 text-slate-300" />
+                              <p>لا توجد كميات مخططة</p>
+                              <p className="text-xs">اضغط على "إضافة كمية مخططة" لاختيار صنف من الكتالوج</p>
+                            </div>
                           </td>
                         </tr>
                       ) : (
                         plannedItems.map((item) => (
-                          <tr key={item.id} className="hover:bg-slate-50">
+                          <tr key={item.id} className="hover:bg-slate-50" data-testid={`planned-item-${item.id}`}>
                             <td className="px-4 py-3">
                               <div className="font-medium">{item.item_name}</div>
-                              {item.item_code && (
-                                <div className="text-xs text-slate-500">{item.item_code}</div>
-                              )}
+                              <div className="text-xs text-slate-500">{item.unit}</div>
                             </td>
                             <td className="px-4 py-3 text-slate-600">{item.project_name}</td>
-                            <td className="px-4 py-3 text-center font-bold">{item.planned_quantity?.toLocaleString()} {item.unit}</td>
+                            <td className="px-4 py-3 text-center font-bold">{item.planned_quantity?.toLocaleString()}</td>
                             <td className="px-4 py-3 text-center text-green-600">{item.ordered_quantity?.toLocaleString()}</td>
                             <td className="px-4 py-3 text-center text-orange-600 font-bold">{item.remaining_quantity?.toLocaleString()}</td>
                             <td className="px-4 py-3 text-center text-sm">
@@ -526,6 +516,7 @@ const QuantityEngineerDashboard = () => {
                                     });
                                     setEditDialogOpen(true);
                                   }}
+                                  data-testid={`edit-btn-${item.id}`}
                                 >
                                   <Edit className="h-4 w-4 text-blue-600" />
                                 </Button>
@@ -534,6 +525,7 @@ const QuantityEngineerDashboard = () => {
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => handleDeleteItem(item.id)}
+                                    data-testid={`delete-btn-${item.id}`}
                                   >
                                     <Trash2 className="h-4 w-4 text-red-600" />
                                   </Button>
@@ -580,9 +572,108 @@ const QuantityEngineerDashboard = () => {
             </Card>
           </TabsContent>
 
+          {/* Alerts Tab */}
+          <TabsContent value="alerts" className="space-y-4">
+            {alerts ? (
+              <div className="grid md:grid-cols-2 gap-4">
+                {/* Overdue Items */}
+                <Card className="border-r-4 border-red-400">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-red-600">
+                      <AlertTriangle className="h-5 w-5" /> الأصناف المتأخرة ({alerts.overdue?.count || 0})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {alerts.overdue?.items?.length > 0 ? (
+                      <div className="space-y-2 max-h-80 overflow-y-auto">
+                        {alerts.overdue.items.map((item, idx) => (
+                          <div key={idx} className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+                            <div>
+                              <p className="font-medium">{item.item_name}</p>
+                              <p className="text-xs text-slate-500">{item.project_name}</p>
+                            </div>
+                            <div className="text-left">
+                              <p className="text-sm font-bold text-red-600">متأخر {item.days_overdue} يوم</p>
+                              <p className="text-xs text-slate-500">المتبقي: {item.remaining_qty} {item.unit}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-slate-500 text-center py-4">لا توجد أصناف متأخرة ✓</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Due Soon Items */}
+                <Card className="border-r-4 border-orange-400">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-orange-600">
+                      <Clock className="h-5 w-5" /> قريب الموعد - 7 أيام ({alerts.due_soon?.count || 0})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {alerts.due_soon?.items?.length > 0 ? (
+                      <div className="space-y-2 max-h-80 overflow-y-auto">
+                        {alerts.due_soon.items.map((item, idx) => (
+                          <div key={idx} className="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
+                            <div>
+                              <p className="font-medium">{item.item_name}</p>
+                              <p className="text-xs text-slate-500">{item.project_name}</p>
+                            </div>
+                            <div className="text-left">
+                              <p className="text-sm font-bold text-orange-600">متبقي {item.days_until} يوم</p>
+                              <p className="text-xs text-slate-500">الكمية: {item.remaining_qty} {item.unit}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-slate-500 text-center py-4">لا توجد أصناف قريبة من الموعد</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* High Priority Items */}
+                <Card className="border-r-4 border-purple-400 md:col-span-2">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-purple-600">
+                      <TrendingUp className="h-5 w-5" /> أصناف ذات أولوية عالية ({alerts.high_priority?.count || 0})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {alerts.high_priority?.items?.length > 0 ? (
+                      <div className="grid md:grid-cols-2 gap-2 max-h-60 overflow-y-auto">
+                        {alerts.high_priority.items.map((item, idx) => (
+                          <div key={idx} className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
+                            <div>
+                              <p className="font-medium">{item.item_name}</p>
+                              <p className="text-xs text-slate-500">{item.project_name}</p>
+                            </div>
+                            <div className="text-left">
+                              <Badge className="bg-red-100 text-red-700">أولوية عالية</Badge>
+                              <p className="text-xs text-slate-500 mt-1">المتبقي: {item.remaining_qty} {item.unit}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-slate-500 text-center py-4">لا توجد أصناف ذات أولوية عالية</p>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <div className="w-10 h-10 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                <p className="text-slate-500 mt-2">جاري تحميل التنبيهات...</p>
+              </div>
+            )}
+          </TabsContent>
+
           {/* Reports Tab */}
           <TabsContent value="reports" className="space-y-4">
-            {reportData && (
+            {reportData ? (
               <>
                 {/* Summary Cards */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -630,6 +721,7 @@ const QuantityEngineerDashboard = () => {
                               <th className="px-4 py-3 text-center">الكمية المخططة</th>
                               <th className="px-4 py-3 text-center">الكمية المطلوبة</th>
                               <th className="px-4 py-3 text-center">المتبقي</th>
+                              <th className="px-4 py-3 text-center">نسبة الإنجاز</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y">
@@ -640,6 +732,19 @@ const QuantityEngineerDashboard = () => {
                                 <td className="px-4 py-3 text-center">{p.planned_qty?.toLocaleString()}</td>
                                 <td className="px-4 py-3 text-center text-green-600">{p.ordered_qty?.toLocaleString()}</td>
                                 <td className="px-4 py-3 text-center text-orange-600">{p.remaining_qty?.toLocaleString()}</td>
+                                <td className="px-4 py-3 text-center">
+                                  <Badge className={
+                                    p.planned_qty > 0 
+                                      ? (p.ordered_qty / p.planned_qty * 100) >= 100 
+                                        ? "bg-green-100 text-green-700"
+                                        : (p.ordered_qty / p.planned_qty * 100) >= 50
+                                          ? "bg-yellow-100 text-yellow-700"
+                                          : "bg-red-100 text-red-700"
+                                      : "bg-slate-100 text-slate-700"
+                                  }>
+                                    {p.planned_qty > 0 ? Math.round(p.ordered_qty / p.planned_qty * 100) : 0}%
+                                  </Badge>
+                                </td>
                               </tr>
                             ))}
                           </tbody>
@@ -648,67 +753,112 @@ const QuantityEngineerDashboard = () => {
                     </CardContent>
                   </Card>
                 )}
-
-                {/* Overdue Items */}
-                {reportData.overdue_items?.length > 0 && (
-                  <Card className="border-r-4 border-red-400">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-red-600">
-                        <AlertTriangle className="h-5 w-5" /> الأصناف المتأخرة
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        {reportData.overdue_items.map((item, idx) => (
-                          <div key={idx} className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
-                            <div>
-                              <p className="font-medium">{item.item_name}</p>
-                              <p className="text-xs text-slate-500">{item.project_name}</p>
-                            </div>
-                            <div className="text-left">
-                              <p className="text-sm font-bold text-red-600">متأخر {item.days_overdue} يوم</p>
-                              <p className="text-xs text-slate-500">المتبقي: {item.remaining_qty}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Due Soon Items */}
-                {reportData.due_soon_items?.length > 0 && (
-                  <Card className="border-r-4 border-orange-400">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-orange-600">
-                        <Clock className="h-5 w-5" /> الأصناف قريبة الموعد (خلال 10 أيام)
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        {reportData.due_soon_items.map((item, idx) => (
-                          <div key={idx} className="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
-                            <div>
-                              <p className="font-medium">{item.item_name}</p>
-                              <p className="text-xs text-slate-500">{item.project_name}</p>
-                            </div>
-                            <div className="text-left">
-                              <p className="text-sm font-bold text-orange-600">متبقي {item.days_until} يوم</p>
-                              <p className="text-xs text-slate-500">الكمية: {item.remaining_qty}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
               </>
+            ) : (
+              <div className="text-center py-8">
+                <div className="w-10 h-10 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                <p className="text-slate-500 mt-2">جاري تحميل التقارير...</p>
+              </div>
             )}
           </TabsContent>
         </Tabs>
       </main>
 
-      {/* Add Item Dialog */}
+      {/* Select Catalog Item Dialog */}
+      <Dialog open={selectItemDialogOpen} onOpenChange={setSelectItemDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh]" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShoppingCart className="h-5 w-5 text-purple-600" /> اختر صنف من الكتالوج
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* Search */}
+            <div className="flex gap-2">
+              <Input
+                placeholder="ابحث عن صنف..."
+                value={catalogSearch}
+                onChange={(e) => {
+                  setCatalogSearch(e.target.value);
+                  setCatalogPage(1);
+                }}
+                className="flex-1"
+                data-testid="catalog-search-input"
+              />
+              <Button variant="outline" onClick={fetchCatalogItems}>
+                <Search className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            {/* Catalog Items List */}
+            <div className="border rounded-lg max-h-96 overflow-y-auto">
+              {catalogItems.length === 0 ? (
+                <div className="p-8 text-center text-slate-500">
+                  <List className="h-12 w-12 mx-auto text-slate-300 mb-2" />
+                  <p>لا توجد أصناف في الكتالوج</p>
+                  <p className="text-xs">يرجى إضافة أصناف من لوحة مدير المشتريات</p>
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {catalogItems.map((item) => (
+                    <div 
+                      key={item.id} 
+                      className="p-3 hover:bg-purple-50 cursor-pointer transition-colors"
+                      onClick={() => handleSelectCatalogItem(item)}
+                      data-testid={`catalog-item-${item.id}`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">{item.name}</p>
+                          <p className="text-xs text-slate-500">
+                            {item.unit} | {item.supplier_name || "بدون مورد"} | {item.price?.toLocaleString()} {item.currency}
+                          </p>
+                          {item.description && (
+                            <p className="text-xs text-slate-400 mt-1">{item.description}</p>
+                          )}
+                        </div>
+                        <Button variant="ghost" size="sm" className="text-purple-600">
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            {/* Pagination */}
+            {catalogTotal > 20 && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-slate-500">
+                  {catalogTotal} صنف
+                </span>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={catalogPage === 1}
+                    onClick={() => setCatalogPage(p => p - 1)}
+                  >
+                    السابق
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={catalogPage >= Math.ceil(catalogTotal / 20)}
+                    onClick={() => setCatalogPage(p => p + 1)}
+                  >
+                    التالي
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Planned Quantity Dialog */}
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
         <DialogContent className="max-w-lg" dir="rtl">
           <DialogHeader>
@@ -718,46 +868,29 @@ const QuantityEngineerDashboard = () => {
           </DialogHeader>
           
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>اسم الصنف *</Label>
-                <Input
-                  value={newItem.item_name}
-                  onChange={(e) => setNewItem({ ...newItem, item_name: e.target.value })}
-                  placeholder="أدخل اسم الصنف"
-                />
+            {/* Selected Item Info */}
+            {selectedCatalogItem && (
+              <div className="bg-purple-50 p-3 rounded-lg">
+                <p className="font-bold text-purple-700">{selectedCatalogItem.name}</p>
+                <p className="text-sm text-slate-600">
+                  {selectedCatalogItem.unit} | {selectedCatalogItem.supplier_name || "بدون مورد"} | {selectedCatalogItem.price?.toLocaleString()} {selectedCatalogItem.currency}
+                </p>
               </div>
-              <div>
-                <Label>كود الصنف</Label>
-                <Input
-                  value={newItem.item_code}
-                  onChange={(e) => setNewItem({ ...newItem, item_code: e.target.value })}
-                  placeholder="ITM-001"
-                />
-              </div>
-            </div>
+            )}
             
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>المشروع *</Label>
-                <select
-                  value={newItem.project_id}
-                  onChange={(e) => setNewItem({ ...newItem, project_id: e.target.value })}
-                  className="w-full h-9 border rounded-lg px-2"
-                >
-                  <option value="">اختر المشروع</option>
-                  {projects.map(p => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <Label>الوحدة</Label>
-                <Input
-                  value={newItem.unit}
-                  onChange={(e) => setNewItem({ ...newItem, unit: e.target.value })}
-                />
-              </div>
+            <div>
+              <Label>المشروع *</Label>
+              <select
+                value={newPlan.project_id}
+                onChange={(e) => setNewPlan({ ...newPlan, project_id: e.target.value })}
+                className="w-full h-9 border rounded-lg px-2"
+                data-testid="project-select"
+              >
+                <option value="">اختر المشروع</option>
+                {projects.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
             </div>
             
             <div className="grid grid-cols-2 gap-3">
@@ -766,16 +899,18 @@ const QuantityEngineerDashboard = () => {
                 <Input
                   type="number"
                   min="0"
-                  value={newItem.planned_quantity}
-                  onChange={(e) => setNewItem({ ...newItem, planned_quantity: e.target.value })}
+                  value={newPlan.planned_quantity}
+                  onChange={(e) => setNewPlan({ ...newPlan, planned_quantity: e.target.value })}
+                  data-testid="quantity-input"
                 />
               </div>
               <div>
                 <Label>تاريخ الطلب المتوقع</Label>
                 <Input
                   type="date"
-                  value={newItem.expected_order_date}
-                  onChange={(e) => setNewItem({ ...newItem, expected_order_date: e.target.value })}
+                  value={newPlan.expected_order_date}
+                  onChange={(e) => setNewPlan({ ...newPlan, expected_order_date: e.target.value })}
+                  data-testid="date-input"
                 />
               </div>
             </div>
@@ -783,9 +918,10 @@ const QuantityEngineerDashboard = () => {
             <div>
               <Label>الأولوية</Label>
               <select
-                value={newItem.priority}
-                onChange={(e) => setNewItem({ ...newItem, priority: parseInt(e.target.value) })}
+                value={newPlan.priority}
+                onChange={(e) => setNewPlan({ ...newPlan, priority: parseInt(e.target.value) })}
                 className="w-full h-9 border rounded-lg px-2"
+                data-testid="priority-select"
               >
                 <option value={1}>عالية</option>
                 <option value={2}>متوسطة</option>
@@ -796,15 +932,21 @@ const QuantityEngineerDashboard = () => {
             <div>
               <Label>ملاحظات</Label>
               <Textarea
-                value={newItem.notes}
-                onChange={(e) => setNewItem({ ...newItem, notes: e.target.value })}
+                value={newPlan.notes}
+                onChange={(e) => setNewPlan({ ...newPlan, notes: e.target.value })}
                 rows={2}
+                data-testid="notes-input"
               />
             </div>
             
             <div className="flex gap-2 justify-end pt-4">
-              <Button variant="outline" onClick={() => setAddDialogOpen(false)}>إلغاء</Button>
-              <Button onClick={handleCreateItem} className="bg-purple-600 hover:bg-purple-700">إضافة</Button>
+              <Button variant="outline" onClick={() => {
+                setAddDialogOpen(false);
+                setSelectedCatalogItem(null);
+              }}>إلغاء</Button>
+              <Button onClick={handleCreatePlan} className="bg-purple-600 hover:bg-purple-700" data-testid="save-quantity-btn">
+                إضافة
+              </Button>
             </div>
           </div>
         </DialogContent>
@@ -821,21 +963,9 @@ const QuantityEngineerDashboard = () => {
           
           {editingItem && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>اسم الصنف</Label>
-                  <Input
-                    value={editingItem.item_name}
-                    onChange={(e) => setEditingItem({ ...editingItem, item_name: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label>كود الصنف</Label>
-                  <Input
-                    value={editingItem.item_code || ""}
-                    onChange={(e) => setEditingItem({ ...editingItem, item_code: e.target.value })}
-                  />
-                </div>
+              <div className="bg-slate-50 p-3 rounded-lg">
+                <p className="font-bold">{editingItem.item_name}</p>
+                <p className="text-sm text-slate-500">{editingItem.project_name}</p>
               </div>
               
               <div className="grid grid-cols-2 gap-3">
@@ -886,60 +1016,6 @@ const QuantityEngineerDashboard = () => {
               </div>
             </div>
           )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Import Dialog */}
-      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
-        <DialogContent className="max-w-md" dir="rtl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Upload className="h-5 w-5 text-green-600" /> استيراد الكميات
-            </DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            <div>
-              <Label>المشروع *</Label>
-              <select
-                value={importProjectId}
-                onChange={(e) => setImportProjectId(e.target.value)}
-                className="w-full h-9 border rounded-lg px-2"
-              >
-                <option value="">اختر المشروع</option>
-                {projects.map(p => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
-            </div>
-            
-            <div>
-              <Label>الملف (Excel أو CSV)</Label>
-              <Input
-                type="file"
-                accept=".xlsx,.xls,.csv"
-                onChange={(e) => setImportFile(e.target.files[0])}
-              />
-            </div>
-            
-            <div className="bg-slate-50 p-3 rounded text-sm text-slate-600">
-              <p className="font-medium mb-1">تعليمات:</p>
-              <ul className="list-disc mr-4 space-y-1">
-                <li>حمّل النموذج لمعرفة التنسيق المطلوب</li>
-                <li>تأكد من ملء الحقول المطلوبة</li>
-                <li>يدعم ملفات Excel و CSV</li>
-              </ul>
-            </div>
-            
-            <div className="flex gap-2 justify-end pt-4">
-              <Button variant="outline" onClick={downloadTemplate}>
-                <Download className="h-4 w-4 ml-1" /> تحميل النموذج
-              </Button>
-              <Button onClick={handleImport} className="bg-green-600 hover:bg-green-700">
-                استيراد
-              </Button>
-            </div>
-          </div>
         </DialogContent>
       </Dialog>
 
