@@ -25,6 +25,7 @@ pg_catalog_router = APIRouter(prefix="/api/pg", tags=["PostgreSQL Catalog"])
 # ==================== PYDANTIC MODELS ====================
 
 class CatalogItemCreate(BaseModel):
+    item_code: Optional[str] = None  # كود الصنف
     name: str
     description: Optional[str] = None
     unit: str = "قطعة"
@@ -38,6 +39,7 @@ class CatalogItemCreate(BaseModel):
 
 
 class CatalogItemUpdate(BaseModel):
+    item_code: Optional[str] = None  # كود الصنف
     name: Optional[str] = None
     description: Optional[str] = None
     unit: Optional[str] = None
