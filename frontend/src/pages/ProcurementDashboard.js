@@ -4195,6 +4195,19 @@ const ProcurementDashboard = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Quantity Alerts & Reports Dialog */}
+      <Dialog open={quantityAlertsOpen} onOpenChange={setQuantityAlertsOpen}>
+        <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto p-6" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-orange-600">
+              <AlertTriangle className="h-5 w-5" />
+              تنبيهات وتقارير الكميات المخططة
+            </DialogTitle>
+          </DialogHeader>
+          <QuantityAlertsReportsManager />
+        </DialogContent>
+      </Dialog>
+
       {/* Item Validation Dialog - تنبيه الأصناف غير الموجودة في الكتالوج */}
       <Dialog open={showValidationDialog} onOpenChange={setShowValidationDialog}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto" dir="rtl">
