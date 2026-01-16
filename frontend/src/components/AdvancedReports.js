@@ -19,6 +19,7 @@ export default function AdvancedReports({ onClose }) {
   const [summaryReport, setSummaryReport] = useState(null);
   const [approvalReport, setApprovalReport] = useState(null);
   const [supplierReport, setSupplierReport] = useState(null);
+  const [priceVarianceReport, setPriceVarianceReport] = useState(null);  // New state for price variance
   
   // Filter options data
   const [projects, setProjects] = useState([]);
