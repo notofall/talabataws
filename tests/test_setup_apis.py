@@ -6,7 +6,7 @@ import pytest
 import requests
 import os
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://planner-tool-6.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://procure-id-system.preview.emergentagent.com').rstrip('/')
 
 # Valid database credentials from backend/.env
 VALID_DB_CONFIG = {
