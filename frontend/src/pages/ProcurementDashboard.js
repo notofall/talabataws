@@ -3272,7 +3272,16 @@ const ProcurementDashboard = () => {
             <Button 
               variant="outline" 
               size="sm"
-              onClick={() => window.open(`${API_URL}/price-catalog/export/excel`, '_blank')}
+              onClick={handleExportCatalogCSV}
+              className="text-blue-600 border-blue-300 hover:bg-blue-50"
+            >
+              <Download className="w-4 h-4 ml-1" />
+              تصدير CSV
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleExportCatalogExcel}
               className="text-green-600 border-green-300 hover:bg-green-50"
             >
               <Download className="w-4 h-4 ml-1" />
