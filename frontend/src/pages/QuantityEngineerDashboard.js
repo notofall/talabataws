@@ -631,7 +631,14 @@ const QuantityEngineerDashboard = () => {
                         plannedItems.map((item) => (
                           <tr key={item.id} className="hover:bg-slate-50" data-testid={`planned-item-${item.id}`}>
                             <td className="px-4 py-3">
-                              <div className="font-medium">{item.item_name}</div>
+                              <div className="flex items-center gap-2">
+                                {item.item_code && (
+                                  <span className="text-xs px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded font-mono">
+                                    {item.item_code}
+                                  </span>
+                                )}
+                                <span className="font-medium">{item.item_name}</span>
+                              </div>
                               <div className="text-xs text-slate-500">{item.unit}</div>
                             </td>
                             <td className="px-4 py-3 text-slate-600 text-sm">{item.category_name || "-"}</td>
