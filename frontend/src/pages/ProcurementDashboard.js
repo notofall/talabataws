@@ -4078,7 +4078,7 @@ const ProcurementDashboard = () => {
       {/* Edit Catalog Item Dialog */}
       {editingCatalogItem && (
         <Dialog open={!!editingCatalogItem} onOpenChange={() => setEditingCatalogItem(null)}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md" dir="rtl">
             <DialogHeader>
               <DialogTitle>تعديل صنف في الكتالوج</DialogTitle>
             </DialogHeader>
@@ -4110,9 +4110,22 @@ const ProcurementDashboard = () => {
                   <Input 
                     type="number"
                     value={editingCatalogItem.price}
-                    onChange={(e) => setEditingCatalogItem({...editingCatalogItem, price: parseFloat(e.target.value)})}
+                    onChange={(e) => setEditingCatalogItem({...editingCatalogItem, price: parseFloat(e.target.value) || 0})}
                   />
                 </div>
+              </div>
+              <div>
+                <Label>التصنيف</Label>
+                <select
+                  value={editingCatalogItem.category_name || ""}
+                  onChange={(e) => setEditingCatalogItem({...editingCatalogItem, category_name: e.target.value})}
+                  className="w-full h-9 border rounded-lg px-2 text-sm"
+                >
+                  <option value="">بدون تصنيف</option>
+                  {defaultCategories.map(cat => (
+                    <option key={cat.id} value={cat.name}>{cat.name}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <Label>المورد</Label>
