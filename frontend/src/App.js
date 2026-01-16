@@ -72,6 +72,7 @@ const PublicRoute = ({ children }) => {
     if (user.role === "printer") return <Navigate to="/printer" replace />;
     if (user.role === "delivery_tracker") return <Navigate to="/delivery-tracker" replace />;
     if (user.role === "general_manager") return <Navigate to="/general-manager" replace />;
+    if (user.role === "quantity_engineer") return <Navigate to="/quantity-engineer" replace />;
   }
 
   return children;
