@@ -281,3 +281,32 @@ SSL: Required
 | **المشرف** | إنشاء طلبات المواد |
 | **الطابعة** | طباعة أوامر الشراء |
 | **متتبع التسليم** | تتبع وتسجيل التسليمات |
+
+---
+
+## ✅ إصلاحات إضافية - 16 يناير 2026
+
+### الإصلاحات:
+| الملف | التعديل |
+|-------|---------|
+| `frontend/src/App.js` | إلغاء صفحة الإعداد نهائياً |
+| `backend/database/models.py` | إضافة SYSTEM_ADMIN للـ UserRole enum |
+| `frontend/src/utils/pdfExport.js` | إضافة دعم إعدادات الشركة في التصدير |
+| `docker-compose.yml` | استخدام مجلدات محلية لحفظ البيانات |
+
+### ميزات جديدة:
+- إعدادات الشركة تظهر في ملفات PDF المصدرة (الشعار، الاسم، العنوان، الهاتف، البريد، Header، Footer)
+- البيانات محفوظة في مجلدات محلية ولن تضيع مع التحديثات
+
+### للتحديث على الخادم:
+```bash
+cd ~/talabat
+git pull origin main
+docker-compose build --no-cache backend frontend
+docker-compose up -d
+
+# إصلاح URL الواجهة
+sleep 20
+docker exec talabat_frontend sh -c "find /app/build -name '*.js' -exec sed -i 's|http://localhost:8001|http://IP_ADDRESS:8001|g' {} \;"
+docker restart talabat_frontend
+```
