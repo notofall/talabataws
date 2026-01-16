@@ -441,7 +441,7 @@ async def update_user_by_admin(
     
     if user_data.role is not None:
         valid_roles = [UserRole.SYSTEM_ADMIN, UserRole.SUPERVISOR, UserRole.ENGINEER, UserRole.PROCUREMENT_MANAGER,
-                       UserRole.PRINTER, UserRole.DELIVERY_TRACKER, UserRole.GENERAL_MANAGER]
+                       UserRole.PRINTER, UserRole.DELIVERY_TRACKER, UserRole.GENERAL_MANAGER, UserRole.QUANTITY_ENGINEER]
         if user_data.role not in valid_roles:
             raise HTTPException(status_code=400, detail="الدور غير صالح")
         user.role = user_data.role
