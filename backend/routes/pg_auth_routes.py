@@ -356,7 +356,7 @@ async def create_user_by_admin(
     
     # Validate role
     valid_roles = [UserRole.SYSTEM_ADMIN, UserRole.SUPERVISOR, UserRole.ENGINEER, UserRole.PROCUREMENT_MANAGER,
-                   UserRole.PRINTER, UserRole.DELIVERY_TRACKER, UserRole.GENERAL_MANAGER]
+                   UserRole.PRINTER, UserRole.DELIVERY_TRACKER, UserRole.GENERAL_MANAGER, UserRole.QUANTITY_ENGINEER]
     if user_data.role not in valid_roles:
         raise HTTPException(status_code=400, detail="الدور غير صالح")
     
