@@ -218,6 +218,35 @@ const QuantityEngineerDashboard = () => {
     setNewPlan({ ...newPlan, project_id: projectId, category_id: "" });
     fetchProjectCategories(projectId);
   };
+  
+  // Fetch categories for edit dialog
+  const fetchEditCategories = useCallback(async (projectId) => {
+    if (!projectId) {
+      setEditCategories([]);
+      return;
+    }
+    
+    setLoadingEditCategories(true);
+    try {
+      const res = await axios.get(`${API_URL}/quantity/budget-categories/${projectId}`, getAuthHeaders());
+      setEditCategories(res.data || []);
+    } catch (error) {
+      console.error("Error fetching edit categories:", error);
+      setEditCategories([]);
+    } finally {
+      setLoadingEditCategories(false);
+    }
+  }, [API_URL, getAuthHeaders]);
+  
+  // Handle opening edit dialog
+  const handleOpenEditDialog = (item) => {
+    setEditingItem({
+      ...item,
+      expected_order_date: item.expected_order_date?.split('T')[0] || ""
+    });
+    fetchEditCategories(item.project_id);
+    setEditDialogOpen(true);
+  };
 
   // Create new planned quantity
   const handleCreatePlan = async () => {
