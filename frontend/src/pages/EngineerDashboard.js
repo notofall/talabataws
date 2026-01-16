@@ -35,7 +35,7 @@ const EngineerDashboard = () => {
       // Fetch company settings for PDF export
       const token = localStorage.getItem('token');
       if (token) {
-        fetchAndCacheCompanySettings(token);
+        await fetchAndCacheCompanySettings(token);
       }
       
       // Using PostgreSQL APIs
