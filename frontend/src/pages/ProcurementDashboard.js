@@ -2328,11 +2328,45 @@ const ProcurementDashboard = () => {
                                     step="0.01"
                                     placeholder="0.00"
                                     value={itemPrices[idx] || ""}
-                                    onChange={(e) => setItemPrices({...itemPrices, [idx]: e.target.value})}
-                                    className={`w-24 h-9 text-sm text-center border-0 focus:ring-0 ${catalogInfo ? 'bg-green-50' : ''}`}
+                                    onChange={(e) => {
+                                      const newPrice = e.target.value;
+                                      setItemPrices({...itemPrices, [idx]: newPrice});
+                                      // Check for better price when price changes
+                                      if (newPrice && parseFloat(newPrice) > 0) {
+                                        checkBestPrice(item.name, idx, parseFloat(newPrice));
+                                      }
+                                    }}
+                                    className={`w-24 h-9 text-sm text-center border-0 focus:ring-0 ${catalogInfo ? 'bg-green-50' : ''} ${bestPriceAlerts[idx] ? 'bg-yellow-50 border-yellow-300' : ''}`}
                                   />
                                   <span className="text-xs text-slate-500 font-medium">ر.س</span>
+                                  {/* Best Price Alert */}
+                                  {bestPriceAlerts[idx] && (
+                                    <div className="absolute -bottom-6 right-0 left-0 z-10">
+                                      <div className="bg-yellow-100 border border-yellow-300 rounded px-2 py-1 text-xs text-yellow-800 flex items-center gap-1">
+                                        <AlertTriangle className="h-3 w-3" />
+                                        <span>سعر أقل متاح!</span>
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
+                                {/* Best Price Details */}
+                                {bestPriceAlerts[idx] && (
+                                  <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
+                                    <p className="font-medium text-yellow-800 mb-1">
+                                      <AlertTriangle className="h-3 w-3 inline ml-1" />
+                                      تنبيه: يوجد مورد آخر بسعر أقل
+                                    </p>
+                                    <div className="space-y-1">
+                                      {bestPriceAlerts[idx].better_options?.slice(0, 2).map((option, optIdx) => (
+                                        <div key={optIdx} className="flex justify-between items-center text-yellow-700">
+                                          <span>{option.supplier_name}</span>
+                                          <span className="font-bold text-green-600">{option.price.toLocaleString()} ر.س</span>
+                                          <span className="text-green-600">(-{option.savings_percent}%)</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                               
                               {/* Catalog linking - searchable dropdown */}
