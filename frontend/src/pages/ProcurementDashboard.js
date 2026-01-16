@@ -1390,6 +1390,9 @@ const ProcurementDashboard = () => {
               <Button variant="ghost" size="sm" onClick={() => setAdvancedReportsOpen(true)} className="text-purple-400 hover:text-purple-300 h-8 px-2" title="التقارير المتقدمة">
                 <PieChart className="w-4 h-4 ml-1" />التقارير
               </Button>
+              <Button variant="ghost" size="sm" onClick={() => setQuantityAlertsOpen(true)} className="text-orange-400 hover:text-orange-300 h-8 px-2" title="تنبيهات الكميات">
+                <AlertTriangle className="w-4 h-4 ml-1" />الكميات
+              </Button>
               <Button variant="ghost" size="sm" onClick={() => setExportDialogOpen(true)} className="text-green-400 hover:text-green-300 h-8 px-2" title="تصدير PDF">
                 <Download className="w-4 h-4 ml-1" />تصدير
               </Button>
