@@ -78,12 +78,13 @@ async def get_price_catalog(
     """Get price catalog items with pagination and search"""
     query = select(PriceCatalogItem).where(PriceCatalogItem.is_active == True)
     
-    # Apply search filter
+    # Apply search filter - include item_code in search
     if search:
         query = query.where(
             or_(
                 PriceCatalogItem.name.ilike(f"%{search}%"),
-                PriceCatalogItem.description.ilike(f"%{search}%")
+                PriceCatalogItem.description.ilike(f"%{search}%"),
+                PriceCatalogItem.item_code.ilike(f"%{search}%")
             )
         )
     
@@ -101,7 +102,7 @@ async def get_price_catalog(
     total = total_result.scalar()
     
     # Apply pagination
-    query = query.order_by(PriceCatalogItem.name).offset((page - 1) * page_size).limit(page_size)
+    query = query.order_by(PriceCatalogItem.item_code.asc().nullslast(), PriceCatalogItem.name).offset((page - 1) * page_size).limit(page_size)
     
     result = await session.execute(query)
     items = result.scalars().all()
@@ -110,6 +111,7 @@ async def get_price_catalog(
         "items": [
             {
                 "id": item.id,
+                "item_code": item.item_code,
                 "name": item.name,
                 "description": item.description,
                 "unit": item.unit,
