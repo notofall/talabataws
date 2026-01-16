@@ -163,6 +163,13 @@ const ProcurementDashboard = () => {
   const [reportsLoading, setReportsLoading] = useState(false);
   const [catalogImportLoading, setCatalogImportLoading] = useState(false);
 
+  // Item Validation & Best Price Alert - التحقق من الأصناف وتنبيه السعر الأفضل
+  const [itemValidationResults, setItemValidationResults] = useState(null);
+  const [showValidationDialog, setShowValidationDialog] = useState(false);
+  const [bestPriceAlerts, setBestPriceAlerts] = useState({});  // {itemIndex: {has_better_price, better_options}}
+  const [quickAddItem, setQuickAddItem] = useState(null);  // For quick adding item to catalog
+  const [showQuickAddDialog, setShowQuickAddDialog] = useState(false);
+
   const fetchData = async () => {
     try {
       // Fetch company settings for PDF export
