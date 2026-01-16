@@ -40,6 +40,7 @@ class BudgetCategoryCreate(BaseModel):
     name: str
     project_id: str
     estimated_budget: float
+    code: Optional[str] = None  # كود التصنيف (اختياري - يُولد تلقائياً)
 
 
 class BudgetCategoryUpdate(BaseModel):
@@ -265,8 +266,19 @@ async def create_budget_category(
     category_id = str(uuid.uuid4())
     now = datetime.utcnow()
     
+    # توليد كود التصنيف تلقائياً إذا لم يُعطى
+    category_code = category_data.code
+    if not category_code:
+        # حساب عدد التصنيفات الحالية لتوليد رقم تسلسلي
+        count_result = await session.execute(
+            select(func.count()).select_from(BudgetCategory)
+        )
+        count = count_result.scalar() or 0
+        category_code = f"CAT{str(count + 1).zfill(3)}"
+    
     new_category = BudgetCategory(
         id=category_id,
+        code=category_code,
         name=category_data.name,
         project_id=category_data.project_id,
         project_name=project.name,
@@ -287,6 +299,7 @@ async def create_budget_category(
     
     return {
         "id": category_id,
+        "code": category_code,
         "name": category_data.name,
         "project_id": category_data.project_id,
         "project_name": project.name,
