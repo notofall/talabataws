@@ -2926,9 +2926,14 @@ const ProcurementDashboard = () => {
             <DialogTitle className="flex items-center justify-between flex-wrap gap-2">
               <span>تقرير الميزانية - المقارنة بين التقديري والفعلي</span>
               {budgetReport && (
-                <Button size="sm" onClick={() => exportBudgetReportToPDF(budgetReport)} className="bg-green-600 hover:bg-green-700">
-                  <Download className="w-4 h-4 ml-1" /> تصدير PDF
-                </Button>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => exportBudgetReportToExcel()} className="bg-emerald-600 hover:bg-emerald-700">
+                    <FileSpreadsheet className="w-4 h-4 ml-1" /> Excel
+                  </Button>
+                  <Button size="sm" onClick={() => exportBudgetReportToPDF(budgetReport)} className="bg-green-600 hover:bg-green-700">
+                    <Download className="w-4 h-4 ml-1" /> PDF
+                  </Button>
+                </div>
               )}
             </DialogTitle>
           </DialogHeader>
