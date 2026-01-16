@@ -330,6 +330,7 @@ class PriceCatalogItem(Base):
     __tablename__ = "price_catalog"
     
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid_lib.uuid4()))
+    item_code: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, unique=True, index=True)  # كود الصنف
     name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     unit: Mapped[str] = mapped_column(String(50), default="قطعة")
@@ -348,6 +349,7 @@ class PriceCatalogItem(Base):
     
     __table_args__ = (
         Index('idx_catalog_name_active', 'name', 'is_active'),
+        Index('idx_catalog_item_code', 'item_code'),
     )
 
 
