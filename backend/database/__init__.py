@@ -25,7 +25,8 @@ from .models import (
     SystemSetting,
     PriceCatalogItem,
     ItemAlias,
-    Attachment
+    Attachment,
+    PlannedQuantity
 )
 
 __all__ = [
@@ -53,5 +54,6 @@ __all__ = [
     "SystemSetting",
     "PriceCatalogItem",
     "ItemAlias",
-    "Attachment"
+    "Attachment",
+    "PlannedQuantity"
 ]
