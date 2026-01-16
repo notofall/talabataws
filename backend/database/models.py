@@ -385,3 +385,66 @@ class Attachment(Base):
     __table_args__ = (
         Index('idx_attachments_entity', 'entity_type', 'entity_id'),
     )
+
+
+# ==================== PLANNED QUANTITY MODEL ====================
+
+class PlannedQuantityStatus(str, enum.Enum):
+    PLANNED = "planned"  # مخطط
+    PARTIALLY_ORDERED = "partially_ordered"  # تم طلب جزء
+    FULLY_ORDERED = "fully_ordered"  # تم الطلب بالكامل
+    OVERDUE = "overdue"  # متأخر
+
+
+class PlannedQuantity(Base):
+    """Planned quantities - الكميات المخططة من مهندس الكميات"""
+    __tablename__ = "planned_quantities"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid_lib.uuid4()))
+    
+    # Item details
+    item_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    item_code: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    unit: Mapped[str] = mapped_column(String(50), default="قطعة")
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    
+    # Quantity details
+    planned_quantity: Mapped[float] = mapped_column(Float, nullable=False)  # الكمية المخططة
+    ordered_quantity: Mapped[float] = mapped_column(Float, default=0)  # الكمية المطلوبة
+    remaining_quantity: Mapped[float] = mapped_column(Float, nullable=False)  # الكمية المتبقية
+    
+    # Project reference
+    project_id: Mapped[str] = mapped_column(String(36), ForeignKey("projects.id"), nullable=False, index=True)
+    project_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    
+    # Category (optional)
+    category_id: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("budget_categories.id"), nullable=True)
+    category_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    
+    # Catalog reference (optional)
+    catalog_item_id: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("price_catalog.id"), nullable=True)
+    
+    # Expected order date
+    expected_order_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
+    
+    # Status
+    status: Mapped[str] = mapped_column(String(50), default="planned", index=True)
+    
+    # Priority (1=high, 2=medium, 3=low)
+    priority: Mapped[int] = mapped_column(Integer, default=2)
+    
+    # Notes
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    
+    # Tracking
+    created_by: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False)
+    created_by_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    updated_by: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    updated_by_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    
+    __table_args__ = (
+        Index('idx_planned_project_status', 'project_id', 'status'),
+        Index('idx_planned_expected_date', 'expected_order_date'),
+    )
