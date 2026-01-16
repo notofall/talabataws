@@ -188,7 +188,9 @@ class TestPlannedQuantities:
         headers = {"Authorization": f"Bearer {qe_token}"}
         response = requests.get(f"{BASE_URL}/api/pg/projects", headers=headers)
         if response.status_code == 200:
-            projects = response.json().get('projects', [])
+            data = response.json()
+            # API returns list directly
+            projects = data if isinstance(data, list) else data.get('projects', [])
             if projects:
                 return projects[0].get('id')
         pytest.skip("No projects available")
