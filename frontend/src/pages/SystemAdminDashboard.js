@@ -525,9 +525,23 @@ export default function SystemAdminDashboard() {
   const handleSaveCompanySettings = async () => {
     setSavingSettings(true);
     try {
-      await axios.put(`${API_URL}/sysadmin/company-settings`, companySettings, getAuthHeaders());
+      // Clean data - remove empty strings and convert to proper types
+      const cleanData = {};
+      Object.keys(companySettings).forEach(key => {
+        const value = companySettings[key];
+        if (value !== "" && value !== null && value !== undefined) {
+          if (key === "pdf_show_logo") {
+            cleanData[key] = value === true || value === "true";
+          } else {
+            cleanData[key] = value;
+          }
+        }
+      });
+      
+      await axios.put(`${API_URL}/sysadmin/company-settings`, cleanData, getAuthHeaders());
       toast.success("تم حفظ إعدادات الشركة بنجاح");
     } catch (error) {
+      console.error("Error saving settings:", error.response?.data);
       toast.error("فشل في حفظ الإعدادات");
     } finally {
       setSavingSettings(false);
