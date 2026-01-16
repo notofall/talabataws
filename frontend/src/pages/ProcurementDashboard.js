@@ -1012,6 +1012,119 @@ const ProcurementDashboard = () => {
     }
   };
 
+  // Validate items before approval - التحقق من الأصناف قبل الاعتماد
+  const validateItemsForApproval = async (order) => {
+    try {
+      const items = order.items?.map(item => ({
+        name: item.name,
+        quantity: item.quantity,
+        unit: item.unit
+      })) || [];
+      
+      const response = await axios.post(`${API_URL}/price-catalog/validate-items`, {
+        items,
+        supplier_id: order.supplier_id
+      }, getAuthHeaders());
+      
+      setItemValidationResults(response.data);
+      
+      if (!response.data.all_valid) {
+        setShowValidationDialog(true);
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("Validation error:", error);
+      return true; // Continue if validation fails
+    }
+  };
+
+  // Check best price for an item - التحقق من أفضل سعر
+  const checkBestPrice = async (itemName, itemIndex, unitPrice) => {
+    try {
+      const response = await axios.post(`${API_URL}/price-catalog/check-best-price`, null, {
+        ...getAuthHeaders(),
+        params: {
+          item_name: itemName,
+          supplier_id: selectedSupplierId || null,
+          unit_price: unitPrice
+        }
+      });
+      
+      if (response.data.has_better_price) {
+        setBestPriceAlerts(prev => ({
+          ...prev,
+          [itemIndex]: response.data
+        }));
+        return response.data;
+      }
+      
+      // Clear alert if no better price
+      setBestPriceAlerts(prev => {
+        const newAlerts = { ...prev };
+        delete newAlerts[itemIndex];
+        return newAlerts;
+      });
+      
+      return null;
+    } catch (error) {
+      console.error("Best price check error:", error);
+      return null;
+    }
+  };
+
+  // Quick add item to catalog - إضافة سريعة للكتالوج
+  const handleQuickAddToCatalog = async () => {
+    if (!quickAddItem) return;
+    
+    try {
+      await axios.post(`${API_URL}/price-catalog/quick-add`, {
+        name: quickAddItem.name,
+        unit: quickAddItem.unit || "قطعة",
+        price: quickAddItem.price || 0,
+        currency: "SAR",
+        supplier_name: supplierName || null
+      }, getAuthHeaders());
+      
+      toast.success("تم إضافة الصنف للكتالوج بنجاح");
+      setShowQuickAddDialog(false);
+      setQuickAddItem(null);
+      
+      // Re-validate if validation dialog is open
+      if (showValidationDialog && selectedRequest) {
+        const items = selectedRequest.items?.filter((_, idx) => selectedItemIndices.includes(idx))
+          .map(item => ({ name: item.name, quantity: item.quantity, unit: item.unit })) || [];
+        
+        const response = await axios.post(`${API_URL}/price-catalog/validate-items`, {
+          items,
+          supplier_id: selectedSupplierId
+        }, getAuthHeaders());
+        
+        setItemValidationResults(response.data);
+        
+        if (response.data.all_valid) {
+          toast.success("جميع الأصناف موجودة الآن في الكتالوج");
+          setShowValidationDialog(false);
+        }
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "فشل في إضافة الصنف");
+    }
+  };
+
+  // Handle approve with validation - اعتماد مع التحقق
+  const handleApproveOrderWithValidation = async (order) => {
+    // First validate items
+    const isValid = await validateItemsForApproval(order);
+    
+    if (isValid) {
+      // All items valid, proceed with approval
+      handleApproveOrder(order.id);
+    }
+    // If not valid, validation dialog will show
+  };
+
   // Open Edit Order Dialog
   const openEditOrderDialog = (order) => {
     setEditingOrder(order);
