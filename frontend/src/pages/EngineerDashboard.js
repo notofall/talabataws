@@ -430,6 +430,11 @@ const EngineerDashboard = () => {
             </CardContent>
           </Card>
         </div>
+        
+        {/* الكميات المخططة */}
+        <div className="mt-6">
+          <PlannedQuantitiesView showProjectFilter={true} />
+        </div>
       </main>
 
       {/* View Dialog */}
