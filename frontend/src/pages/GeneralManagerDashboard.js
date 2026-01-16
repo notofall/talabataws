@@ -61,6 +61,11 @@ export default function GeneralManagerDashboard() {
     try {
       const headers = { Authorization: `Bearer ${token}` };
       
+      // Fetch company settings for PDF export
+      if (token) {
+        fetchAndCacheCompanySettings(token);
+      }
+      
       // Using PostgreSQL APIs
       const [pendingRes, gmApprovedRes, procurementApprovedRes] = await Promise.all([
         axios.get(`${API_URL}/api/pg/gm/pending-orders`, { headers }),
