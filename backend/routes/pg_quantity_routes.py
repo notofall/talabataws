@@ -1279,6 +1279,31 @@ async def import_planned_quantities(
             errors.append(f"صف {row_num}: المشروع '{project_name_or_id}' غير موجود")
             continue
         
+        # البحث عن فئة الميزانية بالكود إذا تم تحديدها
+        import_category_id = None
+        import_category_name = None
+        if category_code and category_code != '-' and category_code.lower() != 'none':
+            cat_result = await session.execute(
+                select(BudgetCategory).where(
+                    or_(
+                        BudgetCategory.code == category_code,
+                        BudgetCategory.name == category_code,
+                        BudgetCategory.id == category_code
+                    )
+                )
+            )
+            category = cat_result.scalar_one_or_none()
+            if category:
+                import_category_id = category.id
+                import_category_name = category.name
+            else:
+                # تحذير لكن استمر بدون فئة
+                errors.append(f"صف {row_num}: فئة الميزانية '{category_code}' غير موجودة - تم التجاهل")
+        
+        # استخدام الفئة من الاستيراد أو من الكتالوج
+        final_category_id = import_category_id or catalog_item.category_id
+        final_category_name = import_category_name or catalog_item.category_name
+        
         new_item = PlannedQuantity(
             id=str(uuid.uuid4()),
             item_name=catalog_item.name,
@@ -1290,8 +1315,8 @@ async def import_planned_quantities(
             remaining_quantity=planned_quantity,
             project_id=project.id,
             project_name=project.name,
-            category_id=catalog_item.category_id,
-            category_name=catalog_item.category_name,
+            category_id=final_category_id,
+            category_name=final_category_name,
             catalog_item_id=catalog_item.id,
             expected_order_date=expected_order_date,
             status="planned",
