@@ -63,7 +63,7 @@ export default function GeneralManagerDashboard() {
       
       // Fetch company settings for PDF export
       if (token) {
-        fetchAndCacheCompanySettings(token);
+        await fetchAndCacheCompanySettings(token);
       }
       
       // Using PostgreSQL APIs
