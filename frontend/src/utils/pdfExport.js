@@ -383,7 +383,8 @@ export const exportRequestToPDF = (request) => {
   printHTML(html, `طلب مواد - ${requestNumber}`);
 };
 
-export const exportPurchaseOrderToPDF = (order) => {
+export const exportPurchaseOrderToPDF = (order, companySettings = null) => {
+  const settings = companySettings || getCompanySettings();
   const items = Array.isArray(order.items) ? order.items : [];
   
   // Calculate totals
@@ -405,8 +406,27 @@ export const exportPurchaseOrderToPDF = (order) => {
 
   const requestNumber = order.request_number || order.request_id?.slice(0, 8).toUpperCase() || '-';
   const expectedDelivery = order.expected_delivery_date ? formatDateShort(order.expected_delivery_date) : '-';
+  
+  // Company header
+  const companyHeader = settings.company_name ? `
+    <div style="text-align: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid ${settings.pdf_primary_color || '#ea580c'};">
+      ${settings.company_logo ? `<img src="${settings.company_logo}" style="max-height: 60px; margin-bottom: 5px;" />` : ''}
+      <div style="font-size: 16px; font-weight: bold; color: ${settings.pdf_primary_color || '#ea580c'};">${settings.company_name}</div>
+      ${settings.company_address ? `<div style="font-size: 10px; color: #666;">${settings.company_address}</div>` : ''}
+      ${settings.company_phone || settings.company_email ? `<div style="font-size: 10px; color: #666;">${settings.company_phone || ''} ${settings.company_phone && settings.company_email ? ' | ' : ''} ${settings.company_email || ''}</div>` : ''}
+      ${settings.report_header ? `<div style="font-size: 11px; margin-top: 5px;">${settings.report_header}</div>` : ''}
+    </div>
+  ` : '';
+  
+  // Company footer
+  const companyFooter = settings.report_footer ? `
+    <div style="text-align: center; margin-top: 20px; padding-top: 10px; border-top: 1px solid #ddd; font-size: 10px; color: #666;">
+      ${settings.report_footer}
+    </div>
+  ` : '';
 
   const html = `
+    ${companyHeader}
     <div class="compact-header">
       <div class="title">أمر شراء</div>
       <div class="order-number">رقم: ${order.order_number || order.id?.slice(0, 8).toUpperCase() || '-'}</div>
