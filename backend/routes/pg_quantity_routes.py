@@ -1008,15 +1008,13 @@ async def download_planned_template(
     current_user: User = Depends(get_current_user_pg),
     session: AsyncSession = Depends(get_postgres_session)
 ):
-    """تحميل نموذج Excel للاستيراد - شيت واحد يحتوي على كل البيانات"""
+    """تحميل نموذج Excel للاستيراد - قسم الإدخال في الأعلى"""
     require_quantity_access(current_user)
     
     try:
         from openpyxl import Workbook
         from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
-        from openpyxl.utils.dataframe import dataframe_to_rows
         from openpyxl.utils import get_column_letter
-        from openpyxl.worksheet.datavalidation import DataValidation
     except ImportError:
         raise HTTPException(status_code=500, detail="مكتبة Excel غير متوفرة")
     
@@ -1028,15 +1026,19 @@ async def download_planned_template(
     # Styles
     header_font = Font(bold=True, color="FFFFFF", size=11)
     header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+    input_header_fill = PatternFill(start_color="7030A0", end_color="7030A0", fill_type="solid")
     item_header_fill = PatternFill(start_color="70AD47", end_color="70AD47", fill_type="solid")
+    project_header_fill = PatternFill(start_color="ED7D31", end_color="ED7D31", fill_type="solid")
+    category_header_fill = PatternFill(start_color="5B9BD5", end_color="5B9BD5", fill_type="solid")
     example_fill = PatternFill(start_color="E2EFDA", end_color="E2EFDA", fill_type="solid")
     thin_border = Border(
         left=Side(style='thin'), right=Side(style='thin'),
         top=Side(style='thin'), bottom=Side(style='thin')
     )
     center_align = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    right_align = Alignment(horizontal='right', vertical='center', wrap_text=True)
     
-    # جلب بيانات الكتالوج والمشاريع
+    # جلب البيانات
     catalog_result = await session.execute(
         select(PriceCatalogItem).where(PriceCatalogItem.is_active == True).order_by(PriceCatalogItem.item_code.asc().nullslast())
     )
@@ -1045,25 +1047,75 @@ async def download_planned_template(
     projects_result = await session.execute(select(Project).order_by(Project.name))
     projects = projects_result.scalars().all()
     
-    # === قسم الأصناف المتاحة ===
-    ws.merge_cells('A1:F1')
-    title_cell = ws['A1']
-    title_cell.value = "📋 الأصناف المتاحة للاستيراد"
-    title_cell.font = Font(bold=True, size=14, color="FFFFFF")
-    title_cell.fill = item_header_fill
-    title_cell.alignment = center_align
+    categories_result = await session.execute(select(BudgetCategory).order_by(BudgetCategory.code.asc().nullslast()))
+    categories = categories_result.scalars().all()
     
-    # رؤوس الأصناف
-    item_headers = ['كود الصنف', 'اسم الصنف', 'الوحدة', 'السعر', 'المورد', 'التصنيف']
-    for col, header in enumerate(item_headers, 1):
+    # === قسم الإدخال (في الأعلى) ===
+    ws.merge_cells('A1:I1')
+    input_title = ws['A1']
+    input_title.value = "✏️ أدخل الكميات المخططة هنا (انسخ كود الصنف من القائمة أدناه)"
+    input_title.font = Font(bold=True, size=14, color="FFFFFF")
+    input_title.fill = input_header_fill
+    input_title.alignment = center_align
+    
+    # رؤوس قسم الإدخال - الترتيب الجديد
+    input_headers = ['كود الصنف *', 'اسم الصنف *', 'كود التصنيف', 'تصنيف الميزانية', 'اسم المشروع *', 'الكمية المخططة *', 'تاريخ الطلب المتوقع', 'الأولوية (1-3)', 'ملاحظات']
+    for col, header in enumerate(input_headers, 1):
         cell = ws.cell(row=2, column=col, value=header)
         cell.font = header_font
         cell.fill = header_fill
         cell.border = thin_border
         cell.alignment = center_align
     
-    # بيانات الأصناف
-    for row_num, item in enumerate(catalog_items, 3):
+    # صف مثال
+    if catalog_items and projects:
+        example_item = catalog_items[0]
+        example_project = projects[0]
+        example_category = categories[0] if categories else None
+        
+        example_data = [
+            example_item.item_code or f"ITM{example_item.id[:5].upper()}",
+            example_item.name,
+            example_category.code if example_category else "",
+            example_category.name if example_category else "",
+            example_project.name,
+            25,
+            "2026-02-01",
+            2,
+            "مثال - احذف هذا الصف"
+        ]
+        
+        for col, value in enumerate(example_data, 1):
+            cell = ws.cell(row=3, column=col, value=value)
+            cell.fill = example_fill
+            cell.border = thin_border
+            cell.alignment = right_align
+    
+    # صفوف فارغة للإدخال
+    for row in range(4, 14):
+        for col in range(1, 10):
+            cell = ws.cell(row=row, column=col, value="")
+            cell.border = thin_border
+    
+    # === قسم الأصناف المتاحة ===
+    items_start_row = 16
+    
+    ws.merge_cells(f'A{items_start_row}:F{items_start_row}')
+    items_title = ws[f'A{items_start_row}']
+    items_title.value = "📋 الأصناف المتاحة للاستيراد"
+    items_title.font = Font(bold=True, size=14, color="FFFFFF")
+    items_title.fill = item_header_fill
+    items_title.alignment = center_align
+    
+    item_headers = ['كود الصنف', 'اسم الصنف', 'الوحدة', 'السعر', 'المورد', 'التصنيف']
+    for col, header in enumerate(item_headers, 1):
+        cell = ws.cell(row=items_start_row + 1, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.border = thin_border
+        cell.alignment = center_align
+    
+    for row_num, item in enumerate(catalog_items, items_start_row + 2):
         ws.cell(row=row_num, column=1, value=item.item_code or f"ITM{item.id[:5].upper()}").border = thin_border
         ws.cell(row=row_num, column=2, value=item.name).border = thin_border
         ws.cell(row=row_num, column=3, value=item.unit).border = thin_border
@@ -1072,13 +1124,13 @@ async def download_planned_template(
         ws.cell(row=row_num, column=6, value=item.category_name or "-").border = thin_border
     
     # === قسم المشاريع ===
-    projects_start_row = len(catalog_items) + 5
+    projects_start_row = items_start_row + len(catalog_items) + 4
     
     ws.merge_cells(f'A{projects_start_row}:B{projects_start_row}')
     projects_title = ws[f'A{projects_start_row}']
     projects_title.value = "📁 المشاريع المتاحة"
     projects_title.font = Font(bold=True, size=14, color="FFFFFF")
-    projects_title.fill = PatternFill(start_color="ED7D31", end_color="ED7D31", fill_type="solid")
+    projects_title.fill = project_header_fill
     projects_title.alignment = center_align
     
     project_headers = ['اسم المشروع', 'كود المشروع']
@@ -1094,16 +1146,13 @@ async def download_planned_template(
         ws.cell(row=row_num, column=2, value=getattr(project, 'code', None) or "-").border = thin_border
     
     # === قسم فئات الميزانية ===
-    categories_result = await session.execute(select(BudgetCategory).order_by(BudgetCategory.code.asc().nullslast()))
-    categories = categories_result.scalars().all()
-    
     categories_start_row = projects_start_row + len(projects) + 4
     
     ws.merge_cells(f'A{categories_start_row}:C{categories_start_row}')
     categories_title = ws[f'A{categories_start_row}']
     categories_title.value = "🏷️ فئات الميزانية المتاحة"
     categories_title.font = Font(bold=True, size=14, color="FFFFFF")
-    categories_title.fill = PatternFill(start_color="5B9BD5", end_color="5B9BD5", fill_type="solid")
+    categories_title.fill = category_header_fill
     categories_title.alignment = center_align
     
     cat_headers = ['كود الفئة', 'اسم الفئة', 'المشروع']
@@ -1119,51 +1168,16 @@ async def download_planned_template(
         ws.cell(row=row_num, column=2, value=cat.name).border = thin_border
         ws.cell(row=row_num, column=3, value=cat.project_name or "-").border = thin_border
     
-    # === قسم الإدخال ===
-    input_start_row = categories_start_row + len(categories) + 4
-    
-    ws.merge_cells(f'A{input_start_row}:G{input_start_row}')
-    input_title = ws[f'A{input_start_row}']
-    input_title.value = "✏️ أدخل الكميات المخططة هنا (انسخ الأكواد من القوائم أعلاه)"
-    input_title.font = Font(bold=True, size=14, color="FFFFFF")
-    input_title.fill = PatternFill(start_color="7030A0", end_color="7030A0", fill_type="solid")
-    input_title.alignment = center_align
-    
-    input_headers = ['كود الصنف *', 'اسم المشروع *', 'كود فئة الميزانية', 'الكمية المخططة *', 'تاريخ الطلب المتوقع', 'الأولوية (1-3)', 'ملاحظات']
-    for col, header in enumerate(input_headers, 1):
-        cell = ws.cell(row=input_start_row + 1, column=col, value=header)
-        cell.font = header_font
-        cell.fill = header_fill
-        cell.border = thin_border
-        cell.alignment = center_align
-    
-    # صف مثال
-    example_row = input_start_row + 2
-    if catalog_items and projects:
-        example_item = catalog_items[0]
-        example_project = projects[0]
-        example_category = categories[0] if categories else None
-        ws.cell(row=example_row, column=1, value=example_item.item_code or f"ITM{example_item.id[:5].upper()}")
-        ws.cell(row=example_row, column=2, value=example_project.name)
-        ws.cell(row=example_row, column=3, value=example_category.code if example_category else "")
-        ws.cell(row=example_row, column=4, value=100)
-        ws.cell(row=example_row, column=5, value="2026-02-01")
-        ws.cell(row=example_row, column=6, value=2)
-        ws.cell(row=example_row, column=7, value="مثال - احذف هذا الصف")
-        
-        for col in range(1, 8):
-            cell = ws.cell(row=example_row, column=col)
-            cell.fill = example_fill
-            cell.border = thin_border
-    
     # ضبط عرض الأعمدة
-    ws.column_dimensions['A'].width = 20
-    ws.column_dimensions['B'].width = 30
-    ws.column_dimensions['C'].width = 22
+    ws.column_dimensions['A'].width = 18
+    ws.column_dimensions['B'].width = 25
+    ws.column_dimensions['C'].width = 15
     ws.column_dimensions['D'].width = 18
     ws.column_dimensions['E'].width = 20
-    ws.column_dimensions['F'].width = 15
-    ws.column_dimensions['G'].width = 25
+    ws.column_dimensions['F'].width = 18
+    ws.column_dimensions['G'].width = 20
+    ws.column_dimensions['H'].width = 15
+    ws.column_dimensions['I'].width = 25
     
     output = io.BytesIO()
     wb.save(output)
