@@ -146,6 +146,14 @@ async def create_catalog_item(
     if current_user.role not in [UserRole.PROCUREMENT_MANAGER, UserRole.SYSTEM_ADMIN]:
         raise HTTPException(status_code=403, detail="غير مصرح لك بإضافة عناصر للكتالوج")
     
+    # Check if item_code already exists
+    if item_data.item_code:
+        existing = await session.execute(
+            select(PriceCatalogItem).where(PriceCatalogItem.item_code == item_data.item_code)
+        )
+        if existing.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail=f"كود الصنف '{item_data.item_code}' موجود بالفعل")
+    
     # Validate and get category name if category_id provided
     category_name = item_data.category_name
     valid_category_id = None
@@ -172,6 +180,7 @@ async def create_catalog_item(
     
     new_item = PriceCatalogItem(
         id=str(uuid.uuid4()),
+        item_code=item_data.item_code,
         name=item_data.name,
         description=item_data.description,
         unit=item_data.unit,
@@ -193,6 +202,7 @@ async def create_catalog_item(
     
     return {
         "id": new_item.id,
+        "item_code": new_item.item_code,
         "name": new_item.name,
         "price": new_item.price,
         "message": "تم إضافة العنصر للكتالوج بنجاح"
