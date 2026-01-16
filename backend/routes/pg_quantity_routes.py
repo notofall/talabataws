@@ -92,7 +92,8 @@ async def get_catalog_items_for_planning(
         query = query.where(
             or_(
                 PriceCatalogItem.name.ilike(f"%{search}%"),
-                PriceCatalogItem.description.ilike(f"%{search}%")
+                PriceCatalogItem.description.ilike(f"%{search}%"),
+                PriceCatalogItem.item_code.ilike(f"%{search}%")
             )
         )
     
