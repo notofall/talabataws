@@ -2,7 +2,7 @@
 PostgreSQL System Settings & Reports Routes
 Migrated from MongoDB to PostgreSQL
 """
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
@@ -14,7 +14,7 @@ import json
 
 from database import (
     get_postgres_session, SystemSetting, AuditLog, User,
-    PurchaseOrder, Project, BudgetCategory, Supplier, MaterialRequest
+    PurchaseOrder, PurchaseOrderItem, Project, BudgetCategory, Supplier, MaterialRequest
 )
 
 # Create router
