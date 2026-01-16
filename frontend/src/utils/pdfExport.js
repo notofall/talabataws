@@ -555,7 +555,11 @@ export const exportPurchaseOrderToPDF = (order, companySettings = null) => {
   printHTML(html, `أمر شراء - ${order.order_number || order.id?.slice(0, 8) || ''}`);
 };
 
-export const exportRequestsTableToPDF = (requests, title = 'قائمة الطلبات', exportedBy = null, dateRange = null) => {
+export const exportRequestsTableToPDF = (requests, title = 'قائمة الطلبات', exportedBy = null, dateRange = null, companySettings = null) => {
+  const settings = companySettings || getCompanySettings();
+  const companyHeader = generateCompanyHeader(settings);
+  const companyFooter = generateCompanyFooter(settings);
+  
   const rows = requests.map((r, idx) => {
     const items = Array.isArray(r.items) ? r.items : [];
     const itemsSummary = items.length > 0 
@@ -575,6 +579,7 @@ export const exportRequestsTableToPDF = (requests, title = 'قائمة الطل�
   }).join('');
 
   const html = `
+    ${companyHeader}
     <div class="header">
       <div class="title">${title}</div>
       ${dateRange ? `<div class="subtitle">من ${dateRange.from} إلى ${dateRange.to}</div>` : ''}
@@ -615,6 +620,7 @@ export const exportRequestsTableToPDF = (requests, title = 'قائمة الطل�
       <p>نظام إدارة طلبات المواد - تاريخ التصدير: ${formatDateShort(new Date().toISOString())}</p>
       ${exportedBy ? `<p style="margin-top: 3px;">صادر بواسطة: ${exportedBy}</p>` : ''}
     </div>
+    ${companyFooter}
   `;
 
   printHTML(html, title);
