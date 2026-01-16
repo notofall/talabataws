@@ -532,6 +532,7 @@ export const exportPurchaseOrderToPDF = (order, companySettings = null) => {
       <p>نظام إدارة طلبات المواد</p>
       <p style="margin-top: 3px;">تاريخ الطباعة: ${formatDateShort(new Date().toISOString())}</p>
     </div>
+    ${companyFooter}
   `;
 
   printHTML(html, `أمر شراء - ${order.order_number || order.id?.slice(0, 8) || ''}`);
