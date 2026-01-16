@@ -150,7 +150,7 @@ const ProcurementDashboard = () => {
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [catalogSearch, setCatalogSearch] = useState("");
   const [newCatalogItem, setNewCatalogItem] = useState({
-    name: "", description: "", unit: "قطعة", price: "", supplier_name: "", category_id: ""
+    item_code: "", name: "", description: "", unit: "قطعة", price: "", supplier_name: "", category_id: ""
   });
   const [editingCatalogItem, setEditingCatalogItem] = useState(null);
   const [catalogViewMode, setCatalogViewMode] = useState("catalog"); // "catalog", "aliases", or "reports"
