@@ -395,6 +395,61 @@ const ProcurementDashboard = () => {
     window.open(`${API_URL}/price-catalog/template`, '_blank');
   };
 
+  // Export Catalog to Excel - تصدير الكتالوج إلى Excel
+  const handleExportCatalogExcel = async () => {
+    try {
+      toast.info("جاري تصدير الكتالوج...");
+      const response = await axios.get(`${API_URL}/price-catalog/export/excel`, {
+        ...getAuthHeaders(),
+        responseType: 'blob'
+      });
+      
+      // Create download link
+      const blob = new Blob([response.data], { 
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `price_catalog_${new Date().toISOString().split('T')[0]}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast.success("تم تصدير الكتالوج بنجاح");
+    } catch (error) {
+      console.error("Export error:", error);
+      toast.error("فشل في تصدير الكتالوج");
+    }
+  };
+
+  // Export Catalog to CSV - تصدير الكتالوج إلى CSV
+  const handleExportCatalogCSV = async () => {
+    try {
+      toast.info("جاري تصدير الكتالوج...");
+      const response = await axios.get(`${API_URL}/price-catalog/export`, {
+        ...getAuthHeaders(),
+        responseType: 'blob'
+      });
+      
+      const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `price_catalog_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast.success("تم تصدير الكتالوج بنجاح");
+    } catch (error) {
+      console.error("Export error:", error);
+      toast.error("فشل في تصدير الكتالوج");
+    }
+  };
+
   // Add default category - إضافة تصنيف افتراضي
   const handleAddDefaultCategory = async () => {
     if (!newDefaultCategory.name.trim()) {
