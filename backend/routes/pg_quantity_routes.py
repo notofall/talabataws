@@ -1196,7 +1196,7 @@ async def import_planned_quantities(
     current_user: User = Depends(get_current_user_pg),
     session: AsyncSession = Depends(get_postgres_session)
 ):
-    """استيراد الكميات المخططة من Excel - يدعم الكود واسم المشروع"""
+    """استيراد الكميات المخططة من Excel - الترتيب الجديد"""
     require_quantity_access(current_user)
     
     if not file.filename.endswith(('.xlsx', '.xls')):
@@ -1215,65 +1215,75 @@ async def import_planned_quantities(
     errors = []
     
     # البحث عن صف بداية الإدخال (يحتوي على "كود الصنف")
-    start_row = 2  # افتراضياً
-    for row_num, row in enumerate(ws.iter_rows(min_row=1, max_row=50, values_only=True), 1):
+    start_row = 2  # افتراضياً - بعد رؤوس الأعمدة
+    for row_num, row in enumerate(ws.iter_rows(min_row=1, max_row=10, values_only=True), 1):
         if row and row[0] and 'كود الصنف' in str(row[0]):
             start_row = row_num + 1
             break
     
+    # الترتيب الجديد للأعمدة:
+    # 0: كود الصنف | 1: اسم الصنف | 2: كود التصنيف | 3: تصنيف الميزانية | 4: اسم المشروع | 5: الكمية | 6: التاريخ | 7: الأولوية | 8: ملاحظات
+    
     for row_num, row in enumerate(ws.iter_rows(min_row=start_row, values_only=True), start_row):
-        # تجاهل الصفوف الفارغة أو التي تحتوي على عناوين
-        # الترتيب الجديد: كود الصنف | اسم المشروع | كود فئة الميزانية | الكمية | التاريخ | الأولوية | ملاحظات
-        if not row or not row[0] or not row[1]:
+        # تجاهل الصفوف الفارغة
+        if not row or not row[0]:
             continue
         
         # تجاهل صفوف العناوين والأقسام
         first_cell = str(row[0]).strip()
         if first_cell.startswith('📋') or first_cell.startswith('📁') or first_cell.startswith('✏️') or first_cell.startswith('🏷️'):
-            continue
+            break  # وصلنا لقسم البيانات المرجعية - توقف
         if 'الصنف' in first_cell or 'المشروع' in first_cell or 'اسم' in first_cell or 'الفئة' in first_cell:
             continue
         
-        item_code_or_id = first_cell
-        project_name_or_id = str(row[1]).strip()
+        # استخراج البيانات من الأعمدة
+        item_code = first_cell
+        item_name = str(row[1]).strip() if len(row) > 1 and row[1] else None
         category_code = str(row[2]).strip() if len(row) > 2 and row[2] else None
+        category_name_input = str(row[3]).strip() if len(row) > 3 and row[3] else None
+        project_name = str(row[4]).strip() if len(row) > 4 and row[4] else None
         
-        # الكمية في العمود الرابع الآن
+        # الكمية في العمود السادس (index 5)
         try:
-            planned_quantity = float(row[3]) if len(row) > 3 and row[3] else 0
+            planned_quantity = float(row[5]) if len(row) > 5 and row[5] else 0
         except (ValueError, TypeError):
-            errors.append(f"صف {row_num}: الكمية '{row[3] if len(row) > 3 else 'فارغ'}' غير صالحة")
+            errors.append(f"صف {row_num}: الكمية '{row[5] if len(row) > 5 else 'فارغ'}' غير صالحة")
             continue
         
         if planned_quantity <= 0:
+            continue
+        
+        # التحقق من البيانات المطلوبة
+        if not project_name:
+            errors.append(f"صف {row_num}: اسم المشروع مطلوب")
             continue
         
         expected_order_date = None
         priority = 2
         notes = None
         
-        # معالجة التاريخ (العمود الخامس)
-        if len(row) > 4 and row[4]:
+        # معالجة التاريخ (العمود السابع - index 6)
+        if len(row) > 6 and row[6]:
             try:
-                if hasattr(row[4], 'strftime'):
-                    expected_order_date = row[4]
+                if hasattr(row[6], 'strftime'):
+                    expected_order_date = row[6]
                 else:
-                    expected_order_date = datetime.strptime(str(row[4])[:10], "%Y-%m-%d")
+                    expected_order_date = datetime.strptime(str(row[6])[:10], "%Y-%m-%d")
             except:
                 pass
         
-        # معالجة الأولوية (العمود السادس)
-        if len(row) > 5 and row[5]:
+        # معالجة الأولوية (العمود الثامن - index 7)
+        if len(row) > 7 and row[7]:
             try:
-                priority = int(row[5])
+                priority = int(row[7])
                 if priority not in [1, 2, 3]:
                     priority = 2
             except (ValueError, TypeError):
                 priority = 2
         
-        # معالجة الملاحظات (العمود السابع)
-        if len(row) > 6 and row[6]:
-            notes = str(row[6]).strip()
+        # معالجة الملاحظات (العمود التاسع - index 8)
+        if len(row) > 8 and row[8]:
+            notes = str(row[8]).strip()
             if notes.lower() in ['none', 'مثال', 'مثال - احذف هذا الصف']:
                 continue  # تجاهل صف المثال
         
