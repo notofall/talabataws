@@ -483,6 +483,20 @@ async def update_planned_quantity(
             except:
                 pass
     
+    # تحديث فئة الميزانية
+    if data.category_id is not None:
+        if data.category_id == "":
+            item.category_id = None
+            item.category_name = None
+        else:
+            cat_result = await session.execute(
+                select(BudgetCategory).where(BudgetCategory.id == data.category_id)
+            )
+            category = cat_result.scalar_one_or_none()
+            if category:
+                item.category_id = category.id
+                item.category_name = category.name
+    
     item.updated_at = datetime.utcnow()
     item.updated_by = current_user.id
     item.updated_by_name = current_user.name
