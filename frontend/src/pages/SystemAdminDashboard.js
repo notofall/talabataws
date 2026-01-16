@@ -40,7 +40,7 @@ export default function SystemAdminDashboard() {
   const [companySettings, setCompanySettings] = useState({
     company_name: "", company_logo: "", company_address: "",
     company_phone: "", company_email: "", report_header: "",
-    report_footer: "", pdf_primary_color: "#1e40af", pdf_show_logo: "true"
+    report_footer: "", pdf_primary_color: "#1e40af", pdf_show_logo: true
   });
   const [logoPreview, setLogoPreview] = useState(null);
   
