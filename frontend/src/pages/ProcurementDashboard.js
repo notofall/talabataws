@@ -3557,6 +3557,7 @@ const ProcurementDashboard = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-24">الكود</TableHead>
                         <TableHead>الصنف</TableHead>
                         <TableHead>الوحدة</TableHead>
                         <TableHead>السعر</TableHead>
@@ -3567,13 +3568,18 @@ const ProcurementDashboard = () => {
                     <TableBody>
                       {catalogItems.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center text-slate-500">
+                          <TableCell colSpan={6} className="text-center text-slate-500">
                             لا توجد أصناف في الكتالوج
                           </TableCell>
                         </TableRow>
                       ) : (
                         catalogItems.map(item => (
                           <TableRow key={item.id}>
+                            <TableCell>
+                              <Badge variant="outline" className="font-mono text-xs">
+                                {item.item_code || "-"}
+                              </Badge>
+                            </TableCell>
                             <TableCell>
                               <div>
                                 <p className="font-medium">{item.name}</p>
