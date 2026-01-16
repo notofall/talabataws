@@ -1023,21 +1023,21 @@ async def download_planned_template(
     ws3 = wb.create_sheet(title="المشاريع")
     ws3.sheet_view.rightToLeft = True
     
-    project_headers = ['معرف المشروع', 'اسم المشروع']
+    project_headers = ['كود المشروع', 'اسم المشروع']
     for col, header in enumerate(project_headers, 1):
         cell = ws3.cell(row=1, column=col, value=header)
         cell.font = header_font
         cell.fill = header_fill
         cell.border = thin_border
     
-    projects_result = await session.execute(select(Project))
+    projects_result = await session.execute(select(Project).order_by(Project.code.asc().nullslast()))
     projects = projects_result.scalars().all()
     
     for row_num, project in enumerate(projects, 2):
-        ws3.cell(row=row_num, column=1, value=project.id).border = thin_border
+        ws3.cell(row=row_num, column=1, value=getattr(project, 'code', None) or project.name).border = thin_border
         ws3.cell(row=row_num, column=2, value=project.name).border = thin_border
     
-    ws3.column_dimensions['A'].width = 40
+    ws3.column_dimensions['A'].width = 20
     ws3.column_dimensions['B'].width = 30
     
     output = io.BytesIO()
@@ -1057,7 +1057,7 @@ async def import_planned_quantities(
     current_user: User = Depends(get_current_user_pg),
     session: AsyncSession = Depends(get_postgres_session)
 ):
-    """استيراد الكميات المخططة من Excel"""
+    """استيراد الكميات المخططة من Excel - يدعم الكود والمعرف"""
     require_quantity_access(current_user)
     
     if not file.filename.endswith(('.xlsx', '.xls')):
@@ -1079,11 +1079,11 @@ async def import_planned_quantities(
         if not row or not row[0] or not row[1] or not row[2]:
             continue
         
-        catalog_item_id = str(row[0]).strip()
-        project_id = str(row[1]).strip()
+        item_code_or_id = str(row[0]).strip()
+        project_code_or_name = str(row[1]).strip()
         planned_quantity = float(row[2]) if row[2] else 0
         expected_order_date = None
-        priority = int(row[4]) if row[4] else 2
+        priority = int(row[4]) if row[4] and str(row[4]).isdigit() else 2
         notes = str(row[5]).strip() if row[5] else None
         
         # Parse date
@@ -1096,38 +1096,49 @@ async def import_planned_quantities(
             except:
                 pass
         
-        # Validate catalog item
+        # Validate catalog item - try by item_code first, then by id
         catalog_result = await session.execute(
-            select(PriceCatalogItem).where(PriceCatalogItem.id == catalog_item_id)
+            select(PriceCatalogItem).where(
+                or_(
+                    PriceCatalogItem.item_code == item_code_or_id,
+                    PriceCatalogItem.id == item_code_or_id
+                )
+            )
         )
         catalog_item = catalog_result.scalar_one_or_none()
         if not catalog_item:
-            errors.append(f"صف {row_num}: الصنف '{catalog_item_id}' غير موجود في الكتالوج")
+            errors.append(f"صف {row_num}: الصنف '{item_code_or_id}' غير موجود في الكتالوج")
             continue
         
-        # Validate project
+        # Validate project - try by code/name first, then by id
         project_result = await session.execute(
-            select(Project).where(Project.id == project_id)
+            select(Project).where(
+                or_(
+                    Project.name == project_code_or_name,
+                    Project.id == project_code_or_name,
+                    func.lower(Project.name) == func.lower(project_code_or_name)
+                )
+            )
         )
         project = project_result.scalar_one_or_none()
         if not project:
-            errors.append(f"صف {row_num}: المشروع '{project_id}' غير موجود")
+            errors.append(f"صف {row_num}: المشروع '{project_code_or_name}' غير موجود")
             continue
         
         new_item = PlannedQuantity(
             id=str(uuid.uuid4()),
             item_name=catalog_item.name,
-            item_code=catalog_item.id[:8].upper(),
+            item_code=catalog_item.item_code or catalog_item.id[:8].upper(),
             unit=catalog_item.unit,
             description=catalog_item.description,
             planned_quantity=planned_quantity,
             ordered_quantity=0,
             remaining_quantity=planned_quantity,
-            project_id=project_id,
+            project_id=project.id,
             project_name=project.name,
             category_id=catalog_item.category_id,
             category_name=catalog_item.category_name,
-            catalog_item_id=catalog_item_id,
+            catalog_item_id=catalog_item.id,
             expected_order_date=expected_order_date,
             status="planned",
             priority=priority,
