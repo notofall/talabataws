@@ -691,13 +691,7 @@ const QuantityEngineerDashboard = () => {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => {
-                                    setEditingItem({
-                                      ...item,
-                                      expected_order_date: item.expected_order_date?.split('T')[0] || ""
-                                    });
-                                    setEditDialogOpen(true);
-                                  }}
+                                  onClick={() => handleOpenEditDialog(item)}
                                   data-testid={`edit-btn-${item.id}`}
                                 >
                                   <Edit className="h-4 w-4 text-blue-600" />
