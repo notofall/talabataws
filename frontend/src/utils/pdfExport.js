@@ -626,7 +626,11 @@ export const exportRequestsTableToPDF = (requests, title = 'قائمة الطل�
   printHTML(html, title);
 };
 
-export const exportPurchaseOrdersTableToPDF = (orders, exportedBy = null, dateRange = null) => {
+export const exportPurchaseOrdersTableToPDF = (orders, exportedBy = null, dateRange = null, companySettings = null) => {
+  const settings = companySettings || getCompanySettings();
+  const companyHeader = generateCompanyHeader(settings);
+  const companyFooter = generateCompanyFooter(settings);
+  
   // Calculate total amount
   const totalAmount = orders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
   
@@ -650,6 +654,7 @@ export const exportPurchaseOrdersTableToPDF = (orders, exportedBy = null, dateRa
   }).join('');
 
   const html = `
+    ${companyHeader}
     <div class="header">
       <div class="title">قائمة أوامر الشراء</div>
       ${dateRange ? `<div class="subtitle">من ${dateRange.from} إلى ${dateRange.to}</div>` : ''}
@@ -702,6 +707,7 @@ export const exportPurchaseOrdersTableToPDF = (orders, exportedBy = null, dateRa
       <p>نظام إدارة طلبات المواد - تاريخ التصدير: ${formatDateShort(new Date().toISOString())}</p>
       ${exportedBy ? `<p style="margin-top: 3px;">صادر بواسطة: ${exportedBy}</p>` : ''}
     </div>
+    ${companyFooter}
   `;
 
   printHTML(html, 'قائمة أوامر الشراء');
