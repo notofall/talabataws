@@ -962,7 +962,7 @@ async def download_planned_template(
         top=Side(style='thin'), bottom=Side(style='thin')
     )
     
-    headers = ['معرف الصنف من الكتالوج *', 'معرف المشروع *', 'الكمية المخططة *', 'تاريخ الطلب المتوقع', 'الأولوية (1=عالية، 2=متوسطة، 3=منخفضة)', 'ملاحظات']
+    headers = ['كود الصنف *', 'كود المشروع *', 'الكمية المخططة *', 'تاريخ الطلب المتوقع', 'الأولوية (1=عالية، 2=متوسطة، 3=منخفضة)', 'ملاحظات']
     for col, header in enumerate(headers, 1):
         cell = ws.cell(row=1, column=col, value=header)
         cell.font = header_font
@@ -971,8 +971,8 @@ async def download_planned_template(
         cell.alignment = Alignment(horizontal='center', wrap_text=True)
     
     # أمثلة
-    ws.cell(row=2, column=1, value="catalog-item-id-here")
-    ws.cell(row=2, column=2, value="project-id-here")
+    ws.cell(row=2, column=1, value="ITM001")
+    ws.cell(row=2, column=2, value="PRJ001")
     ws.cell(row=2, column=3, value=100)
     ws.cell(row=2, column=4, value="2026-02-01")
     ws.cell(row=2, column=5, value=2)
@@ -981,8 +981,8 @@ async def download_planned_template(
     for col in range(1, 7):
         ws.cell(row=2, column=col).border = thin_border
     
-    ws.column_dimensions['A'].width = 35
-    ws.column_dimensions['B'].width = 35
+    ws.column_dimensions['A'].width = 20
+    ws.column_dimensions['B'].width = 20
     ws.column_dimensions['C'].width = 18
     ws.column_dimensions['D'].width = 20
     ws.column_dimensions['E'].width = 35
@@ -992,7 +992,7 @@ async def download_planned_template(
     ws2 = wb.create_sheet(title="أصناف الكتالوج")
     ws2.sheet_view.rightToLeft = True
     
-    catalog_headers = ['معرف الصنف', 'اسم الصنف', 'الوحدة', 'السعر', 'المورد', 'التصنيف']
+    catalog_headers = ['كود الصنف', 'اسم الصنف', 'الوحدة', 'السعر', 'المورد', 'التصنيف']
     for col, header in enumerate(catalog_headers, 1):
         cell = ws2.cell(row=1, column=col, value=header)
         cell.font = header_font
@@ -1000,19 +1000,19 @@ async def download_planned_template(
         cell.border = thin_border
     
     catalog_result = await session.execute(
-        select(PriceCatalogItem).where(PriceCatalogItem.is_active == True)
+        select(PriceCatalogItem).where(PriceCatalogItem.is_active == True).order_by(PriceCatalogItem.item_code.asc().nullslast())
     )
     catalog_items = catalog_result.scalars().all()
     
     for row_num, item in enumerate(catalog_items, 2):
-        ws2.cell(row=row_num, column=1, value=item.id).border = thin_border
+        ws2.cell(row=row_num, column=1, value=item.item_code or f"(بدون كود) {item.id[:8]}").border = thin_border
         ws2.cell(row=row_num, column=2, value=item.name).border = thin_border
         ws2.cell(row=row_num, column=3, value=item.unit).border = thin_border
         ws2.cell(row=row_num, column=4, value=item.price).border = thin_border
         ws2.cell(row=row_num, column=5, value=item.supplier_name or "-").border = thin_border
         ws2.cell(row=row_num, column=6, value=item.category_name or "-").border = thin_border
     
-    ws2.column_dimensions['A'].width = 40
+    ws2.column_dimensions['A'].width = 20
     ws2.column_dimensions['B'].width = 30
     ws2.column_dimensions['C'].width = 12
     ws2.column_dimensions['D'].width = 12
