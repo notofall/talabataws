@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
@@ -11,9 +11,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/
 import { Badge } from "../components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { 
-  Package, LogOut, RefreshCw, Plus, Search, Download,
+  Package, LogOut, RefreshCw, Plus, Search, Download, Upload,
   Edit, Trash2, Calendar, AlertTriangle, Clock, CheckCircle,
-  Building2, FileSpreadsheet, TrendingUp, ShoppingCart, List
+  Building2, FileSpreadsheet, TrendingUp, ShoppingCart, List, FileText
 } from "lucide-react";
 import ChangePasswordDialog from "../components/ChangePasswordDialog";
 
@@ -42,11 +42,15 @@ const QuantityEngineerDashboard = () => {
   // Projects list
   const [projects, setProjects] = useState([]);
   
+  // Budget categories
+  const [categories, setCategories] = useState([]);
+  
   // Dialog states
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [selectItemDialogOpen, setSelectItemDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   
   // Selected catalog item for adding
   const [selectedCatalogItem, setSelectedCatalogItem] = useState(null);
@@ -63,23 +67,32 @@ const QuantityEngineerDashboard = () => {
   
   // Reports
   const [reportData, setReportData] = useState(null);
+  const [reportProject, setReportProject] = useState("");
   
   // Alerts
   const [alerts, setAlerts] = useState(null);
   
   // Password dialog
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  
+  // File input ref
+  const fileInputRef = useRef(null);
+  const [importing, setImporting] = useState(false);
 
   // Fetch initial data
   const fetchData = useCallback(async () => {
     try {
-      const [statsRes, projectsRes] = await Promise.all([
+      const [statsRes, projectsRes, categoriesRes] = await Promise.all([
         axios.get(`${API_URL}/quantity/dashboard/stats`, getAuthHeaders()),
-        axios.get(`${API_URL}/projects`, getAuthHeaders())
+        axios.get(`${API_URL}/projects`, getAuthHeaders()),
+        axios.get(`${API_URL}/quantity/budget-categories`, getAuthHeaders()).catch(() => ({ data: { categories: [] } }))
       ]);
       
       setStats(statsRes.data);
-      setProjects(projectsRes.data.projects || []);
+      // Handle both array and object response
+      const projectsList = Array.isArray(projectsRes.data) ? projectsRes.data : (projectsRes.data.projects || []);
+      setProjects(projectsList);
+      setCategories(categoriesRes.data.categories || []);
       
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -128,13 +141,13 @@ const QuantityEngineerDashboard = () => {
   // Fetch reports
   const fetchReports = useCallback(async () => {
     try {
-      const params = filterProject ? `?project_id=${filterProject}` : "";
+      const params = reportProject ? `?project_id=${reportProject}` : "";
       const res = await axios.get(`${API_URL}/quantity/reports/summary${params}`, getAuthHeaders());
       setReportData(res.data);
     } catch (error) {
       console.error("Error fetching reports:", error);
     }
-  }, [API_URL, getAuthHeaders, filterProject]);
+  }, [API_URL, getAuthHeaders, reportProject]);
 
   // Fetch alerts
   const fetchAlerts = useCallback(async () => {
@@ -271,6 +284,95 @@ const QuantityEngineerDashboard = () => {
       toast.success("تم تصدير البيانات");
     } catch (error) {
       toast.error("فشل في التصدير");
+    }
+  };
+
+  // Download template
+  const handleDownloadTemplate = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/quantity/planned/template`, {
+        ...getAuthHeaders(),
+        responseType: 'blob'
+      });
+      
+      const blob = new Blob([response.data], { 
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `planned_quantities_template.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast.success("تم تحميل النموذج");
+    } catch (error) {
+      toast.error("فشل في تحميل النموذج");
+    }
+  };
+
+  // Import from Excel
+  const handleImport = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setImporting(true);
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    try {
+      const response = await axios.post(`${API_URL}/quantity/planned/import`, formData, {
+        headers: {
+          ...getAuthHeaders().headers,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      
+      toast.success(response.data.message);
+      if (response.data.errors?.length > 0) {
+        toast.warning(`توجد ${response.data.errors.length} أخطاء أثناء الاستيراد`);
+      }
+      setImportDialogOpen(false);
+      fetchPlannedItems();
+      fetchData();
+      
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "فشل في استيراد الملف");
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  // Export report
+  const handleExportReport = async (format = 'excel') => {
+    try {
+      const params = reportProject ? `?project_id=${reportProject}&format=${format}` : `?format=${format}`;
+      const response = await axios.get(`${API_URL}/quantity/reports/export${params}`, {
+        ...getAuthHeaders(),
+        responseType: 'blob'
+      });
+      
+      const ext = format === 'pdf' ? 'pdf' : 'xlsx';
+      const mimeType = format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      
+      const blob = new Blob([response.data], { type: mimeType });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `quantity_report_${new Date().toISOString().split('T')[0]}.${ext}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast.success("تم تصدير التقرير");
+    } catch (error) {
+      toast.error("فشل في تصدير التقرير");
     }
   };
 
@@ -417,6 +519,9 @@ const QuantityEngineerDashboard = () => {
                   >
                     <Plus className="h-4 w-4 ml-1" /> إضافة كمية مخططة
                   </Button>
+                  <Button variant="outline" onClick={() => setImportDialogOpen(true)} data-testid="import-btn">
+                    <Upload className="h-4 w-4 ml-1" /> استيراد Excel
+                  </Button>
                   <Button variant="outline" onClick={handleExport} data-testid="export-btn">
                     <Download className="h-4 w-4 ml-1" /> تصدير Excel
                   </Button>
@@ -435,7 +540,7 @@ const QuantityEngineerDashboard = () => {
                     <select
                       value={filterProject}
                       onChange={(e) => setFilterProject(e.target.value)}
-                      className="h-9 border rounded-lg px-2 text-sm"
+                      className="h-9 border rounded-lg px-2 text-sm min-w-[150px]"
                       data-testid="project-filter"
                     >
                       <option value="">كل المشاريع</option>
@@ -467,6 +572,7 @@ const QuantityEngineerDashboard = () => {
                     <thead className="bg-slate-50 border-b">
                       <tr>
                         <th className="px-4 py-3 text-right">الصنف</th>
+                        <th className="px-4 py-3 text-right">التصنيف</th>
                         <th className="px-4 py-3 text-right">المشروع</th>
                         <th className="px-4 py-3 text-center">الكمية المخططة</th>
                         <th className="px-4 py-3 text-center">الكمية المطلوبة</th>
@@ -480,7 +586,7 @@ const QuantityEngineerDashboard = () => {
                     <tbody className="divide-y">
                       {plannedItems.length === 0 ? (
                         <tr>
-                          <td colSpan="9" className="px-4 py-8 text-center text-slate-500">
+                          <td colSpan="10" className="px-4 py-8 text-center text-slate-500">
                             <div className="flex flex-col items-center gap-2">
                               <Package className="h-12 w-12 text-slate-300" />
                               <p>لا توجد كميات مخططة</p>
@@ -495,6 +601,7 @@ const QuantityEngineerDashboard = () => {
                               <div className="font-medium">{item.item_name}</div>
                               <div className="text-xs text-slate-500">{item.unit}</div>
                             </td>
+                            <td className="px-4 py-3 text-slate-600 text-sm">{item.category_name || "-"}</td>
                             <td className="px-4 py-3 text-slate-600">{item.project_name}</td>
                             <td className="px-4 py-3 text-center font-bold">{item.planned_quantity?.toLocaleString()}</td>
                             <td className="px-4 py-3 text-center text-green-600">{item.ordered_quantity?.toLocaleString()}</td>
@@ -673,6 +780,34 @@ const QuantityEngineerDashboard = () => {
 
           {/* Reports Tab */}
           <TabsContent value="reports" className="space-y-4">
+            {/* Report Controls */}
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <Label>المشروع:</Label>
+                    <select
+                      value={reportProject}
+                      onChange={(e) => {
+                        setReportProject(e.target.value);
+                        setTimeout(fetchReports, 100);
+                      }}
+                      className="h-9 border rounded-lg px-2 text-sm min-w-[180px]"
+                    >
+                      <option value="">كل المشاريع</option>
+                      {projects.map(p => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex-1"></div>
+                  <Button variant="outline" onClick={() => handleExportReport('excel')}>
+                    <FileSpreadsheet className="h-4 w-4 ml-1" /> تصدير Excel
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
             {reportData ? (
               <>
                 {/* Summary Cards */}
@@ -814,9 +949,7 @@ const QuantityEngineerDashboard = () => {
                           <p className="text-xs text-slate-500">
                             {item.unit} | {item.supplier_name || "بدون مورد"} | {item.price?.toLocaleString()} {item.currency}
                           </p>
-                          {item.description && (
-                            <p className="text-xs text-slate-400 mt-1">{item.description}</p>
-                          )}
+                          <p className="text-xs text-purple-600">{item.category_name || "بدون تصنيف"}</p>
                         </div>
                         <Button variant="ghost" size="sm" className="text-purple-600">
                           <Plus className="h-4 w-4" />
@@ -875,6 +1008,7 @@ const QuantityEngineerDashboard = () => {
                 <p className="text-sm text-slate-600">
                   {selectedCatalogItem.unit} | {selectedCatalogItem.supplier_name || "بدون مورد"} | {selectedCatalogItem.price?.toLocaleString()} {selectedCatalogItem.currency}
                 </p>
+                <p className="text-xs text-purple-600 mt-1">التصنيف: {selectedCatalogItem.category_name || "بدون تصنيف"}</p>
               </div>
             )}
             
@@ -966,6 +1100,7 @@ const QuantityEngineerDashboard = () => {
               <div className="bg-slate-50 p-3 rounded-lg">
                 <p className="font-bold">{editingItem.item_name}</p>
                 <p className="text-sm text-slate-500">{editingItem.project_name}</p>
+                <p className="text-xs text-purple-600">{editingItem.category_name || "بدون تصنيف"}</p>
               </div>
               
               <div className="grid grid-cols-2 gap-3">
@@ -1016,6 +1151,51 @@ const QuantityEngineerDashboard = () => {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Import Dialog */}
+      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <DialogContent className="max-w-md" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Upload className="h-5 w-5 text-purple-600" /> استيراد من Excel
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center">
+              <Upload className="h-10 w-10 mx-auto text-slate-400 mb-2" />
+              <p className="text-sm text-slate-600 mb-2">اختر ملف Excel للاستيراد</p>
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept=".xlsx,.xls"
+                onChange={handleImport}
+                className="hidden"
+              />
+              <Button
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={importing}
+              >
+                {importing ? "جاري الاستيراد..." : "اختيار ملف"}
+              </Button>
+            </div>
+            
+            <div className="text-sm text-slate-500">
+              <p className="font-medium mb-2">تعليمات:</p>
+              <ol className="list-decimal list-inside space-y-1">
+                <li>قم بتحميل النموذج أولاً</li>
+                <li>استخدم معرفات الأصناف والمشاريع من الصفحات المساعدة</li>
+                <li>احفظ الملف وقم برفعه</li>
+              </ol>
+            </div>
+            
+            <Button variant="outline" className="w-full" onClick={handleDownloadTemplate}>
+              <Download className="h-4 w-4 ml-1" /> تحميل النموذج
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 
