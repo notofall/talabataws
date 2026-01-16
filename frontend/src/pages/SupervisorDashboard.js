@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Badge } from "../components/ui/badge";
 import { Package, Plus, LogOut, FileText, Clock, CheckCircle, XCircle, RefreshCw, Download, Eye, Edit, Trash2, X, Truck, PackageCheck, Building, KeyRound, Loader2 } from "lucide-react";
-import { exportRequestToPDF, exportRequestsTableToPDF } from "../utils/pdfExport";
+import { exportRequestToPDF, exportRequestsTableToPDF, fetchAndCacheCompanySettings } from "../utils/pdfExport";
 import ChangePasswordDialog from "../components/ChangePasswordDialog";
 
 const UNITS = ["قطعة", "طن", "كيلو", "متر", "متر مربع", "متر مكعب", "كيس", "لتر", "علبة", "رول"];
