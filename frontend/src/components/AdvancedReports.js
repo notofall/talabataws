@@ -69,6 +69,7 @@ export default function AdvancedReports({ onClose }) {
       if (filters.supplier_id) params.append("supplier_id", filters.supplier_id);
       if (filters.start_date) params.append("start_date", filters.start_date);
       if (filters.end_date) params.append("end_date", filters.end_date);
+      if (filters.item_name) params.append("item_name", filters.item_name);
       
       const queryString = params.toString() ? `?${params.toString()}` : "";
       
