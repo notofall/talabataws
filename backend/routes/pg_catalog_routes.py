@@ -228,6 +228,17 @@ async def update_catalog_item(
     if not item:
         raise HTTPException(status_code=404, detail="العنصر غير موجود")
     
+    # Check if item_code is being changed and if it already exists
+    if item_data.item_code and item_data.item_code != item.item_code:
+        existing = await session.execute(
+            select(PriceCatalogItem).where(
+                PriceCatalogItem.item_code == item_data.item_code,
+                PriceCatalogItem.id != item_id
+            )
+        )
+        if existing.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail=f"كود الصنف '{item_data.item_code}' موجود بالفعل")
+    
     # Update fields
     update_data = item_data.dict(exclude_unset=True)
     for key, value in update_data.items():
