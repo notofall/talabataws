@@ -390,9 +390,32 @@ const ProcurementDashboard = () => {
     }
   };
 
-  // Download template
-  const downloadTemplate = () => {
-    window.open(`${API_URL}/price-catalog/template`, '_blank');
+  // Download template - تحميل نموذج الكتالوج
+  const downloadTemplate = async () => {
+    try {
+      toast.info("جاري تحميل النموذج...");
+      const response = await axios.get(`${API_URL}/price-catalog/template`, {
+        ...getAuthHeaders(),
+        responseType: 'blob'
+      });
+      
+      const blob = new Blob([response.data], { 
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'catalog_template.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast.success("تم تحميل النموذج");
+    } catch (error) {
+      console.error("Template download error:", error);
+      toast.error("فشل في تحميل النموذج");
+    }
   };
 
   // Export Catalog to Excel - تصدير الكتالوج إلى Excel
