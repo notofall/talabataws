@@ -1510,6 +1510,14 @@ const ProcurementDashboard = () => {
                 <span className="text-sm">التقارير المتقدمة</span>
               </button>
               
+              <button 
+                onClick={() => { setQuantityAlertsOpen(true); setMobileMenuOpen(false); }}
+                className="w-full flex items-center gap-3 px-3 py-3 text-slate-300 hover:bg-slate-800 rounded-lg transition-colors"
+              >
+                <AlertTriangle className="w-5 h-5 text-orange-400" />
+                <span className="text-sm">تنبيهات الكميات</span>
+              </button>
+              
               {/* التصدير */}
               <p className="text-xs text-slate-500 px-3 py-2 font-medium mt-4">التصدير</p>
               
