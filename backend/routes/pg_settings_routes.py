@@ -3,6 +3,7 @@ PostgreSQL System Settings & Reports Routes
 Migrated from MongoDB to PostgreSQL
 """
 from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
@@ -11,6 +12,7 @@ from sqlalchemy.future import select
 from sqlalchemy import func, desc, and_
 import uuid
 import json
+import io
 
 from database import (
     get_postgres_session, SystemSetting, AuditLog, User,
