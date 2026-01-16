@@ -76,6 +76,12 @@ const SupervisorDashboard = () => {
 
   const fetchData = async () => {
     try {
+      // Fetch company settings for PDF export
+      const token = localStorage.getItem('token');
+      if (token) {
+        fetchAndCacheCompanySettings(token);
+      }
+      
       // Using PostgreSQL APIs
       const [requestsRes, engineersRes, projectsRes] = await Promise.all([
         axios.get(`${API_URL}/requests`, getAuthHeaders()),
