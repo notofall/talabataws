@@ -344,7 +344,11 @@ const printHTML = (html, title) => {
 
 // Helper function to generate company header HTML
 const generateCompanyHeader = (settings) => {
-  if (!settings || !settings.company_name) return '';
+  console.log('generateCompanyHeader called with:', settings);
+  if (!settings || !settings.company_name) {
+    console.log('No company name, returning empty header');
+    return '';
+  }
   
   return `
     <div style="text-align: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid ${settings.pdf_primary_color || '#ea580c'};">
