@@ -22,36 +22,7 @@ const API_BASE = process.env.REACT_APP_BACKEND_URL || '';
 
 // First Run Check Component
 const FirstRunCheck = ({ children }) => {
-  const [checking, setChecking] = useState(true);
-  const [needsSetup, setNeedsSetup] = useState(false);
-
-  useEffect(() => {
-    axios.get(`${API_BASE}/api/setup/status`)
-      .then(res => {
-        setNeedsSetup(res.data.needs_setup);
-      })
-      .catch(() => {
-        // If API fails, assume setup is needed
-        setNeedsSetup(true);
-      })
-      .finally(() => setChecking(false));
-  }, []);
-
-  if (checking) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-orange-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-400 font-medium">جاري التحقق من الإعدادات...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (needsSetup) {
-    return <FirstRunSetup />;
-  }
-
+  // تم إلغاء صفحة الإعداد - الانتقال مباشرة للتطبيق
   return children;
 };
 
