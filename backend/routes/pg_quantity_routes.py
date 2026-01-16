@@ -1291,36 +1291,38 @@ async def import_planned_quantities(
         catalog_result = await session.execute(
             select(PriceCatalogItem).where(
                 or_(
-                    PriceCatalogItem.item_code == item_code_or_id,
-                    PriceCatalogItem.id == item_code_or_id,
-                    PriceCatalogItem.name == item_code_or_id
+                    PriceCatalogItem.item_code == item_code,
+                    PriceCatalogItem.id == item_code,
+                    PriceCatalogItem.name == item_code
                 )
             )
         )
         catalog_item = catalog_result.scalar_one_or_none()
         if not catalog_item:
-            errors.append(f"صف {row_num}: الصنف '{item_code_or_id}' غير موجود في الكتالوج")
+            errors.append(f"صف {row_num}: الصنف '{item_code}' غير موجود في الكتالوج")
             continue
         
         # البحث عن المشروع بالاسم أو الكود
         project_result = await session.execute(
             select(Project).where(
                 or_(
-                    Project.name == project_name_or_id,
-                    Project.id == project_name_or_id,
-                    func.lower(Project.name) == func.lower(project_name_or_id),
-                    Project.code == project_name_or_id
+                    Project.name == project_name,
+                    Project.id == project_name,
+                    func.lower(Project.name) == func.lower(project_name),
+                    Project.code == project_name
                 )
             )
         )
         project = project_result.scalar_one_or_none()
         if not project:
-            errors.append(f"صف {row_num}: المشروع '{project_name_or_id}' غير موجود")
+            errors.append(f"صف {row_num}: المشروع '{project_name}' غير موجود")
             continue
         
-        # البحث عن فئة الميزانية بالكود إذا تم تحديدها
+        # البحث عن فئة الميزانية بالكود أو الاسم
         import_category_id = None
         import_category_name = None
+        
+        # أولاً: البحث بكود الفئة
         if category_code and category_code != '-' and category_code.lower() != 'none':
             cat_result = await session.execute(
                 select(BudgetCategory).where(
@@ -1335,9 +1337,21 @@ async def import_planned_quantities(
             if category:
                 import_category_id = category.id
                 import_category_name = category.name
-            else:
-                # تحذير لكن استمر بدون فئة
-                errors.append(f"صف {row_num}: فئة الميزانية '{category_code}' غير موجودة - تم التجاهل")
+        
+        # ثانياً: البحث باسم الفئة إذا لم نجد بالكود
+        if not import_category_id and category_name_input and category_name_input != '-' and category_name_input.lower() != 'none':
+            cat_result = await session.execute(
+                select(BudgetCategory).where(
+                    or_(
+                        BudgetCategory.name == category_name_input,
+                        func.lower(BudgetCategory.name) == func.lower(category_name_input)
+                    )
+                )
+            )
+            category = cat_result.scalar_one_or_none()
+            if category:
+                import_category_id = category.id
+                import_category_name = category.name
         
         # استخدام الفئة من الاستيراد أو من الكتالوج
         final_category_id = import_category_id or catalog_item.category_id
