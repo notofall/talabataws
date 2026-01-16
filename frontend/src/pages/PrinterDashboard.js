@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Badge } from "../components/ui/badge";
 import { Package, LogOut, RefreshCw, Printer, Eye, Download, CheckCircle, Clock, KeyRound } from "lucide-react";
-import { exportPurchaseOrderToPDF } from "../utils/pdfExport";
+import { exportPurchaseOrderToPDF, fetchAndCacheCompanySettings } from "../utils/pdfExport";
 import ChangePasswordDialog from "../components/ChangePasswordDialog";
 
 const PrinterDashboard = () => {
