@@ -1,5 +1,25 @@
 // PDF Export using Browser Print (Full Arabic Support)
 
+// Company settings cache
+let companySettingsCache = null;
+
+export const setCompanySettings = (settings) => {
+  companySettingsCache = settings;
+};
+
+export const getCompanySettings = () => {
+  return companySettingsCache || {
+    company_name: '',
+    company_logo: '',
+    company_address: '',
+    company_phone: '',
+    company_email: '',
+    report_header: '',
+    report_footer: '',
+    pdf_primary_color: '#ea580c'
+  };
+};
+
 const formatDate = (dateString) => {
   if (!dateString) return '-';
   try {
