@@ -4134,6 +4134,150 @@ const ProcurementDashboard = () => {
           <AdvancedReports onClose={() => setAdvancedReportsOpen(false)} />
         </DialogContent>
       </Dialog>
+
+      {/* Item Validation Dialog - تنبيه الأصناف غير الموجودة في الكتالوج */}
+      <Dialog open={showValidationDialog} onOpenChange={setShowValidationDialog}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-orange-600">
+              <AlertTriangle className="h-5 w-5" />
+              تنبيه: أصناف غير موجودة في الكتالوج
+            </DialogTitle>
+          </DialogHeader>
+          
+          {itemValidationResults && (
+            <div className="space-y-4">
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                <p className="text-sm text-orange-800">
+                  يوجد <span className="font-bold">{itemValidationResults.missing_items}</span> صنف 
+                  من أصل <span className="font-bold">{itemValidationResults.total_items}</span> غير موجود في كتالوج الأسعار.
+                </p>
+                <p className="text-xs text-orange-600 mt-1">
+                  هل تريد إضافتها للكتالوج أو المتابعة بدون إضافة؟
+                </p>
+              </div>
+              
+              <div className="space-y-3 max-h-60 overflow-y-auto">
+                {itemValidationResults.results?.filter(r => !r.found).map((result, idx) => (
+                  <div key={idx} className="border rounded-lg p-3 bg-slate-50">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">{result.item_name}</p>
+                        {result.suggestions?.length > 0 && (
+                          <p className="text-xs text-slate-500 mt-1">
+                            أصناف مشابهة: {result.suggestions.map(s => s.name).join(", ")}
+                          </p>
+                        )}
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-green-600 border-green-300"
+                        onClick={() => {
+                          setQuickAddItem({
+                            name: result.item_name,
+                            unit: itemValidationResults.missing_list?.find(m => m.name === result.item_name)?.unit || "قطعة",
+                            price: itemPrices[idx] || 0
+                          });
+                          setShowQuickAddDialog(true);
+                        }}
+                      >
+                        <Plus className="h-4 w-4 ml-1" />
+                        إضافة للكتالوج
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="flex gap-2 justify-end pt-4 border-t">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowValidationDialog(false)}
+                >
+                  إلغاء
+                </Button>
+                <Button
+                  variant="default"
+                  className="bg-orange-600 hover:bg-orange-700"
+                  onClick={() => {
+                    setShowValidationDialog(false);
+                    // Proceed with approval anyway
+                    if (editingOrder) {
+                      handleApproveOrder(editingOrder.id);
+                    }
+                  }}
+                >
+                  متابعة بدون إضافة
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Quick Add to Catalog Dialog - إضافة سريعة للكتالوج */}
+      <Dialog open={showQuickAddDialog} onOpenChange={setShowQuickAddDialog}>
+        <DialogContent className="max-w-md" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="h-5 w-5 text-green-600" />
+              إضافة صنف للكتالوج
+            </DialogTitle>
+          </DialogHeader>
+          
+          {quickAddItem && (
+            <div className="space-y-4">
+              <div>
+                <Label>اسم الصنف</Label>
+                <Input
+                  value={quickAddItem.name}
+                  onChange={(e) => setQuickAddItem({ ...quickAddItem, name: e.target.value })}
+                  className="mt-1"
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>الوحدة</Label>
+                  <Input
+                    value={quickAddItem.unit}
+                    onChange={(e) => setQuickAddItem({ ...quickAddItem, unit: e.target.value })}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label>السعر</Label>
+                  <Input
+                    type="number"
+                    value={quickAddItem.price}
+                    onChange={(e) => setQuickAddItem({ ...quickAddItem, price: parseFloat(e.target.value) || 0 })}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+              
+              {supplierName && (
+                <div className="bg-slate-50 p-2 rounded text-sm">
+                  <span className="text-slate-500">المورد:</span> {supplierName}
+                </div>
+              )}
+              
+              <div className="flex gap-2 justify-end pt-4">
+                <Button variant="outline" onClick={() => setShowQuickAddDialog(false)}>
+                  إلغاء
+                </Button>
+                <Button
+                  className="bg-green-600 hover:bg-green-700"
+                  onClick={handleQuickAddToCatalog}
+                >
+                  إضافة للكتالوج
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
