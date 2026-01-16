@@ -178,15 +178,41 @@ const QuantityEngineerDashboard = () => {
     }
   }, [selectItemDialogOpen, fetchCatalogItems]);
 
+  // Fetch budget categories for selected project
+  const fetchProjectCategories = useCallback(async (projectId) => {
+    if (!projectId) {
+      setProjectCategories([]);
+      return;
+    }
+    
+    setLoadingCategories(true);
+    try {
+      const res = await axios.get(`${API_URL}/quantity/budget-categories/${projectId}`, getAuthHeaders());
+      setProjectCategories(res.data || []);
+    } catch (error) {
+      console.error("Error fetching project categories:", error);
+      setProjectCategories([]);
+    } finally {
+      setLoadingCategories(false);
+    }
+  }, [API_URL, getAuthHeaders]);
+
   // Select catalog item
   const handleSelectCatalogItem = (item) => {
     setSelectedCatalogItem(item);
     setNewPlan({
       ...newPlan,
-      catalog_item_id: item.id
+      catalog_item_id: item.id,
+      category_id: "" // Reset category when selecting new item
     });
     setSelectItemDialogOpen(false);
     setAddDialogOpen(true);
+  };
+
+  // Handle project selection in add dialog
+  const handleProjectChange = (projectId) => {
+    setNewPlan({ ...newPlan, project_id: projectId, category_id: "" });
+    fetchProjectCategories(projectId);
   };
 
   // Create new planned quantity
