@@ -2,16 +2,18 @@
 PostgreSQL Suppliers Routes - Supplier Management
 Migrated from MongoDB to PostgreSQL
 """
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import func, desc
+from sqlalchemy import func, desc, and_, or_
 import uuid
+import io
 
-from database import get_postgres_session, Supplier, User, PurchaseOrder
+from database import get_postgres_session, Supplier, User, PurchaseOrder, PurchaseOrderItem, PriceCatalogItem
 
 # Create router
 pg_suppliers_router = APIRouter(prefix="/api/pg", tags=["PostgreSQL Suppliers"])
