@@ -375,72 +375,216 @@ async def export_catalog_excel(
     )
 
 
+@pg_catalog_router.get("/price-catalog/template")
+async def get_catalog_template(
+    current_user: User = Depends(get_current_user_pg)
+):
+    """Download Excel template for catalog import"""
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    except ImportError:
+        raise HTTPException(status_code=500, detail="مكتبة Excel غير متوفرة")
+    
+    # Create workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "نموذج الكتالوج"
+    ws.sheet_view.rightToLeft = True
+    
+    # Styles
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+    header_alignment = Alignment(horizontal="center", vertical="center")
+    thin_border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    # Headers - must match import order
+    headers = ['كود الصنف', 'اسم الصنف', 'الوصف', 'الوحدة', 'السعر', 'العملة', 'اسم المورد', 'التصنيف', 'صالح حتى']
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_alignment
+        cell.border = thin_border
+    
+    # Example row
+    example_data = ['ITM-001', 'حديد تسليح 12مم', 'حديد تسليح قطر 12مم', 'طن', '3500', 'SAR', 'شركة الحديد', 'مواد بناء', '2025-12-31']
+    for col, value in enumerate(example_data, 1):
+        cell = ws.cell(row=2, column=col, value=value)
+        cell.border = thin_border
+    
+    # Column widths
+    ws.column_dimensions['A'].width = 15
+    ws.column_dimensions['B'].width = 30
+    ws.column_dimensions['C'].width = 40
+    ws.column_dimensions['D'].width = 12
+    ws.column_dimensions['E'].width = 12
+    ws.column_dimensions['F'].width = 10
+    ws.column_dimensions['G'].width = 25
+    ws.column_dimensions['H'].width = 20
+    ws.column_dimensions['I'].width = 15
+    
+    # Save to bytes
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=catalog_template.xlsx"}
+    )
+
+
 @pg_catalog_router.post("/price-catalog/import")
 async def import_catalog(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user_pg),
     session: AsyncSession = Depends(get_postgres_session)
 ):
-    """Import catalog from CSV"""
+    """Import catalog from CSV or Excel"""
     if current_user.role not in [UserRole.PROCUREMENT_MANAGER, UserRole.SYSTEM_ADMIN]:
         raise HTTPException(status_code=403, detail="غير مصرح لك باستيراد الكتالوج")
     
-    if not file.filename.endswith('.csv'):
-        raise HTTPException(status_code=400, detail="يجب أن يكون الملف بصيغة CSV")
-    
+    filename = file.filename.lower()
     content = await file.read()
-    decoded = content.decode('utf-8-sig')
-    reader = csv.reader(io.StringIO(decoded))
-    
-    # Skip header
-    next(reader, None)
     
     imported = 0
+    updated = 0
     errors = []
     
-    for row_num, row in enumerate(reader, start=2):
+    # Handle Excel files
+    if filename.endswith('.xlsx') or filename.endswith('.xls'):
         try:
-            if len(row) < 4:
-                continue
+            from openpyxl import load_workbook
             
-            name = row[0].strip()
-            description = row[1].strip() if len(row) > 1 else None
-            unit = row[2].strip() if len(row) > 2 else "قطعة"
-            price = float(row[3]) if len(row) > 3 and row[3] else 0
-            currency = row[4].strip() if len(row) > 4 else "SAR"
-            supplier_name = row[5].strip() if len(row) > 5 else None
-            category_name = row[6].strip() if len(row) > 6 else None
-            validity_until = row[7].strip() if len(row) > 7 else None
+            wb = load_workbook(io.BytesIO(content))
+            ws = wb.active
             
-            if not name or price <= 0:
-                continue
-            
-            new_item = PriceCatalogItem(
-                id=str(uuid.uuid4()),
-                name=name,
-                description=description,
-                unit=unit,
-                price=price,
-                currency=currency,
-                supplier_name=supplier_name,
-                category_name=category_name,
-                validity_until=validity_until,
-                is_active=True,
-                created_by=current_user.id,
-                created_by_name=current_user.name
-            )
-            
-            session.add(new_item)
-            imported += 1
-            
+            for row_num, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+                try:
+                    if not row or not row[1]:  # Skip empty rows, check name column
+                        continue
+                    
+                    item_code = str(row[0]).strip() if row[0] else None
+                    name = str(row[1]).strip() if row[1] else None
+                    description = str(row[2]).strip() if len(row) > 2 and row[2] else None
+                    unit = str(row[3]).strip() if len(row) > 3 and row[3] else "قطعة"
+                    price = float(row[4]) if len(row) > 4 and row[4] else 0
+                    currency = str(row[5]).strip() if len(row) > 5 and row[5] else "SAR"
+                    supplier_name = str(row[6]).strip() if len(row) > 6 and row[6] else None
+                    category_name = str(row[7]).strip() if len(row) > 7 and row[7] else None
+                    validity_until = str(row[8]).strip() if len(row) > 8 and row[8] else None
+                    
+                    if not name or price <= 0:
+                        continue
+                    
+                    # Check if item with same code exists
+                    existing_item = None
+                    if item_code:
+                        existing_result = await session.execute(
+                            select(PriceCatalogItem).where(
+                                PriceCatalogItem.name == name,
+                                PriceCatalogItem.supplier_name == supplier_name
+                            )
+                        )
+                        existing_item = existing_result.scalar_one_or_none()
+                    
+                    if existing_item:
+                        # Update existing item
+                        existing_item.description = description
+                        existing_item.unit = unit
+                        existing_item.price = price
+                        existing_item.currency = currency
+                        existing_item.category_name = category_name
+                        existing_item.validity_until = validity_until
+                        existing_item.updated_at = datetime.utcnow()
+                        updated += 1
+                    else:
+                        # Create new item
+                        new_item = PriceCatalogItem(
+                            id=str(uuid.uuid4()),
+                            name=name,
+                            description=description,
+                            unit=unit,
+                            price=price,
+                            currency=currency,
+                            supplier_name=supplier_name,
+                            category_name=category_name,
+                            validity_until=validity_until,
+                            is_active=True,
+                            created_by=current_user.id,
+                            created_by_name=current_user.name
+                        )
+                        session.add(new_item)
+                        imported += 1
+                        
+                except Exception as e:
+                    errors.append(f"خطأ في السطر {row_num}: {str(e)}")
+                    
         except Exception as e:
-            errors.append(f"خطأ في السطر {row_num}: {str(e)}")
+            raise HTTPException(status_code=400, detail=f"فشل في قراءة ملف Excel: {str(e)}")
+    
+    # Handle CSV files
+    elif filename.endswith('.csv'):
+        decoded = content.decode('utf-8-sig')
+        reader = csv.reader(io.StringIO(decoded))
+        
+        # Skip header
+        next(reader, None)
+        
+        for row_num, row in enumerate(reader, start=2):
+            try:
+                if len(row) < 2:
+                    continue
+                
+                item_code = row[0].strip() if len(row) > 0 else None
+                name = row[1].strip() if len(row) > 1 else None
+                description = row[2].strip() if len(row) > 2 else None
+                unit = row[3].strip() if len(row) > 3 else "قطعة"
+                price = float(row[4]) if len(row) > 4 and row[4] else 0
+                currency = row[5].strip() if len(row) > 5 else "SAR"
+                supplier_name = row[6].strip() if len(row) > 6 else None
+                category_name = row[7].strip() if len(row) > 7 else None
+                validity_until = row[8].strip() if len(row) > 8 else None
+                
+                if not name or price <= 0:
+                    continue
+                
+                new_item = PriceCatalogItem(
+                    id=str(uuid.uuid4()),
+                    name=name,
+                    description=description,
+                    unit=unit,
+                    price=price,
+                    currency=currency,
+                    supplier_name=supplier_name,
+                    category_name=category_name,
+                    validity_until=validity_until,
+                    is_active=True,
+                    created_by=current_user.id,
+                    created_by_name=current_user.name
+                )
+                
+                session.add(new_item)
+                imported += 1
+                
+            except Exception as e:
+                errors.append(f"خطأ في السطر {row_num}: {str(e)}")
+    else:
+        raise HTTPException(status_code=400, detail="يجب أن يكون الملف بصيغة CSV أو Excel")
     
     await session.commit()
     
     return {
-        "message": f"تم استيراد {imported} عنصر بنجاح",
+        "message": f"تم استيراد {imported} عنصر جديد وتحديث {updated} عنصر",
         "imported": imported,
+        "updated": updated,
         "errors": errors[:10] if errors else []
     }
 
