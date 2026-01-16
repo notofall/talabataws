@@ -356,10 +356,22 @@ async def create_bulk_planned_quantities(
                     except:
                         pass
             
+            # جلب فئة الميزانية إذا تم تحديدها
+            bulk_category_id = getattr(item_data, 'category_id', None) or catalog_item.category_id
+            bulk_category_name = None
+            if bulk_category_id:
+                cat_result = await session.execute(
+                    select(BudgetCategory).where(BudgetCategory.id == bulk_category_id)
+                )
+                cat = cat_result.scalar_one_or_none()
+                bulk_category_name = cat.name if cat else catalog_item.category_name
+            else:
+                bulk_category_name = catalog_item.category_name
+            
             new_item = PlannedQuantity(
                 id=str(uuid.uuid4()),
                 item_name=catalog_item.name,
-                item_code=catalog_item.id[:8].upper(),
+                item_code=catalog_item.item_code or f"ITM{catalog_item.id[:5].upper()}",
                 unit=catalog_item.unit,
                 description=catalog_item.description,
                 planned_quantity=item_data.planned_quantity,
@@ -367,8 +379,8 @@ async def create_bulk_planned_quantities(
                 remaining_quantity=item_data.planned_quantity,
                 project_id=item_data.project_id,
                 project_name=project.name,
-                category_id=catalog_item.category_id,
-                category_name=catalog_item.category_name,
+                category_id=bulk_category_id,
+                category_name=bulk_category_name,
                 catalog_item_id=item_data.catalog_item_id,
                 expected_order_date=expected_date,
                 status="planned",
