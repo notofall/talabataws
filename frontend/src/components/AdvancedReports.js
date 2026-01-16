@@ -74,15 +74,17 @@ export default function AdvancedReports({ onClose }) {
       
       const queryString = params.toString() ? `?${params.toString()}` : "";
       
-      const [summaryRes, approvalRes, supplierRes] = await Promise.all([
+      const [summaryRes, approvalRes, supplierRes, priceVarianceRes] = await Promise.all([
         axios.get(`${API_URL}/reports/advanced/summary${queryString}`, getAuthHeaders()),
         axios.get(`${API_URL}/reports/advanced/approval-analytics${queryString}`, getAuthHeaders()),
-        axios.get(`${API_URL}/reports/advanced/supplier-performance${queryString}`, getAuthHeaders())
+        axios.get(`${API_URL}/reports/advanced/supplier-performance${queryString}`, getAuthHeaders()),
+        axios.get(`${API_URL}/reports/advanced/price-variance${queryString}`, getAuthHeaders())
       ]);
       
       setSummaryReport(summaryRes.data);
       setApprovalReport(approvalRes.data);
       setSupplierReport(supplierRes.data);
+      setPriceVarianceReport(priceVarianceRes.data);
     } catch (error) {
       console.error("Error fetching reports:", error);
       toast.error("فشل في تحميل التقارير");
