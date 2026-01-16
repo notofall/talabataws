@@ -45,6 +45,7 @@ class PlannedQuantityUpdate(BaseModel):
     priority: Optional[int] = None
     notes: Optional[str] = None
     status: Optional[str] = None
+    category_id: Optional[str] = None  # فئة الميزانية
 
 
 class BulkPlannedQuantityCreate(BaseModel):
