@@ -23,6 +23,12 @@ const PrinterDashboard = () => {
 
   const fetchData = async () => {
     try {
+      // Fetch company settings for PDF export
+      const token = localStorage.getItem('token');
+      if (token) {
+        fetchAndCacheCompanySettings(token);
+      }
+      
       const [ordersRes, statsRes] = await Promise.all([
         axios.get(`${API_URL}/purchase-orders`, getAuthHeaders()),
         axios.get(`${API_URL}/v2/dashboard/stats`, getAuthHeaders()),
