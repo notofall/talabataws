@@ -831,6 +831,34 @@ const ProcurementDashboard = () => {
     }
   };
 
+  // Export budget report to Excel
+  const exportBudgetReportToExcel = async () => {
+    try {
+      toast.info("جاري تصدير تقرير الميزانية...");
+      const params = budgetReportProjectFilter ? `?project_id=${budgetReportProjectFilter}` : "";
+      const response = await axios.get(
+        `${API_URL}/reports/budget/export${params}`,
+        {
+          ...getAuthHeaders(),
+          responseType: 'blob'
+        }
+      );
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `تقرير_الميزانية_${new Date().toLocaleDateString('ar-SA')}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      
+      toast.success("تم تصدير التقرير بنجاح");
+    } catch (error) {
+      console.error("Export error:", error);
+      toast.error("فشل في تصدير التقرير");
+    }
+  };
+
   const fetchProjectReport = async (projectId) => {
     try {
       const res = await axios.get(`${API_URL}/reports/project/${projectId}`, getAuthHeaders());
