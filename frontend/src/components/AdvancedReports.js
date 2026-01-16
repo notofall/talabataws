@@ -532,6 +532,18 @@ export default function AdvancedReports({ onClose }) {
               </select>
             </div>
             
+            {/* Item Name Filter */}
+            <div>
+              <Label className="text-xs text-slate-600">اسم الصنف</Label>
+              <input
+                type="text"
+                value={filters.item_name}
+                onChange={(e) => setFilters(prev => ({ ...prev, item_name: e.target.value }))}
+                placeholder="بحث عن صنف..."
+                className="w-full h-9 border rounded-lg bg-white px-2 text-sm"
+              />
+            </div>
+            
             {/* Start Date */}
             <div>
               <Label className="text-xs text-slate-600">من تاريخ</Label>
