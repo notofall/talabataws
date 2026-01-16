@@ -4,8 +4,8 @@ For System Admin role only
 """
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
-from typing import Optional, List
+from pydantic import BaseModel, field_validator
+from typing import Optional, List, Union, Any
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -40,7 +40,19 @@ class CompanySettingsUpdate(BaseModel):
     report_header: Optional[str] = None
     report_footer: Optional[str] = None
     pdf_primary_color: Optional[str] = None
-    pdf_show_logo: Optional[bool] = None
+    pdf_show_logo: Optional[Any] = None  # Accept any type, will be converted to bool
+    
+    @field_validator('pdf_show_logo', mode='before')
+    @classmethod
+    def convert_to_bool(cls, v):
+        """Convert string/any value to boolean"""
+        if v is None:
+            return None
+        if isinstance(v, bool):
+            return v
+        if isinstance(v, str):
+            return v.lower() in ('true', '1', 'yes', 'on')
+        return bool(v)
 
 
 # ==================== HELPER ====================
