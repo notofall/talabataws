@@ -167,6 +167,14 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route
+                path="/quantity-engineer"
+                element={
+                  <ProtectedRoute allowedRoles={["quantity_engineer"]}>
+                    <QuantityEngineerDashboard />
+                  </ProtectedRoute>
+                }
+              />
               <Route path="/" element={<Navigate to="/login" replace />} />
               <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>
