@@ -25,6 +25,7 @@ class UserRole(str, enum.Enum):
     PRINTER = "printer"
     DELIVERY_TRACKER = "delivery_tracker"
     GENERAL_MANAGER = "general_manager"
+    SYSTEM_ADMIN = "system_admin"
 
 
 class RequestStatus(str, enum.Enum):
