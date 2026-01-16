@@ -6,7 +6,7 @@ import pytest
 import requests
 import os
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://codehealer-44.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://app-manager-20.preview.emergentagent.com').rstrip('/')
 
 # Valid database credentials from backend/.env
 VALID_DB_CONFIG = {
