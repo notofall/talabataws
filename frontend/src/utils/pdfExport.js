@@ -1,4 +1,7 @@
 // PDF Export using Browser Print (Full Arabic Support)
+import axios from 'axios';
+
+const API_URL = process.env.REACT_APP_BACKEND_URL || '';
 
 // Company settings cache
 let companySettingsCache = null;
@@ -18,6 +21,22 @@ export const getCompanySettings = () => {
     report_footer: '',
     pdf_primary_color: '#ea580c'
   };
+};
+
+// Fetch company settings from API and cache them
+export const fetchAndCacheCompanySettings = async (token) => {
+  try {
+    const res = await axios.get(`${API_URL}/api/pg/sysadmin/company-settings`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (res.data) {
+      companySettingsCache = res.data;
+      return res.data;
+    }
+  } catch (error) {
+    console.log('Could not fetch company settings:', error.message);
+  }
+  return getCompanySettings();
 };
 
 const formatDate = (dateString) => {
