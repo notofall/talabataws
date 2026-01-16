@@ -1194,53 +1194,59 @@ async def import_planned_quantities(
     
     for row_num, row in enumerate(ws.iter_rows(min_row=start_row, values_only=True), start_row):
         # تجاهل الصفوف الفارغة أو التي تحتوي على عناوين
-        if not row or not row[0] or not row[1] or not row[2]:
+        # الترتيب الجديد: كود الصنف | اسم المشروع | كود فئة الميزانية | الكمية | التاريخ | الأولوية | ملاحظات
+        if not row or not row[0] or not row[1]:
             continue
         
         # تجاهل صفوف العناوين والأقسام
         first_cell = str(row[0]).strip()
-        if first_cell.startswith('📋') or first_cell.startswith('📁') or first_cell.startswith('✏️'):
+        if first_cell.startswith('📋') or first_cell.startswith('📁') or first_cell.startswith('✏️') or first_cell.startswith('🏷️'):
             continue
-        if 'الصنف' in first_cell or 'المشروع' in first_cell or 'اسم' in first_cell:
+        if 'الصنف' in first_cell or 'المشروع' in first_cell or 'اسم' in first_cell or 'الفئة' in first_cell:
             continue
         
         item_code_or_id = first_cell
         project_name_or_id = str(row[1]).strip()
+        category_code = str(row[2]).strip() if len(row) > 2 and row[2] else None
         
+        # الكمية في العمود الرابع الآن
         try:
-            planned_quantity = float(row[2]) if row[2] else 0
+            planned_quantity = float(row[3]) if len(row) > 3 and row[3] else 0
         except (ValueError, TypeError):
-            errors.append(f"صف {row_num}: الكمية '{row[2]}' غير صالحة")
+            errors.append(f"صف {row_num}: الكمية '{row[3] if len(row) > 3 else 'فارغ'}' غير صالحة")
+            continue
+        
+        if planned_quantity <= 0:
             continue
         
         expected_order_date = None
         priority = 2
         notes = None
         
-        # معالجة الأولوية
+        # معالجة التاريخ (العمود الخامس)
         if len(row) > 4 and row[4]:
             try:
-                priority = int(row[4])
+                if hasattr(row[4], 'strftime'):
+                    expected_order_date = row[4]
+                else:
+                    expected_order_date = datetime.strptime(str(row[4])[:10], "%Y-%m-%d")
+            except:
+                pass
+        
+        # معالجة الأولوية (العمود السادس)
+        if len(row) > 5 and row[5]:
+            try:
+                priority = int(row[5])
                 if priority not in [1, 2, 3]:
                     priority = 2
             except (ValueError, TypeError):
                 priority = 2
         
-        # معالجة الملاحظات
-        if len(row) > 5 and row[5]:
-            notes = str(row[5]).strip()
+        # معالجة الملاحظات (العمود السابع)
+        if len(row) > 6 and row[6]:
+            notes = str(row[6]).strip()
             if notes.lower() in ['none', 'مثال', 'مثال - احذف هذا الصف']:
                 continue  # تجاهل صف المثال
-        
-        # معالجة التاريخ
-        if len(row) > 3 and row[3]:
-            try:
-                if hasattr(row[3], 'strftime'):
-                    expected_order_date = row[3]
-                else:
-                    expected_order_date = datetime.strptime(str(row[3])[:10], "%Y-%m-%d")
-            except:
-                pass
         
         # البحث عن الصنف بالكود أولاً
         catalog_result = await session.execute(
