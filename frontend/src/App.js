@@ -1,12 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
-import { useState, useEffect } from "react";
-import axios from "axios";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
-import SetupPage from "./pages/SetupPage";
-import DatabaseSetupPage from "./pages/DatabaseSetupPage";
-import FirstRunSetup from "./pages/FirstRunSetup";
 import SupervisorDashboard from "./pages/SupervisorDashboard";
 import EngineerDashboard from "./pages/EngineerDashboard";
 import ProcurementDashboard from "./pages/ProcurementDashboard";
@@ -18,11 +13,8 @@ import PWAInstallPrompt from "./components/PWAInstallPrompt";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import "./App.css";
 
-const API_BASE = process.env.REACT_APP_BACKEND_URL || '';
-
-// First Run Check Component
+// First Run Check Component - تم إلغاؤه
 const FirstRunCheck = ({ children }) => {
-  // تم إلغاء صفحة الإعداد - الانتقال مباشرة للتطبيق
   return children;
 };
 
