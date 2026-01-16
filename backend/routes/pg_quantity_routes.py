@@ -905,3 +905,459 @@ async def export_planned_quantities(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f"attachment; filename=planned_quantities_{datetime.now().strftime('%Y%m%d')}.xlsx"}
     )
+
+
+# ==================== فئات الميزانية ====================
+
+@pg_quantity_router.get("/budget-categories")
+async def get_budget_categories(
+    current_user: User = Depends(get_current_user_pg),
+    session: AsyncSession = Depends(get_postgres_session)
+):
+    """جلب فئات الميزانية للاختيار"""
+    result = await session.execute(select(BudgetCategory))
+    categories = result.scalars().all()
+    
+    return {
+        "categories": [
+            {
+                "id": cat.id,
+                "name": cat.name,
+                "description": cat.description
+            }
+            for cat in categories
+        ]
+    }
+
+
+# ==================== استيراد من Excel ====================
+
+@pg_quantity_router.get("/planned/template")
+async def download_planned_template(
+    current_user: User = Depends(get_current_user_pg),
+    session: AsyncSession = Depends(get_postgres_session)
+):
+    """تحميل نموذج Excel للاستيراد"""
+    require_quantity_access(current_user)
+    
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
+        from openpyxl.utils import get_column_letter
+    except ImportError:
+        raise HTTPException(status_code=500, detail="مكتبة Excel غير متوفرة")
+    
+    wb = Workbook()
+    
+    # الصفحة الأولى: نموذج الإدخال
+    ws = wb.active
+    ws.title = "الكميات المخططة"
+    ws.sheet_view.rightToLeft = True
+    
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+    required_fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+    thin_border = Border(
+        left=Side(style='thin'), right=Side(style='thin'),
+        top=Side(style='thin'), bottom=Side(style='thin')
+    )
+    
+    headers = ['معرف الصنف من الكتالوج *', 'معرف المشروع *', 'الكمية المخططة *', 'تاريخ الطلب المتوقع', 'الأولوية (1=عالية، 2=متوسطة، 3=منخفضة)', 'ملاحظات']
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.border = thin_border
+        cell.alignment = Alignment(horizontal='center', wrap_text=True)
+    
+    # أمثلة
+    ws.cell(row=2, column=1, value="catalog-item-id-here")
+    ws.cell(row=2, column=2, value="project-id-here")
+    ws.cell(row=2, column=3, value=100)
+    ws.cell(row=2, column=4, value="2026-02-01")
+    ws.cell(row=2, column=5, value=2)
+    ws.cell(row=2, column=6, value="ملاحظة اختيارية")
+    
+    for col in range(1, 7):
+        ws.cell(row=2, column=col).border = thin_border
+    
+    ws.column_dimensions['A'].width = 35
+    ws.column_dimensions['B'].width = 35
+    ws.column_dimensions['C'].width = 18
+    ws.column_dimensions['D'].width = 20
+    ws.column_dimensions['E'].width = 35
+    ws.column_dimensions['F'].width = 30
+    
+    # الصفحة الثانية: قائمة الأصناف
+    ws2 = wb.create_sheet(title="أصناف الكتالوج")
+    ws2.sheet_view.rightToLeft = True
+    
+    catalog_headers = ['معرف الصنف', 'اسم الصنف', 'الوحدة', 'السعر', 'المورد', 'التصنيف']
+    for col, header in enumerate(catalog_headers, 1):
+        cell = ws2.cell(row=1, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.border = thin_border
+    
+    catalog_result = await session.execute(
+        select(PriceCatalogItem).where(PriceCatalogItem.is_active == True)
+    )
+    catalog_items = catalog_result.scalars().all()
+    
+    for row_num, item in enumerate(catalog_items, 2):
+        ws2.cell(row=row_num, column=1, value=item.id).border = thin_border
+        ws2.cell(row=row_num, column=2, value=item.name).border = thin_border
+        ws2.cell(row=row_num, column=3, value=item.unit).border = thin_border
+        ws2.cell(row=row_num, column=4, value=item.price).border = thin_border
+        ws2.cell(row=row_num, column=5, value=item.supplier_name or "-").border = thin_border
+        ws2.cell(row=row_num, column=6, value=item.category_name or "-").border = thin_border
+    
+    ws2.column_dimensions['A'].width = 40
+    ws2.column_dimensions['B'].width = 30
+    ws2.column_dimensions['C'].width = 12
+    ws2.column_dimensions['D'].width = 12
+    ws2.column_dimensions['E'].width = 25
+    ws2.column_dimensions['F'].width = 20
+    
+    # الصفحة الثالثة: قائمة المشاريع
+    ws3 = wb.create_sheet(title="المشاريع")
+    ws3.sheet_view.rightToLeft = True
+    
+    project_headers = ['معرف المشروع', 'اسم المشروع']
+    for col, header in enumerate(project_headers, 1):
+        cell = ws3.cell(row=1, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.border = thin_border
+    
+    projects_result = await session.execute(select(Project))
+    projects = projects_result.scalars().all()
+    
+    for row_num, project in enumerate(projects, 2):
+        ws3.cell(row=row_num, column=1, value=project.id).border = thin_border
+        ws3.cell(row=row_num, column=2, value=project.name).border = thin_border
+    
+    ws3.column_dimensions['A'].width = 40
+    ws3.column_dimensions['B'].width = 30
+    
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename=planned_quantities_template.xlsx"}
+    )
+
+
+@pg_quantity_router.post("/planned/import")
+async def import_planned_quantities(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user_pg),
+    session: AsyncSession = Depends(get_postgres_session)
+):
+    """استيراد الكميات المخططة من Excel"""
+    require_quantity_access(current_user)
+    
+    if not file.filename.endswith(('.xlsx', '.xls')):
+        raise HTTPException(status_code=400, detail="يجب أن يكون الملف بصيغة Excel (.xlsx أو .xls)")
+    
+    try:
+        from openpyxl import load_workbook
+    except ImportError:
+        raise HTTPException(status_code=500, detail="مكتبة Excel غير متوفرة")
+    
+    content = await file.read()
+    wb = load_workbook(io.BytesIO(content))
+    ws = wb.active
+    
+    created = 0
+    errors = []
+    
+    for row_num, row in enumerate(ws.iter_rows(min_row=2, values_only=True), 2):
+        if not row or not row[0] or not row[1] or not row[2]:
+            continue
+        
+        catalog_item_id = str(row[0]).strip()
+        project_id = str(row[1]).strip()
+        planned_quantity = float(row[2]) if row[2] else 0
+        expected_order_date = None
+        priority = int(row[4]) if row[4] else 2
+        notes = str(row[5]).strip() if row[5] else None
+        
+        # Parse date
+        if row[3]:
+            try:
+                if hasattr(row[3], 'strftime'):
+                    expected_order_date = row[3]
+                else:
+                    expected_order_date = datetime.strptime(str(row[3])[:10], "%Y-%m-%d")
+            except:
+                pass
+        
+        # Validate catalog item
+        catalog_result = await session.execute(
+            select(PriceCatalogItem).where(PriceCatalogItem.id == catalog_item_id)
+        )
+        catalog_item = catalog_result.scalar_one_or_none()
+        if not catalog_item:
+            errors.append(f"صف {row_num}: الصنف '{catalog_item_id}' غير موجود في الكتالوج")
+            continue
+        
+        # Validate project
+        project_result = await session.execute(
+            select(Project).where(Project.id == project_id)
+        )
+        project = project_result.scalar_one_or_none()
+        if not project:
+            errors.append(f"صف {row_num}: المشروع '{project_id}' غير موجود")
+            continue
+        
+        new_item = PlannedQuantity(
+            id=str(uuid.uuid4()),
+            item_name=catalog_item.name,
+            item_code=catalog_item.id[:8].upper(),
+            unit=catalog_item.unit,
+            description=catalog_item.description,
+            planned_quantity=planned_quantity,
+            ordered_quantity=0,
+            remaining_quantity=planned_quantity,
+            project_id=project_id,
+            project_name=project.name,
+            category_id=catalog_item.category_id,
+            category_name=catalog_item.category_name,
+            catalog_item_id=catalog_item_id,
+            expected_order_date=expected_order_date,
+            status="planned",
+            priority=priority,
+            notes=notes,
+            created_by=current_user.id,
+            created_by_name=current_user.name
+        )
+        
+        session.add(new_item)
+        created += 1
+    
+    await session.commit()
+    
+    return {
+        "message": f"تم استيراد {created} كمية مخططة بنجاح",
+        "created": created,
+        "errors": errors[:20]
+    }
+
+
+# ==================== تصدير التقارير ====================
+
+@pg_quantity_router.get("/reports/export")
+async def export_quantity_report(
+    project_id: Optional[str] = None,
+    format: str = "excel",
+    current_user: User = Depends(get_current_user_pg),
+    session: AsyncSession = Depends(get_postgres_session)
+):
+    """تصدير تقرير الكميات إلى Excel أو PDF"""
+    allowed_roles = [
+        UserRole.QUANTITY_ENGINEER,
+        UserRole.PROCUREMENT_MANAGER,
+        UserRole.GENERAL_MANAGER,
+        UserRole.SYSTEM_ADMIN
+    ]
+    if current_user.role not in allowed_roles:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    
+    query = select(PlannedQuantity)
+    if project_id:
+        query = query.where(PlannedQuantity.project_id == project_id)
+    query = query.order_by(PlannedQuantity.project_name, desc(PlannedQuantity.created_at))
+    
+    result = await session.execute(query)
+    items = result.scalars().all()
+    
+    now = datetime.utcnow()
+    
+    # Calculate summary
+    total_planned = sum(item.planned_quantity for item in items)
+    total_ordered = sum(item.ordered_quantity for item in items)
+    total_remaining = sum(item.remaining_quantity for item in items)
+    overdue_count = len([i for i in items if i.expected_order_date and i.expected_order_date < now and i.remaining_quantity > 0])
+    
+    # Group by project
+    projects_data = {}
+    for item in items:
+        if item.project_name not in projects_data:
+            projects_data[item.project_name] = {
+                "items": [],
+                "planned_qty": 0,
+                "ordered_qty": 0,
+                "remaining_qty": 0
+            }
+        projects_data[item.project_name]["items"].append(item)
+        projects_data[item.project_name]["planned_qty"] += item.planned_quantity
+        projects_data[item.project_name]["ordered_qty"] += item.ordered_quantity
+        projects_data[item.project_name]["remaining_qty"] += item.remaining_quantity
+    
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
+    except ImportError:
+        raise HTTPException(status_code=500, detail="مكتبة Excel غير متوفرة")
+    
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "تقرير الكميات"
+    ws.sheet_view.rightToLeft = True
+    
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+    summary_fill = PatternFill(start_color="E2EFDA", end_color="E2EFDA", fill_type="solid")
+    project_fill = PatternFill(start_color="D9E1F2", end_color="D9E1F2", fill_type="solid")
+    thin_border = Border(
+        left=Side(style='thin'), right=Side(style='thin'),
+        top=Side(style='thin'), bottom=Side(style='thin')
+    )
+    
+    # Title
+    ws.cell(row=1, column=1, value="تقرير الكميات المخططة").font = Font(bold=True, size=14)
+    ws.cell(row=2, column=1, value=f"تاريخ التقرير: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    
+    # Summary
+    row = 4
+    ws.cell(row=row, column=1, value="ملخص التقرير").font = Font(bold=True)
+    row += 1
+    summary_data = [
+        ("إجمالي الأصناف", len(items)),
+        ("الكمية المخططة", total_planned),
+        ("الكمية المطلوبة", total_ordered),
+        ("الكمية المتبقية", total_remaining),
+        ("نسبة الإنجاز", f"{round((total_ordered / total_planned * 100), 1) if total_planned > 0 else 0}%"),
+        ("الأصناف المتأخرة", overdue_count)
+    ]
+    for label, value in summary_data:
+        ws.cell(row=row, column=1, value=label).fill = summary_fill
+        ws.cell(row=row, column=2, value=value).fill = summary_fill
+        ws.cell(row=row, column=1).border = thin_border
+        ws.cell(row=row, column=2).border = thin_border
+        row += 1
+    
+    # Details by project
+    row += 2
+    status_ar = {"planned": "مخطط", "partially_ordered": "طلب جزئي", "fully_ordered": "مكتمل"}
+    priority_ar = {1: "عالية", 2: "متوسطة", 3: "منخفضة"}
+    
+    for project_name, project_data in projects_data.items():
+        # Project header
+        ws.cell(row=row, column=1, value=f"المشروع: {project_name}").font = Font(bold=True)
+        ws.cell(row=row, column=1).fill = project_fill
+        ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=8)
+        row += 1
+        
+        ws.cell(row=row, column=1, value=f"إجمالي: مخطط {project_data['planned_qty']} | مطلوب {project_data['ordered_qty']} | متبقي {project_data['remaining_qty']}")
+        ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=8)
+        row += 1
+        
+        # Headers
+        headers = ['الصنف', 'الوحدة', 'التصنيف', 'مخطط', 'مطلوب', 'متبقي', 'تاريخ الطلب', 'الحالة']
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=row, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.border = thin_border
+        row += 1
+        
+        # Items
+        for item in project_data["items"]:
+            ws.cell(row=row, column=1, value=item.item_name).border = thin_border
+            ws.cell(row=row, column=2, value=item.unit).border = thin_border
+            ws.cell(row=row, column=3, value=item.category_name or "-").border = thin_border
+            ws.cell(row=row, column=4, value=item.planned_quantity).border = thin_border
+            ws.cell(row=row, column=5, value=item.ordered_quantity).border = thin_border
+            ws.cell(row=row, column=6, value=item.remaining_quantity).border = thin_border
+            ws.cell(row=row, column=7, value=item.expected_order_date.strftime("%Y-%m-%d") if item.expected_order_date else "-").border = thin_border
+            ws.cell(row=row, column=8, value=status_ar.get(item.status, item.status)).border = thin_border
+            row += 1
+        
+        row += 1
+    
+    # Column widths
+    ws.column_dimensions['A'].width = 30
+    ws.column_dimensions['B'].width = 12
+    ws.column_dimensions['C'].width = 18
+    ws.column_dimensions['D'].width = 12
+    ws.column_dimensions['E'].width = 12
+    ws.column_dimensions['F'].width = 12
+    ws.column_dimensions['G'].width = 15
+    ws.column_dimensions['H'].width = 12
+    
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename=quantity_report_{datetime.now().strftime('%Y%m%d')}.xlsx"}
+    )
+
+
+# ==================== APIs للمشرفين والمهندسين ====================
+
+@pg_quantity_router.get("/by-role")
+async def get_quantities_by_role(
+    project_id: Optional[str] = None,
+    current_user: User = Depends(get_current_user_pg),
+    session: AsyncSession = Depends(get_postgres_session)
+):
+    """جلب الكميات المخططة حسب دور المستخدم"""
+    allowed_roles = [
+        UserRole.SUPERVISOR,
+        UserRole.ENGINEER,
+        UserRole.GENERAL_MANAGER,
+        UserRole.PROCUREMENT_MANAGER,
+        UserRole.SYSTEM_ADMIN
+    ]
+    if current_user.role not in allowed_roles:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    
+    query = select(PlannedQuantity)
+    
+    # فلترة حسب المشروع
+    if project_id:
+        query = query.where(PlannedQuantity.project_id == project_id)
+    
+    query = query.order_by(desc(PlannedQuantity.created_at))
+    
+    result = await session.execute(query)
+    items = result.scalars().all()
+    
+    now = datetime.utcnow()
+    
+    return {
+        "items": [
+            {
+                "id": item.id,
+                "item_name": item.item_name,
+                "unit": item.unit,
+                "category_name": item.category_name,
+                "planned_quantity": item.planned_quantity,
+                "ordered_quantity": item.ordered_quantity,
+                "remaining_quantity": item.remaining_quantity,
+                "project_id": item.project_id,
+                "project_name": item.project_name,
+                "expected_order_date": item.expected_order_date.isoformat() if item.expected_order_date else None,
+                "status": item.status,
+                "priority": item.priority,
+                "is_overdue": item.expected_order_date and item.expected_order_date < now and item.remaining_quantity > 0,
+                "days_until": (item.expected_order_date - now).days if item.expected_order_date and item.expected_order_date >= now else None
+            }
+            for item in items
+        ],
+        "summary": {
+            "total_items": len(items),
+            "total_planned": sum(i.planned_quantity for i in items),
+            "total_ordered": sum(i.ordered_quantity for i in items),
+            "total_remaining": sum(i.remaining_quantity for i in items),
+            "overdue_count": len([i for i in items if i.expected_order_date and i.expected_order_date < now and i.remaining_quantity > 0])
+        }
+    }
