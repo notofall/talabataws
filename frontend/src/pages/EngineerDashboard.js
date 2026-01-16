@@ -32,6 +32,12 @@ const EngineerDashboard = () => {
 
   const fetchData = async () => {
     try {
+      // Fetch company settings for PDF export
+      const token = localStorage.getItem('token');
+      if (token) {
+        fetchAndCacheCompanySettings(token);
+      }
+      
       // Using PostgreSQL APIs
       const requestsRes = await axios.get(`${API_URL}/requests`, getAuthHeaders());
       setRequests(requestsRes.data);
