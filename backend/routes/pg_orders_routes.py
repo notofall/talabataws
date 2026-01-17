@@ -310,12 +310,15 @@ async def get_purchase_orders(
             "request_number": order.request_number,
             "items": [
                 {
+                    "id": item.id,
                     "name": item.name,
                     "quantity": item.quantity,
                     "unit": item.unit,
                     "unit_price": item.unit_price,
                     "total_price": item.total_price,
-                    "delivered_quantity": item.delivered_quantity
+                    "delivered_quantity": item.delivered_quantity,
+                    "catalog_item_id": item.catalog_item_id,
+                    "item_code": item.item_code
                 }
                 for item in items
             ],
@@ -335,6 +338,7 @@ async def get_purchase_orders(
             "gm_approved_by_name": order.gm_approved_by_name,
             "total_amount": order.total_amount,
             "notes": order.notes,
+            "supplier_invoice_number": order.supplier_invoice_number,
             "expected_delivery_date": order.expected_delivery_date,
             "created_at": order.created_at.isoformat() if order.created_at else None,
             "approved_at": order.approved_at.isoformat() if order.approved_at else None,
