@@ -8,14 +8,27 @@ from typing import Optional, List
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import func, desc, and_, or_
+from sqlalchemy import desc
 import uuid
 import json
 
 from database import (
     get_postgres_session, MaterialRequest, MaterialRequestItem,
-    User, Project, AuditLog
+    User, AuditLog
 )
+from app.requests.application.use_cases import (
+    CreateMaterialRequestCommand,
+    CreateMaterialRequestUseCase,
+    ListMaterialRequestsQuery,
+    ListMaterialRequestsUseCase,
+    MaterialItemInput,
+)
+from app.requests.domain.errors import NotFound, PermissionDenied
+from app.requests.domain.models import UserSummary
+from app.requests.infrastructure.sqlalchemy_repository import (
+    SqlAlchemyMaterialRequestRepository,
+)
+from app.requests.presentation.response_mapper import material_request_to_response
 
 # Create router
 pg_requests_router = APIRouter(prefix="/api/pg", tags=["PostgreSQL Material Requests"])
@@ -67,26 +80,13 @@ async def log_audit_pg(session, entity_type, entity_id, action, user, descriptio
     session.add(audit_log)
 
 
-async def get_next_request_number(session: AsyncSession, supervisor_id: str) -> tuple:
-    """Get next sequential request number for a supervisor"""
-    # Get supervisor
-    result = await session.execute(select(User).where(User.id == supervisor_id))
-    supervisor = result.scalar_one_or_none()
-    
-    if not supervisor:
-        return "X1", 1
-    
-    prefix = supervisor.supervisor_prefix or "X"
-    
-    # Find highest request sequence for this supervisor
-    result = await session.execute(
-        select(func.max(MaterialRequest.request_seq))
-        .where(MaterialRequest.supervisor_id == supervisor_id)
+def to_user_summary(user: User) -> UserSummary:
+    return UserSummary(
+        id=user.id,
+        name=user.name,
+        role=user.role,
+        supervisor_prefix=user.supervisor_prefix,
     )
-    max_seq = result.scalar() or 0
-    next_seq = max_seq + 1
-    
-    return f"{prefix}{next_seq}", next_seq
 
 
 # ==================== MATERIAL REQUESTS ROUTES ====================
@@ -98,162 +98,59 @@ async def create_material_request(
     session: AsyncSession = Depends(get_postgres_session)
 ):
     """Create a new material request - supervisor only"""
-    if current_user.role != UserRole.SUPERVISOR:
-        raise HTTPException(status_code=403, detail="فقط المشرف يمكنه إنشاء طلبات المواد")
-    
-    # Get project
-    project_result = await session.execute(
-        select(Project).where(Project.id == request_data.project_id)
+    repository = SqlAlchemyMaterialRequestRepository(session)
+    use_case = CreateMaterialRequestUseCase(
+        repository=repository,
+        id_generator=lambda: str(uuid.uuid4()),
+        clock=datetime.utcnow,
     )
-    project = project_result.scalar_one_or_none()
-    
-    if not project:
-        raise HTTPException(status_code=404, detail="المشروع غير موجود")
-    
-    # Get engineer
-    engineer_result = await session.execute(
-        select(User).where(User.id == request_data.engineer_id)
-    )
-    engineer = engineer_result.scalar_one_or_none()
-    
-    if not engineer:
-        raise HTTPException(status_code=404, detail="المهندس غير موجود")
-    
-    request_id = str(uuid.uuid4())
-    now = datetime.utcnow()
-    
-    # Get request number
-    request_number, request_seq = await get_next_request_number(session, current_user.id)
-    
-    # Create request
-    new_request = MaterialRequest(
-        id=request_id,
-        request_number=request_number,
-        request_seq=request_seq,
-        project_id=project.id,
-        project_name=project.name,
+    command = CreateMaterialRequestCommand(
+        items=[
+            MaterialItemInput(
+                name=item.name,
+                quantity=item.quantity,
+                unit=item.unit,
+                estimated_price=item.estimated_price,
+            )
+            for item in request_data.items
+        ],
+        project_id=request_data.project_id,
         reason=request_data.reason,
-        supervisor_id=current_user.id,
-        supervisor_name=current_user.name,
-        engineer_id=engineer.id,
-        engineer_name=engineer.name,
-        status="pending_engineer",
+        engineer_id=request_data.engineer_id,
         expected_delivery_date=request_data.expected_delivery_date,
-        created_at=now
     )
-    session.add(new_request)
-    
-    # Create items
-    items_response = []
-    for idx, item in enumerate(request_data.items):
-        item_id = str(uuid.uuid4())
-        new_item = MaterialRequestItem(
-            id=item_id,
-            request_id=request_id,
-            name=item.name,
-            quantity=item.quantity,
-            unit=item.unit,
-            estimated_price=item.estimated_price,
-            item_index=idx
-        )
-        session.add(new_item)
-        items_response.append({
-            "name": item.name,
-            "quantity": item.quantity,
-            "unit": item.unit,
-            "estimated_price": item.estimated_price
-        })
-    
-    await log_audit_pg(
-        session, "request", request_id, "create", current_user,
-        f"إنشاء طلب مواد جديد: {request_number}"
-    )
-    
-    await session.commit()
-    
-    return {
-        "id": request_id,
-        "request_number": request_number,
-        "request_seq": request_seq,
-        "items": items_response,
-        "project_id": project.id,
-        "project_name": project.name,
-        "reason": request_data.reason,
-        "supervisor_id": current_user.id,
-        "supervisor_name": current_user.name,
-        "engineer_id": engineer.id,
-        "engineer_name": engineer.name,
-        "status": "pending_engineer",
-        "expected_delivery_date": request_data.expected_delivery_date,
-        "created_at": now.isoformat(),
-        "updated_at": now.isoformat()
-    }
+
+    try:
+        request = await use_case.execute(command, to_user_summary(current_user))
+    except PermissionDenied as exc:
+        raise HTTPException(status_code=403, detail=exc.message)
+    except NotFound as exc:
+        raise HTTPException(status_code=404, detail=exc.message)
+
+    return material_request_to_response(request)
 
 
 @pg_requests_router.get("/requests")
 async def get_material_requests(
     status: Optional[str] = None,
     project_id: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
     current_user: User = Depends(get_current_user_pg),
     session: AsyncSession = Depends(get_postgres_session)
 ):
     """Get material requests based on user role"""
-    query = select(MaterialRequest)
-    
-    # Filter based on role
-    if current_user.role == UserRole.SUPERVISOR:
-        query = query.where(MaterialRequest.supervisor_id == current_user.id)
-    elif current_user.role == UserRole.ENGINEER:
-        query = query.where(MaterialRequest.engineer_id == current_user.id)
-    
-    if status:
-        query = query.where(MaterialRequest.status == status)
-    if project_id:
-        query = query.where(MaterialRequest.project_id == project_id)
-    
-    query = query.order_by(desc(MaterialRequest.created_at))
-    
-    result = await session.execute(query)
-    requests = result.scalars().all()
-    
-    response = []
-    for req in requests:
-        # Get items
-        items_result = await session.execute(
-            select(MaterialRequestItem)
-            .where(MaterialRequestItem.request_id == req.id)
-            .order_by(MaterialRequestItem.item_index)
-        )
-        items = items_result.scalars().all()
-        
-        response.append({
-            "id": req.id,
-            "request_number": req.request_number,
-            "request_seq": req.request_seq,
-            "items": [
-                {
-                    "name": item.name,
-                    "quantity": item.quantity,
-                    "unit": item.unit,
-                    "estimated_price": item.estimated_price
-                }
-                for item in items
-            ],
-            "project_id": req.project_id,
-            "project_name": req.project_name,
-            "reason": req.reason,
-            "supervisor_id": req.supervisor_id,
-            "supervisor_name": req.supervisor_name,
-            "engineer_id": req.engineer_id,
-            "engineer_name": req.engineer_name,
-            "status": req.status,
-            "rejection_reason": req.rejection_reason,
-            "expected_delivery_date": req.expected_delivery_date,
-            "created_at": req.created_at.isoformat() if req.created_at else None,
-            "updated_at": req.updated_at.isoformat() if req.updated_at else None
-        })
-    
-    return response
+    repository = SqlAlchemyMaterialRequestRepository(session)
+    use_case = ListMaterialRequestsUseCase(repository)
+    query = ListMaterialRequestsQuery(
+        status=status,
+        project_id=project_id,
+        limit=limit,
+        offset=offset,
+    )
+    requests = await use_case.execute(query, to_user_summary(current_user))
+
+    return [material_request_to_response(req) for req in requests]
 
 
 @pg_requests_router.get("/requests/{request_id}")
