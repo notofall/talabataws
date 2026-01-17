@@ -1956,6 +1956,17 @@ const ProcurementDashboard = () => {
               </Button>
               <Button 
                 size="sm" 
+                variant={ordersViewMode === "unlinked" ? "default" : "outline"}
+                onClick={() => setOrdersViewMode("unlinked")}
+                className={`h-8 text-xs ${ordersViewMode === "unlinked" ? "bg-orange-600" : "text-orange-700 border-orange-300"}`}
+              >
+                غير مرتبط
+                <Badge className="mr-1 bg-orange-500 text-white text-xs">
+                  {filteredOrders.filter(o => o.items?.some(item => !item.catalog_item_id)).length}
+                </Badge>
+              </Button>
+              <Button 
+                size="sm" 
                 variant={ordersViewMode === "all" ? "default" : "outline"}
                 onClick={() => setOrdersViewMode("all")}
                 className={`h-8 text-xs ${ordersViewMode === "all" ? "bg-slate-800" : ""}`}
