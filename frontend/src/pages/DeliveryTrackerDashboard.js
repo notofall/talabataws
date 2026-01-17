@@ -526,7 +526,7 @@ const DeliveryTrackerDashboard = () => {
                   <TableBody>
                     {pendingOrders.map((order) => (
                       <TableRow key={order.id}>
-                        <TableCell className="font-bold text-orange-600">{order.id?.slice(0, 8).toUpperCase()}</TableCell>
+                        <TableCell className="font-bold text-orange-600">{order.order_number || order.id?.slice(0, 8).toUpperCase()}</TableCell>
                         <TableCell>{order.project_name}</TableCell>
                         <TableCell>{order.supplier_name}</TableCell>
                         <TableCell className="text-center font-bold text-emerald-600">{order.total_amount?.toLocaleString('ar-SA')} ر.س</TableCell>
