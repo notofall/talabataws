@@ -1160,8 +1160,10 @@ const ProcurementDashboard = () => {
   const openEditOrderDialog = (order) => {
     setEditingOrder(order);
     const prices = {};
+    const catalogLinks = {};
     order.items?.forEach((item, idx) => {
       prices[idx] = item.unit_price || "";
+      catalogLinks[item.id] = item.catalog_item_id || "";
     });
     setEditOrderData({
       supplier_name: order.supplier_name || "",
@@ -1171,8 +1173,11 @@ const ProcurementDashboard = () => {
       terms_conditions: order.terms_conditions || "",
       expected_delivery_date: order.expected_delivery_date?.split("T")[0] || "",
       supplier_invoice_number: order.supplier_invoice_number || "",
-      item_prices: prices
+      item_prices: prices,
+      item_catalog_links: catalogLinks
     });
+    // Load catalog items for linking
+    fetchCatalog("", 1);
     setEditOrderDialogOpen(true);
   };
 
