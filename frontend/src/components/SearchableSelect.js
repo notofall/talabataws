@@ -105,10 +105,14 @@ export default function SearchableSelect({
           {/* Mobile overlay */}
           <div className="fixed inset-0 bg-black/50 z-[9998] md:hidden" onClick={() => setIsOpen(false)} />
           
+          {/* Desktop overlay to capture clicks */}
+          <div className="hidden md:block fixed inset-0 z-[9990]" onClick={() => setIsOpen(false)} />
+          
           {/* Dropdown content */}
           <div className="
-            fixed inset-x-4 top-20 bottom-20 z-[9999] md:absolute md:inset-auto md:top-full md:left-0 md:right-0 md:mt-2
-            bg-white border-2 border-slate-200 rounded-2xl shadow-2xl overflow-hidden
+            fixed inset-x-4 top-20 bottom-20 z-[9999] 
+            md:absolute md:inset-auto md:top-full md:left-0 md:right-0 md:mt-2 md:min-w-[400px]
+            bg-white border-2 border-orange-300 rounded-2xl shadow-2xl overflow-hidden
             animate-in fade-in slide-in-from-bottom-4 md:slide-in-from-top-2 duration-300
           ">
             {/* Header with title and close button for mobile */}
