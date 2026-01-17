@@ -662,7 +662,7 @@ const DeliveryTrackerDashboard = () => {
           {selectedOrder && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3 text-sm">
-                <div><span className="text-slate-500">رقم الأمر:</span> <span className="font-bold">{selectedOrder.id?.slice(0, 8).toUpperCase()}</span></div>
+                <div><span className="text-slate-500">رقم الأمر:</span> <span className="font-bold">{selectedOrder.order_number || selectedOrder.id?.slice(0, 8).toUpperCase()}</span></div>
                 <div><span className="text-slate-500">المشروع:</span> {selectedOrder.project_name}</div>
                 <div><span className="text-slate-500">المورد:</span> {selectedOrder.supplier_name}</div>
                 <div><span className="text-slate-500">المبلغ:</span> <span className="font-bold text-emerald-600">{selectedOrder.total_amount?.toLocaleString('ar-SA')} ر.س</span></div>
