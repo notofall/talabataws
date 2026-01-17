@@ -3092,7 +3092,7 @@ const ProcurementDashboard = () => {
             <DialogTitle className="flex items-center gap-2 text-lg">
               <Edit className="w-5 h-5 text-blue-600" />
               تعديل أمر الشراء
-              <span className="text-orange-600 font-mono">{editingOrder?.id?.slice(0, 8).toUpperCase()}</span>
+              <span className="text-orange-600 font-mono">{editingOrder?.order_number || editingOrder?.id?.slice(0, 8).toUpperCase()}</span>
             </DialogTitle>
           </DialogHeader>
           
