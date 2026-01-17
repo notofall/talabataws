@@ -64,6 +64,7 @@ const DeliveryTrackerDashboard = () => {
   const openReceiptDialog = (order) => {
     setSelectedOrder(order);
     setSupplierReceiptNumber(order.supplier_receipt_number || "");
+    setSupplierInvoiceNumber(order.supplier_invoice_number || "");
     setDeliveryNotes("");
     setDeliveryItems(order.items?.map(item => ({
       name: item.name,
@@ -73,6 +74,36 @@ const DeliveryTrackerDashboard = () => {
       quantity_delivered: 0
     })) || []);
     setReceiptDialogOpen(true);
+  };
+
+  // فتح نافذة رقم فاتورة المورد
+  const openInvoiceDialog = (order) => {
+    setSelectedOrder(order);
+    setSupplierInvoiceNumber(order.supplier_invoice_number || "");
+    setInvoiceDialogOpen(true);
+  };
+
+  // حفظ رقم فاتورة المورد
+  const handleSaveInvoiceNumber = async () => {
+    if (!supplierInvoiceNumber.trim()) {
+      toast.error("الرجاء إدخال رقم فاتورة المورد");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await axios.put(`${API_URL}/purchase-orders/${selectedOrder.id}/supplier-invoice`, {
+        supplier_invoice_number: supplierInvoiceNumber
+      }, getAuthHeaders());
+      
+      toast.success("تم حفظ رقم فاتورة المورد بنجاح");
+      setInvoiceDialogOpen(false);
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "فشل في حفظ رقم الفاتورة");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleConfirmReceipt = async () => {
