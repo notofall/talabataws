@@ -2015,6 +2015,7 @@ const ProcurementDashboard = () => {
                   if (ordersViewMode === "shipped") return ["shipped", "partially_delivered"].includes(order.status);
                   if (ordersViewMode === "delivered") return order.status === "delivered";
                   if (ordersViewMode === "rejected_gm") return order.status === "rejected_by_gm";
+                  if (ordersViewMode === "unlinked") return order.items?.some(item => !item.catalog_item_id);
                   return true;
                 });
                 
