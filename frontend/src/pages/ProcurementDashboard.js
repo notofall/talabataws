@@ -3138,9 +3138,30 @@ const ProcurementDashboard = () => {
             <div className="space-y-4 mt-3">
               {/* Order Items with Prices and Catalog Link */}
               <div className="bg-slate-50 p-3 rounded-lg">
-                <p className="font-medium text-sm mb-3 text-slate-700 border-b pb-2">أسعار الأصناف وربط الكتالوج</p>
+                <div className="flex items-center justify-between mb-3 border-b pb-2">
+                  <p className="font-medium text-sm text-slate-700">أسعار الأصناف وربط الكتالوج</p>
+                  {/* Search in catalog */}
+                  <div className="relative w-48">
+                    <Input
+                      placeholder="بحث في الكتالوج..."
+                      value={editCatalogSearchTerm}
+                      onChange={(e) => setEditCatalogSearchTerm(e.target.value)}
+                      className="h-7 text-xs pr-8"
+                    />
+                    <Search className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400" />
+                  </div>
+                </div>
                 <div className="space-y-3 max-h-72 overflow-y-auto">
-                  {editingOrder.items?.map((item, idx) => (
+                  {editingOrder.items?.map((item, idx) => {
+                    // Filter catalog items based on search
+                    const filteredCatalogItems = editCatalogSearchTerm.trim() 
+                      ? catalogItems.filter(cat => 
+                          cat.name?.toLowerCase().includes(editCatalogSearchTerm.toLowerCase()) ||
+                          cat.item_code?.toLowerCase().includes(editCatalogSearchTerm.toLowerCase())
+                        )
+                      : catalogItems;
+                    
+                    return (
                     <div key={idx} className="bg-white p-3 rounded border">
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
@@ -3187,7 +3208,7 @@ const ProcurementDashboard = () => {
                             className="flex-1 h-8 text-xs rounded-md border border-input bg-background px-2"
                           >
                             <option value="">-- اختر صنف من الكتالوج --</option>
-                            {catalogItems.map(cat => (
+                            {filteredCatalogItems.map(cat => (
                               <option key={cat.id} value={cat.id}>
                                 {cat.item_code} - {cat.name} ({cat.price?.toLocaleString('ar-SA')} ر.س)
                               </option>
@@ -3205,7 +3226,8 @@ const ProcurementDashboard = () => {
                         </div>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 {Object.values(editOrderData.item_prices).some(p => p > 0) && (
                   <div className="mt-3 pt-2 border-t flex justify-between items-center">
