@@ -737,6 +737,40 @@ async def deliver_purchase_order(
     return {"message": "تم تسجيل التسليم بنجاح", "status": "delivered"}
 
 
+@pg_orders_router.put("/purchase-orders/{order_id}/supplier-invoice")
+async def update_supplier_invoice(
+    order_id: str,
+    invoice_data: dict,
+    current_user: User = Depends(get_current_user_pg),
+    session: AsyncSession = Depends(get_postgres_session)
+):
+    """تحديث رقم فاتورة المورد - متتبع التسليم فقط"""
+    if current_user.role not in [UserRole.DELIVERY_TRACKER, UserRole.PROCUREMENT_MANAGER]:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    
+    result = await session.execute(
+        select(PurchaseOrder).where(PurchaseOrder.id == order_id)
+    )
+    order = result.scalar_one_or_none()
+    
+    if not order:
+        raise HTTPException(status_code=404, detail="أمر الشراء غير موجود")
+    
+    invoice_number = invoice_data.get("supplier_invoice_number")
+    if invoice_number:
+        order.supplier_invoice_number = invoice_number
+        order.updated_at = datetime.utcnow()
+        
+        await log_audit_pg(
+            session, "order", order_id, "update_invoice", current_user,
+            f"تحديث رقم فاتورة المورد: {invoice_number}"
+        )
+        
+        await session.commit()
+    
+    return {"message": "تم تحديث رقم فاتورة المورد بنجاح"}
+
+
 # ==================== GM DASHBOARD ROUTES ====================
 
 @pg_orders_router.get("/gm/pending-orders")
