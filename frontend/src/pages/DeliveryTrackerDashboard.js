@@ -168,7 +168,7 @@ const DeliveryTrackerDashboard = () => {
       <html lang="ar" dir="rtl">
       <head>
         <meta charset="UTF-8">
-        <title>إيصال استلام - ${order.id?.slice(0, 8).toUpperCase()}</title>
+        <title>إيصال استلام - ${order.order_number || order.id?.slice(0, 8).toUpperCase()}</title>
         <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -319,7 +319,7 @@ const DeliveryTrackerDashboard = () => {
         <div style="margin-top: 60px;">
         <div class="header">
           <h1>إيصال استلام مواد</h1>
-          <div class="order-num">أمر شراء رقم: ${order.id?.slice(0, 8).toUpperCase()}</div>
+          <div class="order-num">أمر شراء رقم: ${order.order_number || order.id?.slice(0, 8).toUpperCase()}</div>
           <span class="status-badge ${order.status === 'delivered' ? 'status-delivered' : 'status-partial'}">
             ${order.status === 'delivered' ? 'تم التسليم بالكامل' : 'تسليم جزئي'}
           </span>
