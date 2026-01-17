@@ -144,6 +144,7 @@ const ProcurementDashboard = () => {
     item_prices: {},
     item_catalog_links: {}  // {itemId: catalog_item_id}
   });
+  const [editCatalogSearchTerm, setEditCatalogSearchTerm] = useState(""); // Search in catalog dropdown
 
   // Price Catalog & Item Aliases - كتالوج الأسعار والأسماء البديلة
   const [catalogDialogOpen, setCatalogDialogOpen] = useState(false);
