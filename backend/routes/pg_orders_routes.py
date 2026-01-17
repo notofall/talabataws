@@ -246,7 +246,9 @@ async def create_purchase_order(
             unit=item_data["unit"],
             unit_price=item_data["unit_price"],
             total_price=item_data["total_price"],
-            item_index=idx
+            item_index=idx,
+            catalog_item_id=item_data.get("catalog_item_id"),
+            item_code=item_data.get("item_code")
         )
         session.add(order_item)
     
