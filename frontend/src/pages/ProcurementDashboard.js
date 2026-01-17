@@ -141,7 +141,8 @@ const ProcurementDashboard = () => {
     terms_conditions: "",
     expected_delivery_date: "",
     supplier_invoice_number: "",
-    item_prices: {}
+    item_prices: {},
+    item_catalog_links: {}  // {itemId: catalog_item_id}
   });
 
   // Price Catalog & Item Aliases - كتالوج الأسعار والأسماء البديلة
