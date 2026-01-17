@@ -1228,6 +1228,7 @@ const ProcurementDashboard = () => {
       toast.success("تم تعديل أمر الشراء بنجاح");
       setEditOrderDialogOpen(false);
       setEditingOrder(null);
+      setEditCatalogSearchTerm(""); // Reset search
       fetchData();
     } catch (error) {
       toast.error(error.response?.data?.detail || "فشل في تعديل أمر الشراء");
