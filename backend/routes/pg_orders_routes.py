@@ -798,6 +798,80 @@ async def update_supplier_invoice(
     return {"message": "تم تحديث رقم فاتورة المورد بنجاح"}
 
 
+class UpdateOrderItemCatalog(BaseModel):
+    """Schema for updating order item catalog link"""
+    catalog_item_id: Optional[str] = None
+
+
+@pg_orders_router.put("/purchase-orders/{order_id}/items/{item_id}/catalog-link")
+async def update_order_item_catalog_link(
+    order_id: str,
+    item_id: str,
+    update_data: UpdateOrderItemCatalog,
+    current_user: User = Depends(get_current_user_pg),
+    session: AsyncSession = Depends(get_postgres_session)
+):
+    """تحديث ربط صنف أمر الشراء بكتالوج الأسعار - مدير المشتريات فقط"""
+    if current_user.role != UserRole.PROCUREMENT_MANAGER:
+        raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه تعديل ربط الكتالوج")
+    
+    # Verify order exists and is not GM approved
+    order_result = await session.execute(
+        select(PurchaseOrder).where(PurchaseOrder.id == order_id)
+    )
+    order = order_result.scalar_one_or_none()
+    
+    if not order:
+        raise HTTPException(status_code=404, detail="أمر الشراء غير موجود")
+    
+    if order.gm_approved_by:
+        raise HTTPException(status_code=400, detail="لا يمكن تعديل أمر شراء موافق عليه من المدير العام")
+    
+    # Get order item
+    item_result = await session.execute(
+        select(PurchaseOrderItem).where(
+            PurchaseOrderItem.id == item_id,
+            PurchaseOrderItem.order_id == order_id
+        )
+    )
+    order_item = item_result.scalar_one_or_none()
+    
+    if not order_item:
+        raise HTTPException(status_code=404, detail="الصنف غير موجود في أمر الشراء")
+    
+    # Get catalog item info if provided
+    item_code = None
+    if update_data.catalog_item_id:
+        catalog_result = await session.execute(
+            select(PriceCatalogItem).where(PriceCatalogItem.id == update_data.catalog_item_id)
+        )
+        catalog_item = catalog_result.scalar_one_or_none()
+        if not catalog_item:
+            raise HTTPException(status_code=404, detail="صنف الكتالوج غير موجود")
+        item_code = catalog_item.item_code
+    
+    # Update the order item
+    old_catalog_id = order_item.catalog_item_id
+    order_item.catalog_item_id = update_data.catalog_item_id
+    order_item.item_code = item_code
+    order.updated_at = datetime.utcnow()
+    
+    await log_audit_pg(
+        session, "order_item", item_id, "update_catalog_link", current_user,
+        f"تحديث ربط الصنف '{order_item.name}' بالكتالوج: {item_code or 'غير مرتبط'}",
+        {"old_catalog_id": old_catalog_id, "new_catalog_id": update_data.catalog_item_id}
+    )
+    
+    await session.commit()
+    
+    return {
+        "message": "تم تحديث ربط الصنف بالكتالوج بنجاح",
+        "item_id": item_id,
+        "catalog_item_id": update_data.catalog_item_id,
+        "item_code": item_code
+    }
+
+
 # ==================== GM DASHBOARD ROUTES ====================
 
 @pg_orders_router.get("/gm/pending-orders")
