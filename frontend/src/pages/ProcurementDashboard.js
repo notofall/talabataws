@@ -3098,29 +3098,40 @@ const ProcurementDashboard = () => {
           
           {editingOrder && (
             <div className="space-y-4 mt-3">
-              {/* Order Items with Prices */}
+              {/* Order Items with Prices and Catalog Link */}
               <div className="bg-slate-50 p-3 rounded-lg">
-                <p className="font-medium text-sm mb-3 text-slate-700 border-b pb-2">أسعار الأصناف (اختياري - يمكن إضافتها لاحقاً)</p>
-                <div className="space-y-2 max-h-48 overflow-y-auto">
+                <p className="font-medium text-sm mb-3 text-slate-700 border-b pb-2">أسعار الأصناف وربط الكتالوج</p>
+                <div className="space-y-2 max-h-56 overflow-y-auto">
                   {editingOrder.items?.map((item, idx) => (
-                    <div key={idx} className="flex items-center gap-2 bg-white p-2 rounded border">
-                      <div className="flex-1">
-                        <p className="font-medium text-sm">{item.name}</p>
-                        <p className="text-xs text-slate-500">{item.quantity} {item.unit}</p>
+                    <div key={idx} className="bg-white p-2 rounded border">
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">{item.name}</p>
+                          <p className="text-xs text-slate-500">{item.quantity} {item.unit}</p>
+                          {item.item_code ? (
+                            <span className="inline-block text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded mt-1">
+                              كود: {item.item_code}
+                            </span>
+                          ) : (
+                            <span className="inline-block text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded mt-1">
+                              غير مرتبط بالكتالوج
+                            </span>
+                          )}
+                        </div>
+                        <div className="w-28">
+                          <Input
+                            type="number"
+                            placeholder="السعر"
+                            value={editOrderData.item_prices[idx] || ""}
+                            onChange={(e) => setEditOrderData(prev => ({
+                              ...prev,
+                              item_prices: { ...prev.item_prices, [idx]: e.target.value }
+                            }))}
+                            className="h-9 text-sm"
+                          />
+                        </div>
+                        <span className="text-xs text-slate-400 w-8">ر.س</span>
                       </div>
-                      <div className="w-28">
-                        <Input
-                          type="number"
-                          placeholder="السعر"
-                          value={editOrderData.item_prices[idx] || ""}
-                          onChange={(e) => setEditOrderData(prev => ({
-                            ...prev,
-                            item_prices: { ...prev.item_prices, [idx]: e.target.value }
-                          }))}
-                          className="h-9 text-sm"
-                        />
-                      </div>
-                      <span className="text-xs text-slate-400 w-8">ر.س</span>
                     </div>
                   ))}
                 </div>
