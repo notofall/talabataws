@@ -189,12 +189,13 @@ export default function SearchableSelect({
               })
             )}
             {filteredOptions.length > 100 && (
-              <div className="p-3 text-center text-xs text-slate-500 bg-slate-50 border-t border-slate-100">
+              <div className="p-4 text-center text-sm text-slate-500 bg-slate-50 border-t border-slate-100">
                 يظهر 100 من {filteredOptions.length} نتيجة - استخدم البحث للتصفية
               </div>
             )}
           </div>
         </div>
+        </>
       )}
     </div>
   );
