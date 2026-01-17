@@ -3137,16 +3137,6 @@ const ProcurementDashboard = () => {
                 )}
               </div>
 
-              {/* Supplier Invoice Number */}
-              <div className="space-y-2">
-                <Label className="text-sm text-slate-700">رقم فاتورة المورد</Label>
-                <Input
-                  placeholder="أدخل رقم الفاتورة عند استلامها"
-                  value={editOrderData.supplier_invoice_number}
-                  onChange={(e) => setEditOrderData(prev => ({ ...prev, supplier_invoice_number: e.target.value }))}
-                  className="h-10"
-                />
-              </div>
 
               {/* Supplier */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
