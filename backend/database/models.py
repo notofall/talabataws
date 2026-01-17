@@ -264,6 +264,9 @@ class PurchaseOrderItem(Base):
     total_price: Mapped[float] = mapped_column(Float, default=0)
     delivered_quantity: Mapped[int] = mapped_column(Integer, default=0)
     item_index: Mapped[int] = mapped_column(Integer, default=0)
+    # ربط بكتالوج الأسعار
+    catalog_item_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True, index=True)
+    item_code: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
 
 # ==================== DELIVERY RECORD MODEL ====================
