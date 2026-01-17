@@ -159,11 +159,31 @@ async def create_purchase_order(
     total_amount = 0
     order_items = []
     
-    # Build price map from item_prices
+    # Build price map and catalog item map from item_prices
     price_map = {}
+    catalog_item_map = {}  # {index: {catalog_item_id, item_code}}
     if order_data.item_prices:
         for price_info in order_data.item_prices:
-            price_map[price_info.get("index", -1)] = price_info.get("unit_price", 0)
+            idx = price_info.get("index", -1)
+            price_map[idx] = price_info.get("unit_price", 0)
+            # Get catalog item info if provided
+            catalog_item_id = price_info.get("catalog_item_id")
+            if catalog_item_id:
+                catalog_item_map[idx] = {"catalog_item_id": catalog_item_id}
+    
+    # Fetch catalog item codes for linked items
+    if catalog_item_map:
+        catalog_ids = [info["catalog_item_id"] for info in catalog_item_map.values() if info.get("catalog_item_id")]
+        if catalog_ids:
+            catalog_result = await session.execute(
+                select(PriceCatalogItem).where(PriceCatalogItem.id.in_(catalog_ids))
+            )
+            catalog_items_db = {item.id: item for item in catalog_result.scalars().all()}
+            # Update catalog_item_map with item_code
+            for idx, info in catalog_item_map.items():
+                catalog_id = info.get("catalog_item_id")
+                if catalog_id and catalog_id in catalog_items_db:
+                    info["item_code"] = catalog_items_db[catalog_id].item_code
     
     for idx in order_data.selected_items:
         req_item = request_items[idx]
@@ -171,13 +191,18 @@ async def create_purchase_order(
         item_total = unit_price * req_item.quantity
         total_amount += item_total
         
+        # Get catalog info for this item
+        catalog_info = catalog_item_map.get(idx, {})
+        
         order_items.append({
             "name": req_item.name,
             "quantity": req_item.quantity,
             "unit": req_item.unit,
             "unit_price": unit_price,
             "total_price": item_total,
-            "index": idx
+            "index": idx,
+            "catalog_item_id": catalog_info.get("catalog_item_id"),
+            "item_code": catalog_info.get("item_code")
         })
     
     # Check if needs GM approval
