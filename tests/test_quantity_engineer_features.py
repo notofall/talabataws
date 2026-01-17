@@ -74,7 +74,7 @@ class TestSystemAdminUserManagement:
         # Check if quantity_engineer exists
         quantity_engineers = [u for u in data if u.get("role") == "quantity_engineer"]
         print(f"  Found {len(quantity_engineers)} quantity engineers")
-        return data
+        assert data is not None
     
     def test_create_quantity_engineer_user(self, admin_token):
         """Test creating a user with quantity_engineer role"""
@@ -279,7 +279,7 @@ class TestPlannedQuantities:
         data = response.json()
         assert "id" in data, "Response should have 'id'"
         print(f"✓ Created planned quantity: {data.get('id')}")
-        return data.get('id')
+        assert data.get("id")
     
     def test_update_planned_quantity(self, qe_token, project_id, catalog_item_id):
         """Test updating a planned quantity"""

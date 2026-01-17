@@ -193,7 +193,7 @@ class TestPlannedQuantitiesCRUD:
         assert "id" in data, "Response should have 'id'"
         assert "item_name" in data, "Response should have 'item_name'"
         print(f"✓ Created planned quantity: {data.get('id')} - {data.get('item_name')}")
-        return data.get('id')
+        assert data.get("id")
     
     def test_create_without_catalog_item_fails(self, qe_token, project_id):
         """Test that creating without catalog_item_id fails"""
