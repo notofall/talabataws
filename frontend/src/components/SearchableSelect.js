@@ -153,33 +153,33 @@ export default function SearchableSelect({
                     key={optValue || idx}
                     onClick={() => handleSelect(opt)}
                     className={`
-                      px-4 py-3 cursor-pointer text-sm transition-all duration-150 border-b border-slate-50 last:border-b-0
+                      px-5 py-4 cursor-pointer text-base md:text-sm transition-all duration-150 border-b border-slate-100 last:border-b-0
                       ${isSelected 
                         ? 'bg-gradient-to-l from-orange-50 to-orange-100 border-r-4 border-r-orange-500' 
-                        : 'hover:bg-slate-50 active:bg-slate-100'
+                        : 'hover:bg-slate-50 active:bg-orange-50'
                       }
                     `}
                   >
                     {renderOption ? renderOption(opt) : (
-                      <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center justify-between gap-4">
                         <div className="flex-1 min-w-0">
-                          <p className={`font-medium truncate ${isSelected ? 'text-orange-700' : 'text-slate-800'}`}>
+                          <p className={`font-semibold text-base md:text-sm ${isSelected ? 'text-orange-700' : 'text-slate-800'}`}>
                             {typeof opt === 'string' ? opt : opt[displayKey]}
                           </p>
                           {opt.supplier_name && (
-                            <p className="text-xs text-slate-500 truncate mt-0.5">
+                            <p className="text-sm md:text-xs text-slate-500 truncate mt-1">
                               المورد: {opt.supplier_name}
                             </p>
                           )}
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center gap-3 shrink-0">
                           {opt.price !== undefined && (
-                            <span className={`text-sm font-bold px-2 py-1 rounded-lg ${isSelected ? 'bg-orange-200 text-orange-700' : 'bg-green-100 text-green-700'}`}>
+                            <span className={`text-base md:text-sm font-bold px-3 py-1.5 rounded-lg ${isSelected ? 'bg-orange-200 text-orange-700' : 'bg-green-100 text-green-700'}`}>
                               {opt.price?.toLocaleString()} ر.س
                             </span>
                           )}
                           {isSelected && (
-                            <Check className="w-5 h-5 text-orange-600" />
+                            <Check className="w-6 h-6 text-orange-600" />
                           )}
                         </div>
                       </div>
