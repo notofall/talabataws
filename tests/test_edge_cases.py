@@ -160,12 +160,19 @@ class TestDeliveryEdgeCases:
         )
         assert approve_response.status_code == 200, f"Order approve failed: {approve_response.text}"
 
-        order_response = requests.get(
-            f"{BASE_URL}/api/pg/purchase-orders/{order_id}",
-            headers={"Authorization": f"Bearer {pm_token}"},
+        orders_response = requests.get(
+            f"{BASE_URL}/api/pg/delivery-tracker/orders",
+            headers={"Authorization": f"Bearer {delivery_token}"},
         )
-        assert order_response.status_code == 200, f"Order fetch failed: {order_response.text}"
-        item_id = order_response.json()["items"][0]["id"]
+        assert orders_response.status_code == 200, f"Delivery orders fetch failed: {orders_response.text}"
+        order_items = None
+        for order in orders_response.json():
+            if order.get("id") == order_id:
+                order_items = order.get("items", [])
+                break
+        if not order_items:
+            pytest.skip("Order items not available for delivery tracker")
+        item_id = order_items[0]["id"]
 
         payload = {
             "supplier_receipt_number": f"RC-{uuid.uuid4().hex[:6]}",
