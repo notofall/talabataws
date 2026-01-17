@@ -13,6 +13,7 @@ SUPERVISOR = get_credentials("supervisor")
 ENGINEER = get_credentials("engineer")
 PROCUREMENT_MANAGER = get_credentials("procurement_manager")
 DELIVERY_TRACKER = get_credentials("delivery_tracker")
+SYSTEM_ADMIN = get_credentials("system_admin")
 
 
 def login(creds):
@@ -21,16 +22,16 @@ def login(creds):
     return response.json()["access_token"]
 
 
-def get_engineer_id(token):
+def get_user_id_by_email(admin_token, email):
     response = requests.get(
-        f"{BASE_URL}/api/pg/users/list",
-        headers={"Authorization": f"Bearer {token}"},
+        f"{BASE_URL}/api/pg/admin/users",
+        headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert response.status_code == 200, f"Failed to fetch users: {response.text}"
-    engineers = [u for u in response.json() if u.get("role") == "engineer"]
-    if not engineers:
-        pytest.skip("No engineer users available")
-    return engineers[0]["id"]
+    for user in response.json():
+        if user.get("email") == email:
+            return user.get("id")
+    pytest.skip(f"User not found: {email}")
 
 
 def create_project(token):
@@ -98,7 +99,8 @@ def create_order(token, request_id):
 class TestRequestEdgeCases:
     def test_create_request_with_empty_items(self):
         supervisor_token = login(SUPERVISOR)
-        engineer_id = get_engineer_id(supervisor_token)
+        admin_token = login(SYSTEM_ADMIN)
+        engineer_id = get_user_id_by_email(admin_token, ENGINEER["email"])
         project_id = create_project(supervisor_token)
 
         payload = {
@@ -120,8 +122,8 @@ class TestPurchaseOrderEdgeCases:
         supervisor_token = login(SUPERVISOR)
         engineer_token = login(ENGINEER)
         pm_token = login(PROCUREMENT_MANAGER)
-
-        engineer_id = get_engineer_id(supervisor_token)
+        admin_token = login(SYSTEM_ADMIN)
+        engineer_id = get_user_id_by_email(admin_token, ENGINEER["email"])
         project_id = create_project(supervisor_token)
         request_id = create_request(supervisor_token, project_id, engineer_id)
         approve_request(engineer_token, request_id)
@@ -145,8 +147,8 @@ class TestDeliveryEdgeCases:
         engineer_token = login(ENGINEER)
         pm_token = login(PROCUREMENT_MANAGER)
         delivery_token = login(DELIVERY_TRACKER)
-
-        engineer_id = get_engineer_id(supervisor_token)
+        admin_token = login(SYSTEM_ADMIN)
+        engineer_id = get_user_id_by_email(admin_token, ENGINEER["email"])
         project_id = create_project(supervisor_token)
         request_id = create_request(supervisor_token, project_id, engineer_id, quantity=3)
         approve_request(engineer_token, request_id)

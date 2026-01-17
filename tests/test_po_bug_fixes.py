@@ -20,12 +20,25 @@ PROCUREMENT_MANAGER = get_credentials("procurement_manager")
 DELIVERY_TRACKER = get_credentials("delivery_tracker")
 ENGINEER = get_credentials("engineer")
 SUPERVISOR = get_credentials("supervisor")
+SYSTEM_ADMIN = get_credentials("system_admin")
 
 
 def login(creds):
     response = requests.post(f"{BASE_URL}/api/pg/auth/login", json=creds)
     assert response.status_code == 200, f"Login failed: {response.text}"
     return response.json()["access_token"]
+
+
+def get_user_id_by_email(admin_token, email):
+    response = requests.get(
+        f"{BASE_URL}/api/pg/admin/users",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert response.status_code == 200, f"Failed to get users: {response.text}"
+    for user in response.json():
+        if user.get("email") == email:
+            return user.get("id")
+    pytest.skip(f"User not found: {email}")
 
 
 @pytest.fixture(scope="module")
@@ -52,14 +65,15 @@ def supervisor_token():
 
 
 @pytest.fixture(scope="module")
-def test_order_context(pm_token, eng_token, supervisor_token):
+def admin_token():
+    return login(SYSTEM_ADMIN)
+
+
+@pytest.fixture(scope="module")
+def test_order_context(pm_token, eng_token, supervisor_token, admin_token):
     """Create a purchase order through the full workflow and return its context."""
     headers = {"Authorization": f"Bearer {supervisor_token}"}
-    users_response = requests.get(f"{BASE_URL}/api/pg/users/list", headers=headers)
-    assert users_response.status_code == 200, f"Failed to get users: {users_response.text}"
-    engineers = [u for u in users_response.json() if u.get("role") == "engineer"]
-    assert engineers, "No engineer users found"
-    engineer_id = engineers[0]["id"]
+    engineer_id = get_user_id_by_email(admin_token, ENGINEER["email"])
 
     project_payload = {
         "name": f"مشروع اختبار أوامر الشراء {uuid.uuid4().hex[:6]}",
