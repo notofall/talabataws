@@ -3163,10 +3163,10 @@ const ProcurementDashboard = () => {
                               // Auto-fill price from catalog if available
                               if (selectedCatalogId) {
                                 const catalogItem = catalogItems.find(c => c.id === selectedCatalogId);
-                                if (catalogItem?.unit_price) {
+                                if (catalogItem?.price) {
                                   setEditOrderData(prev => ({
                                     ...prev,
-                                    item_prices: { ...prev.item_prices, [idx]: catalogItem.unit_price }
+                                    item_prices: { ...prev.item_prices, [idx]: catalogItem.price }
                                   }));
                                 }
                               }
@@ -3176,7 +3176,7 @@ const ProcurementDashboard = () => {
                             <option value="">-- اختر صنف من الكتالوج --</option>
                             {catalogItems.map(cat => (
                               <option key={cat.id} value={cat.id}>
-                                {cat.item_code} - {cat.name} ({cat.unit_price?.toLocaleString('ar-SA')} ر.س)
+                                {cat.item_code} - {cat.name} ({cat.price?.toLocaleString('ar-SA')} ر.س)
                               </option>
                             ))}
                           </select>
