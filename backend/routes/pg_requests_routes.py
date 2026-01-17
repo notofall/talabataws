@@ -23,7 +23,7 @@ from app.requests.application.use_cases import (
     ListMaterialRequestsUseCase,
     MaterialItemInput,
 )
-from app.requests.domain.errors import NotFound, PermissionDenied
+from app.requests.domain.errors import InvalidRequest, NotFound, PermissionDenied
 from app.requests.domain.models import UserSummary
 from app.requests.infrastructure.sqlalchemy_repository import (
     SqlAlchemyMaterialRequestRepository,
@@ -126,6 +126,8 @@ async def create_material_request(
         raise HTTPException(status_code=403, detail=exc.message)
     except NotFound as exc:
         raise HTTPException(status_code=404, detail=exc.message)
+    except InvalidRequest as exc:
+        raise HTTPException(status_code=400, detail=exc.message)
 
     return material_request_to_response(request)
 
@@ -140,6 +142,16 @@ async def get_material_requests(
     session: AsyncSession = Depends(get_postgres_session)
 ):
     """Get material requests based on user role"""
+    allowed_roles = {
+        UserRole.SUPERVISOR,
+        UserRole.ENGINEER,
+        UserRole.PROCUREMENT_MANAGER,
+        UserRole.GENERAL_MANAGER,
+        UserRole.SYSTEM_ADMIN,
+    }
+    if current_user.role not in allowed_roles:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+
     repository = SqlAlchemyMaterialRequestRepository(session)
     use_case = ListMaterialRequestsUseCase(repository)
     query = ListMaterialRequestsQuery(
@@ -167,6 +179,19 @@ async def get_material_request(
     
     if not req:
         raise HTTPException(status_code=404, detail="الطلب غير موجود")
+
+    if current_user.role == UserRole.SUPERVISOR and req.supervisor_id != current_user.id:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الطلب")
+    if current_user.role == UserRole.ENGINEER and req.engineer_id != current_user.id:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الطلب")
+    if current_user.role not in [
+        UserRole.SUPERVISOR,
+        UserRole.ENGINEER,
+        UserRole.PROCUREMENT_MANAGER,
+        UserRole.GENERAL_MANAGER,
+        UserRole.SYSTEM_ADMIN,
+    ]:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
     
     # Get items
     items_result = await session.execute(

@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Callable, Optional, Sequence
 
 from app.requests.application.ports import MaterialRequestRepository
-from app.requests.domain.errors import NotFound, PermissionDenied
+from app.requests.domain.errors import InvalidRequest, NotFound, PermissionDenied
 from app.requests.domain.models import (
     AuditEntry,
     MaterialRequest,
@@ -60,6 +60,15 @@ class CreateMaterialRequestUseCase:
     ) -> MaterialRequest:
         if current_user.role != "supervisor":
             raise PermissionDenied("فقط المشرف يمكنه إنشاء طلبات المواد")
+
+        if not command.items:
+            raise InvalidRequest("يجب إضافة صنف واحد على الأقل")
+
+        for item in command.items:
+            if not item.name.strip():
+                raise InvalidRequest("اسم الصنف مطلوب")
+            if item.quantity <= 0:
+                raise InvalidRequest("الكمية يجب أن تكون أكبر من صفر")
 
         project = await self._repository.get_project(command.project_id)
         if project is None:
