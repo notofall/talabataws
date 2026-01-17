@@ -7,15 +7,17 @@ import requests
 import os
 import uuid
 
+from tests.test_config import get_credentials
+
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://procure-hub-19.preview.emergentagent.com').rstrip('/')
 
 # Test credentials from the request
 TEST_CREDENTIALS = {
-    "system_admin": {"email": "admin@system.com", "password": "123456"},
-    "procurement_manager": {"email": "notofall@gmail.com", "password": "123456"},
-    "general_manager": {"email": "md@gmail.com", "password": "123456"},
-    "engineer": {"email": "engineer1@test.com", "password": "123456"},
-    "supervisor": {"email": "supervisor1@test.com", "password": "123456"}
+    "system_admin": get_credentials("system_admin"),
+    "procurement_manager": get_credentials("procurement_manager"),
+    "general_manager": get_credentials("general_manager"),
+    "engineer": get_credentials("engineer"),
+    "supervisor": get_credentials("supervisor"),
 }
 
 

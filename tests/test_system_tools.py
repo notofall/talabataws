@@ -7,11 +7,12 @@ import pytest
 import requests
 import os
 
+from tests.test_config import get_credentials
+
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
 # Test credentials for system admin
-SYSTEM_ADMIN_EMAIL = "admin@system.com"
-SYSTEM_ADMIN_PASSWORD = "123456"
+SYSTEM_ADMIN = get_credentials("system_admin")
 
 
 @pytest.fixture(scope="module")
@@ -19,7 +20,7 @@ def auth_token():
     """Get authentication token for system admin"""
     response = requests.post(
         f"{BASE_URL}/api/pg/auth/login",
-        json={"email": SYSTEM_ADMIN_EMAIL, "password": SYSTEM_ADMIN_PASSWORD}
+        json=SYSTEM_ADMIN
     )
     assert response.status_code == 200, f"Login failed: {response.text}"
     data = response.json()
@@ -41,12 +42,12 @@ class TestSystemAdminLogin:
         """Test successful login as system admin"""
         response = requests.post(
             f"{BASE_URL}/api/pg/auth/login",
-            json={"email": SYSTEM_ADMIN_EMAIL, "password": SYSTEM_ADMIN_PASSWORD}
+            json=SYSTEM_ADMIN
         )
         assert response.status_code == 200
         data = response.json()
         assert "access_token" in data
-        assert data["user"]["email"] == SYSTEM_ADMIN_EMAIL
+        assert data["user"]["email"] == SYSTEM_ADMIN["email"]
         assert data["user"]["role"] == "system_admin"
         assert data["user"]["is_active"] == True
     
@@ -323,8 +324,8 @@ class TestNonAdminAccess:
         """Try to get a non-admin token (if available)"""
         # Try to login as a supervisor or engineer
         test_users = [
-            {"email": "supervisor@test.com", "password": "123456"},
-            {"email": "engineer@test.com", "password": "123456"},
+            get_credentials("supervisor"),
+            get_credentials("engineer"),
         ]
         for user in test_users:
             response = requests.post(
