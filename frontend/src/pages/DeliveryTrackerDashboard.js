@@ -489,7 +489,7 @@ const DeliveryTrackerDashboard = () => {
                   <div key={order.id} className="bg-slate-50 rounded-lg p-3 border">
                     <div className="flex justify-between items-start mb-2">
                       <div>
-                        <p className="font-bold text-orange-600">{order.id?.slice(0, 8).toUpperCase()}</p>
+                        <p className="font-bold text-orange-600">{order.order_number || order.id?.slice(0, 8).toUpperCase()}</p>
                         <p className="text-xs text-slate-500">{order.project_name}</p>
                       </div>
                       {getStatusBadge(order.status)}
