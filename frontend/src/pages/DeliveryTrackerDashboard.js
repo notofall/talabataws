@@ -699,7 +699,7 @@ const DeliveryTrackerDashboard = () => {
       <Dialog open={receiptDialogOpen} onOpenChange={setReceiptDialogOpen}>
         <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto p-4" dir="rtl">
           <DialogHeader>
-            <DialogTitle>تأكيد استلام - {selectedOrder?.id?.slice(0, 8).toUpperCase()}</DialogTitle>
+            <DialogTitle>تأكيد استلام - {selectedOrder?.order_number || selectedOrder?.id?.slice(0, 8).toUpperCase()}</DialogTitle>
           </DialogHeader>
           {selectedOrder && (
             <div className="space-y-4">
