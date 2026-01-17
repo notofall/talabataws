@@ -10,7 +10,7 @@ import json
 from datetime import datetime
 
 class QuotationSystemTester:
-    def __init__(self, base_url="https://procure-id-system.preview.emergentagent.com"):
+    def __init__(self, base_url="https://procure-hub-19.preview.emergentagent.com"):
         self.base_url = base_url
         self.gm_token = None
         self.manager_token = None

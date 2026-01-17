@@ -9,7 +9,7 @@ import sys
 import json
 
 class EdgeCaseAPITester:
-    def __init__(self, base_url="https://procure-id-system.preview.emergentagent.com"):
+    def __init__(self, base_url="https://procure-hub-19.preview.emergentagent.com"):
         self.base_url = base_url
         self.tokens = {}
         self.tests_run = 0
