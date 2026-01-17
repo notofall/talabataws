@@ -781,6 +781,46 @@ const DeliveryTrackerDashboard = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Invoice Number Dialog */}
+      <Dialog open={invoiceDialogOpen} onOpenChange={setInvoiceDialogOpen}>
+        <DialogContent className="max-w-md" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5 text-purple-600" />
+              رقم فاتورة المورد
+            </DialogTitle>
+          </DialogHeader>
+          {selectedOrder && (
+            <div className="space-y-4">
+              <div className="bg-purple-50 p-3 rounded-lg">
+                <p className="text-sm"><span className="text-slate-500">رقم الأمر:</span> <span className="font-bold text-purple-700">{selectedOrder.order_number}</span></p>
+                <p className="text-sm"><span className="text-slate-500">المورد:</span> {selectedOrder.supplier_name}</p>
+                <p className="text-sm"><span className="text-slate-500">المبلغ:</span> <span className="font-bold text-emerald-600">{selectedOrder.total_amount?.toLocaleString('ar-SA')} ر.س</span></p>
+              </div>
+
+              <div>
+                <Label className="text-sm font-medium">رقم فاتورة المورد</Label>
+                <Input 
+                  value={supplierInvoiceNumber}
+                  onChange={(e) => setSupplierInvoiceNumber(e.target.value)}
+                  placeholder="أدخل رقم الفاتورة من المورد"
+                  className="mt-1"
+                />
+                <p className="text-xs text-slate-500 mt-1">رقم الفاتورة المستلمة من المورد</p>
+              </div>
+
+              <Button 
+                onClick={handleSaveInvoiceNumber} 
+                disabled={submitting || !supplierInvoiceNumber.trim()}
+                className="w-full h-10 bg-purple-600 hover:bg-purple-700"
+              >
+                {submitting ? "جاري الحفظ..." : "حفظ رقم الفاتورة"}
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Change Password Dialog */}
       <ChangePasswordDialog 
         open={passwordDialogOpen} 
