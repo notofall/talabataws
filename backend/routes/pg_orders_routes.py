@@ -487,8 +487,8 @@ async def update_purchase_order(
     if update_data.expected_delivery_date is not None:
         order.expected_delivery_date = update_data.expected_delivery_date
     
-    if update_data.supplier_invoice_number is not None:
-        order.supplier_invoice_number = update_data.supplier_invoice_number
+    # Note: supplier_invoice_number can only be updated by Delivery Tracker
+    # via the dedicated endpoint /purchase-orders/{order_id}/supplier-invoice
     
     if update_data.category_id is not None:
         order.category_id = update_data.category_id
