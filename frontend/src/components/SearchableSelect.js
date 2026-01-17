@@ -99,35 +99,52 @@ export default function SearchableSelect({
         </div>
       </div>
 
-      {/* Dropdown */}
+      {/* Dropdown - Full screen on mobile, positioned on desktop */}
       {isOpen && (
-        <div className="absolute z-[100] w-full mt-2 bg-white border-2 border-slate-200 rounded-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-          {/* Search input */}
-          <div className="p-3 bg-gradient-to-b from-slate-50 to-white border-b border-slate-100">
-            <div className="relative">
-              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-orange-400" />
-              <input
-                ref={inputRef}
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder={searchPlaceholder}
-                className="w-full pr-10 pl-4 py-3 text-sm bg-white border-2 border-slate-200 rounded-xl focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition-all"
-              />
+        <>
+          {/* Mobile overlay */}
+          <div className="fixed inset-0 bg-black/50 z-[9998] md:hidden" onClick={() => setIsOpen(false)} />
+          
+          {/* Dropdown content */}
+          <div className="
+            fixed inset-x-4 top-20 bottom-20 z-[9999] md:absolute md:inset-auto md:top-full md:left-0 md:right-0 md:mt-2
+            bg-white border-2 border-slate-200 rounded-2xl shadow-2xl overflow-hidden
+            animate-in fade-in slide-in-from-bottom-4 md:slide-in-from-top-2 duration-300
+          ">
+            {/* Header with title and close button for mobile */}
+            <div className="flex items-center justify-between p-4 bg-gradient-to-l from-orange-500 to-orange-600 text-white md:hidden">
+              <h3 className="font-bold text-lg">اختر صنف من الكتالوج</h3>
+              <button onClick={() => setIsOpen(false)} className="p-1 hover:bg-white/20 rounded-lg">
+                <X className="w-6 h-6" />
+              </button>
             </div>
-          </div>
-
-          {/* Options list */}
-          <div className="overflow-y-auto" style={{ maxHeight }}>
-            {filteredOptions.length === 0 ? (
-              <div className="p-6 text-center">
-                <Package className="w-12 h-12 text-slate-300 mx-auto mb-2" />
-                <p className="text-slate-500 text-sm">
-                  {search ? `لا توجد نتائج لـ "${search}"` : 'لا توجد خيارات'}
-                </p>
+            
+            {/* Search input */}
+            <div className="p-4 bg-gradient-to-b from-slate-50 to-white border-b border-slate-100">
+              <div className="relative">
+                <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-orange-500" />
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={searchPlaceholder}
+                  className="w-full pr-12 pl-4 py-4 text-base md:text-sm bg-white border-2 border-slate-200 rounded-xl focus:outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-100 transition-all"
+                />
               </div>
-            ) : (
-              filteredOptions.slice(0, 100).map((opt, idx) => {
+            </div>
+
+            {/* Options list */}
+            <div className="overflow-y-auto flex-1" style={{ maxHeight: 'calc(100% - 140px)' }}>
+              {filteredOptions.length === 0 ? (
+                <div className="p-8 text-center">
+                  <Package className="w-16 h-16 text-slate-300 mx-auto mb-3" />
+                  <p className="text-slate-500 text-base">
+                    {search ? `لا توجد نتائج لـ "${search}"` : 'لا توجد خيارات'}
+                  </p>
+                </div>
+              ) : (
+                filteredOptions.slice(0, 100).map((opt, idx) => {
                 const optValue = typeof opt === 'string' ? opt : opt[valueKey];
                 const isSelected = optValue === value;
                 
