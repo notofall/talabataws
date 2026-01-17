@@ -2467,24 +2467,33 @@ const ProcurementDashboard = () => {
                                   )}
                                 </div>
                                 <SearchableSelect
-                                  options={catalogItems}
+                                  options={catalogItems.map(cat => ({
+                                    id: cat.id,
+                                    name: `${cat.item_code || ''} - ${cat.name}`.trim().replace(/^- /, ''),
+                                    price: cat.price,
+                                    item_code: cat.item_code,
+                                    supplier_name: cat.supplier_name
+                                  }))}
                                   value={catalogInfo?.catalog_item_id || ""}
-                                  onChange={(selectedId, catalogItem) => {
-                                    if (selectedId && catalogItem) {
-                                      setCatalogPrices(prev => ({
-                                        ...prev,
-                                        [idx]: {
-                                          catalog_item_id: catalogItem.id,
-                                          price: catalogItem.price,
-                                          name: catalogItem.name,
-                                          supplier_name: catalogItem.supplier_name
-                                        }
-                                      }));
-                                      setItemPrices(prev => ({
-                                        ...prev,
-                                        [idx]: catalogItem.price.toString()
-                                      }));
-                                      toast.success(`تم ربط "${item.name}" بـ "${catalogItem.name}" - السعر: ${catalogItem.price.toLocaleString()} ر.س`);
+                                  onChange={(selectedId) => {
+                                    if (selectedId) {
+                                      const catalogItem = catalogItems.find(c => c.id === selectedId);
+                                      if (catalogItem) {
+                                        setCatalogPrices(prev => ({
+                                          ...prev,
+                                          [idx]: {
+                                            catalog_item_id: catalogItem.id,
+                                            price: catalogItem.price,
+                                            name: catalogItem.name,
+                                            supplier_name: catalogItem.supplier_name
+                                          }
+                                        }));
+                                        setItemPrices(prev => ({
+                                          ...prev,
+                                          [idx]: catalogItem.price?.toString() || ""
+                                        }));
+                                        toast.success(`تم ربط "${item.name}" بـ "${catalogItem.name}" - السعر: ${catalogItem.price?.toLocaleString()} ر.س`);
+                                      }
                                     } else {
                                       setCatalogPrices(prev => {
                                         const newPrices = {...prev};
@@ -2494,10 +2503,9 @@ const ProcurementDashboard = () => {
                                     }
                                   }}
                                   placeholder="اختر صنف من الكتالوج"
-                                  searchPlaceholder="ابحث بالاسم أو المورد..."
+                                  searchPlaceholder="ابحث بالكود أو الاسم..."
                                   displayKey="name"
                                   valueKey="id"
-                                  maxHeight="280px"
                                 />
                               </div>
                               
