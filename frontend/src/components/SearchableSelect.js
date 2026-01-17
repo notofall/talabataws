@@ -139,12 +139,12 @@ export default function SearchableSelect({
             </div>
 
             {/* Options list */}
-            <div className="overflow-y-auto flex-1" style={{ maxHeight: 'calc(100% - 140px)' }}>
+            <div className="overflow-y-auto" style={{ maxHeight: 'min(400px, calc(100vh - 250px))' }}>
               {filteredOptions.length === 0 ? (
                 <div className="p-8 text-center">
                   <Package className="w-16 h-16 text-slate-300 mx-auto mb-3" />
                   <p className="text-slate-500 text-base">
-                    {search ? `لا توجد نتائج لـ "${search}"` : 'لا توجد خيارات'}
+                    {search ? `لا توجد نتائج لـ "${search}"` : (options.length === 0 ? 'جاري التحميل...' : 'لا توجد خيارات')}
                   </p>
                 </div>
               ) : (
