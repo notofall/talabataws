@@ -99,32 +99,32 @@ export default function SearchableSelect({
         </div>
       </div>
 
-      {/* Dropdown - Full screen on mobile, positioned on desktop */}
+      {/* Dropdown - Full screen modal on both mobile and desktop */}
       {isOpen && (
         <>
-          {/* Mobile overlay */}
-          <div className="fixed inset-0 bg-black/50 z-[9998] md:hidden" onClick={() => setIsOpen(false)} />
+          {/* Overlay */}
+          <div className="fixed inset-0 bg-black/60 z-[9998]" onClick={() => setIsOpen(false)} />
           
-          {/* Desktop overlay to capture clicks */}
-          <div className="hidden md:block fixed inset-0 z-[9990]" onClick={() => setIsOpen(false)} />
-          
-          {/* Dropdown content */}
+          {/* Modal content - centered on screen */}
           <div className="
-            fixed inset-x-4 top-20 bottom-20 z-[9999] 
-            md:absolute md:inset-auto md:top-full md:left-0 md:right-0 md:mt-2 md:min-w-[400px]
-            bg-white border-2 border-orange-300 rounded-2xl shadow-2xl overflow-hidden
-            animate-in fade-in slide-in-from-bottom-4 md:slide-in-from-top-2 duration-300
+            fixed z-[9999] 
+            inset-x-4 top-20 bottom-20
+            md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2
+            md:w-[500px] md:max-w-[90vw] md:h-[70vh] md:max-h-[600px]
+            bg-white rounded-2xl shadow-2xl overflow-hidden
+            animate-in fade-in zoom-in-95 duration-200
+            flex flex-col
           ">
-            {/* Header with title and close button for mobile */}
-            <div className="flex items-center justify-between p-4 bg-gradient-to-l from-orange-500 to-orange-600 text-white md:hidden">
+            {/* Header with title and close button */}
+            <div className="flex items-center justify-between p-4 bg-gradient-to-l from-orange-500 to-orange-600 text-white shrink-0">
               <h3 className="font-bold text-lg">اختر صنف من الكتالوج</h3>
-              <button onClick={() => setIsOpen(false)} className="p-1 hover:bg-white/20 rounded-lg">
+              <button onClick={() => setIsOpen(false)} className="p-2 hover:bg-white/20 rounded-lg transition-colors">
                 <X className="w-6 h-6" />
               </button>
             </div>
             
             {/* Search input */}
-            <div className="p-4 bg-gradient-to-b from-slate-50 to-white border-b border-slate-100">
+            <div className="p-4 bg-gradient-to-b from-slate-50 to-white border-b border-slate-200 shrink-0">
               <div className="relative">
                 <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-orange-500" />
                 <input
@@ -133,18 +133,22 @@ export default function SearchableSelect({
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder={searchPlaceholder}
-                  className="w-full pr-12 pl-4 py-4 text-base md:text-sm bg-white border-2 border-slate-200 rounded-xl focus:outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-100 transition-all"
+                  className="w-full pr-12 pl-4 py-4 text-base bg-white border-2 border-slate-200 rounded-xl focus:outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-100 transition-all"
+                  autoFocus
                 />
               </div>
+              {options.length > 0 && (
+                <p className="text-xs text-slate-500 mt-2 text-center">{filteredOptions.length} من {options.length} صنف</p>
+              )}
             </div>
 
             {/* Options list */}
-            <div className="overflow-y-auto" style={{ maxHeight: 'min(400px, calc(100vh - 250px))' }}>
+            <div className="overflow-y-auto flex-1">
               {filteredOptions.length === 0 ? (
                 <div className="p-8 text-center">
                   <Package className="w-16 h-16 text-slate-300 mx-auto mb-3" />
                   <p className="text-slate-500 text-base">
-                    {search ? `لا توجد نتائج لـ "${search}"` : (options.length === 0 ? 'جاري التحميل...' : 'لا توجد خيارات')}
+                    {search ? `لا توجد نتائج لـ "${search}"` : (options.length === 0 ? 'جاري التحميل...' : 'ابدأ الكتابة للبحث')}
                   </p>
                 </div>
               ) : (
