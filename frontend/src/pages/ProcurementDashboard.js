@@ -1205,6 +1205,25 @@ const ProcurementDashboard = () => {
         item_prices: pricesArray
       }, getAuthHeaders());
       
+      // Update catalog links for items that changed
+      for (const item of editingOrder.items || []) {
+        const newCatalogId = editOrderData.item_catalog_links[item.id];
+        const oldCatalogId = item.catalog_item_id;
+        
+        // Only update if changed
+        if (newCatalogId !== oldCatalogId) {
+          try {
+            await axios.put(
+              `${API_URL}/purchase-orders/${editingOrder.id}/items/${item.id}/catalog-link`,
+              { catalog_item_id: newCatalogId || null },
+              getAuthHeaders()
+            );
+          } catch (linkError) {
+            console.error(`Failed to update catalog link for item ${item.id}:`, linkError);
+          }
+        }
+      }
+      
       toast.success("تم تعديل أمر الشراء بنجاح");
       setEditOrderDialogOpen(false);
       setEditingOrder(null);
