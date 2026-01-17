@@ -772,8 +772,8 @@ async def update_supplier_invoice(
     session: AsyncSession = Depends(get_postgres_session)
 ):
     """تحديث رقم فاتورة المورد - متتبع التسليم فقط"""
-    if current_user.role not in [UserRole.DELIVERY_TRACKER, UserRole.PROCUREMENT_MANAGER]:
-        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    if current_user.role != UserRole.DELIVERY_TRACKER:
+        raise HTTPException(status_code=403, detail="فقط متتبع التسليم يمكنه تعديل رقم فاتورة المورد")
     
     result = await session.execute(
         select(PurchaseOrder).where(PurchaseOrder.id == order_id)
