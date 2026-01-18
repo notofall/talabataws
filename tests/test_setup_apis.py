@@ -6,18 +6,16 @@ import pytest
 import requests
 import os
 
+from tests.test_config import get_db_config
+
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://procure-hub-19.preview.emergentagent.com').rstrip('/')
 
-# Valid database credentials from backend/.env
-VALID_DB_CONFIG = {
-    "db_type": "cloud",
-    "host": "eu-central-2.pg.psdb.cloud",
-    "port": 6432,
-    "database": "postgres",
-    "username": "pscale_api_35rgz9k9l8x3.0twp2nptx1ez",
-    "password": "pscale_pw_uoUpM0zkEXkJTOdOAJFS6bchIFAOK33L",
-    "ssl_mode": "require"
-}
+VALID_DB_CONFIG = get_db_config()
+
+
+def require_db_config():
+    if not VALID_DB_CONFIG:
+        pytest.skip("TEST_DB_CONFIG_JSON not set for setup connection tests")
 
 
 class TestSetupStatus:
@@ -106,6 +104,7 @@ class TestConnectionTest:
     
     def test_valid_connection_returns_success(self):
         """Test that valid credentials return success"""
+        require_db_config()
         response = requests.post(
             f"{BASE_URL}/api/setup/test-connection",
             json=VALID_DB_CONFIG
@@ -119,6 +118,7 @@ class TestConnectionTest:
         
     def test_valid_connection_returns_postgres_version(self):
         """Test that successful connection returns PostgreSQL version"""
+        require_db_config()
         response = requests.post(
             f"{BASE_URL}/api/setup/test-connection",
             json=VALID_DB_CONFIG
@@ -192,6 +192,7 @@ class TestCompleteSetup:
     
     def test_complete_setup_without_admin_returns_success(self):
         """Test that complete setup without admin user works"""
+        require_db_config()
         setup_config = {
             "database": VALID_DB_CONFIG,
             "admin_user": None
@@ -210,6 +211,7 @@ class TestCompleteSetup:
         
     def test_complete_setup_response_structure(self):
         """Test that complete setup has correct response structure"""
+        require_db_config()
         setup_config = {
             "database": VALID_DB_CONFIG,
             "admin_user": None

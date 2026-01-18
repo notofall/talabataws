@@ -32,12 +32,14 @@ import requests
 import os
 import uuid
 
+from tests.test_config import get_credentials
+
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
 # Test credentials
-SYSTEM_ADMIN_CREDS = {"email": "admin@system.com", "password": "123456"}
-QUANTITY_ENGINEER_CREDS = {"email": "quantity@test.com", "password": "123456"}
-PROCUREMENT_MANAGER_CREDS = {"email": "notofall@gmail.com", "password": "123456"}
+SYSTEM_ADMIN_CREDS = get_credentials("system_admin")
+QUANTITY_ENGINEER_CREDS = get_credentials("quantity_engineer")
+PROCUREMENT_MANAGER_CREDS = get_credentials("procurement_manager")
 
 
 class TestSystemAdminUserManagement:
@@ -72,7 +74,7 @@ class TestSystemAdminUserManagement:
         # Check if quantity_engineer exists
         quantity_engineers = [u for u in data if u.get("role") == "quantity_engineer"]
         print(f"  Found {len(quantity_engineers)} quantity engineers")
-        return data
+        assert data is not None
     
     def test_create_quantity_engineer_user(self, admin_token):
         """Test creating a user with quantity_engineer role"""
@@ -181,6 +183,39 @@ class TestPlannedQuantities:
         if response.status_code == 200:
             return response.json().get("access_token")
         pytest.skip("QE login failed")
+
+    @pytest.fixture
+    def pm_token(self):
+        """Get procurement manager token"""
+        response = requests.post(f"{BASE_URL}/api/pg/auth/login", json=PROCUREMENT_MANAGER_CREDS)
+        if response.status_code == 200:
+            return response.json().get("access_token")
+        pytest.skip("Procurement manager login failed")
+
+    @pytest.fixture
+    def catalog_item_id(self, qe_token, pm_token):
+        """Get or create a catalog item ID for planned quantities"""
+        qe_headers = {"Authorization": f"Bearer {qe_token}"}
+        response = requests.get(f"{BASE_URL}/api/pg/quantity/catalog-items", headers=qe_headers)
+        if response.status_code == 200:
+            items = response.json().get("items", [])
+            if items:
+                return items[0].get("id")
+
+        pm_headers = {"Authorization": f"Bearer {pm_token}"}
+        new_item = {
+            "name": f"صنف كتالوج اختبار {uuid.uuid4().hex[:6]}",
+            "price": 25.0,
+            "currency": "SAR",
+            "unit": "قطعة"
+        }
+        create_response = requests.post(
+            f"{BASE_URL}/api/pg/price-catalog",
+            headers=pm_headers,
+            json=new_item,
+        )
+        assert create_response.status_code in [200, 201], f"Failed to create catalog item: {create_response.text}"
+        return create_response.json().get("id")
     
     @pytest.fixture
     def project_id(self, qe_token):
@@ -225,17 +260,14 @@ class TestPlannedQuantities:
         
         print(f"✓ Planned quantities filters work correctly")
     
-    def test_create_planned_quantity(self, qe_token, project_id):
+    def test_create_planned_quantity(self, qe_token, project_id, catalog_item_id):
         """Test creating a new planned quantity"""
         headers = {"Authorization": f"Bearer {qe_token}"}
         
         new_item = {
-            "item_name": f"TEST_صنف اختبار {uuid.uuid4().hex[:6]}",
-            "item_code": f"TEST-{uuid.uuid4().hex[:6]}",
-            "unit": "قطعة",
-            "description": "صنف اختبار للكميات المخططة",
-            "planned_quantity": 100,
+            "catalog_item_id": catalog_item_id,
             "project_id": project_id,
+            "planned_quantity": 100,
             "expected_order_date": "2026-03-01",
             "priority": 2,
             "notes": "ملاحظات اختبار"
@@ -247,19 +279,17 @@ class TestPlannedQuantities:
         data = response.json()
         assert "id" in data, "Response should have 'id'"
         print(f"✓ Created planned quantity: {data.get('id')}")
-        return data.get('id')
+        assert data.get("id")
     
-    def test_update_planned_quantity(self, qe_token, project_id):
+    def test_update_planned_quantity(self, qe_token, project_id, catalog_item_id):
         """Test updating a planned quantity"""
         headers = {"Authorization": f"Bearer {qe_token}"}
         
         # First create an item
         new_item = {
-            "item_name": f"TEST_صنف للتحديث {uuid.uuid4().hex[:6]}",
-            "item_code": f"TEST-UPD-{uuid.uuid4().hex[:6]}",
-            "unit": "طن",
-            "planned_quantity": 50,
+            "catalog_item_id": catalog_item_id,
             "project_id": project_id,
+            "planned_quantity": 50,
             "priority": 1
         }
         
@@ -271,7 +301,6 @@ class TestPlannedQuantities:
         
         # Update the item
         update_data = {
-            "item_name": f"TEST_صنف محدث {uuid.uuid4().hex[:6]}",
             "planned_quantity": 75,
             "priority": 3
         }
@@ -280,17 +309,15 @@ class TestPlannedQuantities:
         assert response.status_code == 200, f"Failed to update planned quantity: {response.text}"
         print(f"✓ Updated planned quantity: {item_id}")
     
-    def test_delete_planned_quantity(self, qe_token, project_id):
+    def test_delete_planned_quantity(self, qe_token, project_id, catalog_item_id):
         """Test deleting a planned quantity"""
         headers = {"Authorization": f"Bearer {qe_token}"}
         
         # First create an item
         new_item = {
-            "item_name": f"TEST_صنف للحذف {uuid.uuid4().hex[:6]}",
-            "item_code": f"TEST-DEL-{uuid.uuid4().hex[:6]}",
-            "unit": "متر",
-            "planned_quantity": 25,
-            "project_id": project_id
+            "catalog_item_id": catalog_item_id,
+            "project_id": project_id,
+            "planned_quantity": 25
         }
         
         create_response = requests.post(f"{BASE_URL}/api/pg/quantity/planned", json=new_item, headers=headers)

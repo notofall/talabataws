@@ -25,12 +25,14 @@ import requests
 import os
 import uuid
 
+from tests.test_config import get_credentials
+
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
 # Test credentials
-QUANTITY_ENGINEER_CREDS = {"email": "quantity@test.com", "password": "123456"}
-SYSTEM_ADMIN_CREDS = {"email": "admin@system.com", "password": "123456"}
-PROCUREMENT_MANAGER_CREDS = {"email": "notofall@gmail.com", "password": "123456"}
+QUANTITY_ENGINEER_CREDS = get_credentials("quantity_engineer")
+SYSTEM_ADMIN_CREDS = get_credentials("system_admin")
+PROCUREMENT_MANAGER_CREDS = get_credentials("procurement_manager")
 
 
 class TestQuantityEngineerLogin:
@@ -191,7 +193,7 @@ class TestPlannedQuantitiesCRUD:
         assert "id" in data, "Response should have 'id'"
         assert "item_name" in data, "Response should have 'item_name'"
         print(f"✓ Created planned quantity: {data.get('id')} - {data.get('item_name')}")
-        return data.get('id')
+        assert data.get("id")
     
     def test_create_without_catalog_item_fails(self, qe_token, project_id):
         """Test that creating without catalog_item_id fails"""

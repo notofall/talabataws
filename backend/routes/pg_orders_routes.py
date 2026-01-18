@@ -100,6 +100,21 @@ async def get_approval_limit(session: AsyncSession) -> float:
     return 20000.0
 
 
+async def get_order_items_map(session: AsyncSession, order_ids: List[str]):
+    if not order_ids:
+        return {}
+    items_result = await session.execute(
+        select(PurchaseOrderItem)
+        .where(PurchaseOrderItem.order_id.in_(order_ids))
+        .order_by(PurchaseOrderItem.order_id, PurchaseOrderItem.item_index)
+    )
+    items = items_result.scalars().all()
+    items_map: dict[str, list[PurchaseOrderItem]] = {}
+    for item in items:
+        items_map.setdefault(item.order_id, []).append(item)
+    return items_map
+
+
 # ==================== PURCHASE ORDERS ROUTES ====================
 
 @pg_orders_router.post("/purchase-orders")
@@ -112,6 +127,9 @@ async def create_purchase_order(
     if current_user.role != UserRole.PROCUREMENT_MANAGER:
         raise HTTPException(status_code=403, detail="فقط مدير المشتريات يمكنه إصدار أوامر الشراء")
     
+    if not order_data.supplier_name or not order_data.supplier_name.strip():
+        raise HTTPException(status_code=400, detail="اسم المورد مطلوب")
+
     # Get material request
     req_result = await session.execute(
         select(MaterialRequest).where(MaterialRequest.id == order_data.request_id)
@@ -135,6 +153,9 @@ async def create_purchase_order(
     # Validate selected items
     if not order_data.selected_items:
         raise HTTPException(status_code=400, detail="يجب اختيار صنف واحد على الأقل")
+
+    if len(set(order_data.selected_items)) != len(order_data.selected_items):
+        raise HTTPException(status_code=400, detail="لا يمكن اختيار نفس الصنف أكثر من مرة")
     
     for idx in order_data.selected_items:
         if idx < 0 or idx >= len(request_items):
@@ -165,7 +186,12 @@ async def create_purchase_order(
     if order_data.item_prices:
         for price_info in order_data.item_prices:
             idx = price_info.get("index", -1)
-            price_map[idx] = price_info.get("unit_price", 0)
+            if idx not in order_data.selected_items:
+                raise HTTPException(status_code=400, detail=f"فهرس الصنف {idx} غير ضمن العناصر المختارة")
+            unit_price = price_info.get("unit_price", 0)
+            if unit_price is None or unit_price < 0:
+                raise HTTPException(status_code=400, detail="سعر الوحدة يجب أن يكون رقمًا موجبًا")
+            price_map[idx] = unit_price
             # Get catalog item info if provided
             catalog_item_id = price_info.get("catalog_item_id")
             if catalog_item_id:
@@ -294,6 +320,15 @@ async def get_purchase_orders(
     session: AsyncSession = Depends(get_postgres_session)
 ):
     """Get purchase orders based on user role"""
+    allowed_roles = {
+        UserRole.PROCUREMENT_MANAGER,
+        UserRole.GENERAL_MANAGER,
+        UserRole.PRINTER,
+        UserRole.SYSTEM_ADMIN,
+    }
+    if current_user.role not in allowed_roles:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+
     query = select(PurchaseOrder)
     
     # Role-based filtering
@@ -318,16 +353,13 @@ async def get_purchase_orders(
     
     result = await session.execute(query)
     orders = result.scalars().all()
+
+    order_ids = [order.id for order in orders]
+    items_map = await get_order_items_map(session, order_ids)
     
     response = []
     for order in orders:
-        # Get order items
-        items_result = await session.execute(
-            select(PurchaseOrderItem)
-            .where(PurchaseOrderItem.order_id == order.id)
-            .order_by(PurchaseOrderItem.item_index)
-        )
-        items = items_result.scalars().all()
+        items = items_map.get(order.id, [])
         
         response.append({
             "id": order.id,
@@ -382,6 +414,15 @@ async def get_purchase_order(
     session: AsyncSession = Depends(get_postgres_session)
 ):
     """Get a single purchase order"""
+    allowed_roles = {
+        UserRole.PROCUREMENT_MANAGER,
+        UserRole.GENERAL_MANAGER,
+        UserRole.PRINTER,
+        UserRole.SYSTEM_ADMIN,
+    }
+    if current_user.role not in allowed_roles:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+
     result = await session.execute(
         select(PurchaseOrder).where(PurchaseOrder.id == order_id)
     )
@@ -389,6 +430,9 @@ async def get_purchase_order(
     
     if not order:
         raise HTTPException(status_code=404, detail="أمر الشراء غير موجود")
+
+    if current_user.role == UserRole.PRINTER and order.status not in ["approved", "printed"]:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بالاطلاع على هذا الأمر")
     
     # Get items
     items_result = await session.execute(
@@ -472,6 +516,8 @@ async def update_purchase_order(
     changes = {}
     
     if update_data.supplier_name is not None:
+        if not update_data.supplier_name.strip():
+            raise HTTPException(status_code=400, detail="اسم المورد مطلوب")
         changes["supplier_name"] = {"old": order.supplier_name, "new": update_data.supplier_name}
         order.supplier_name = update_data.supplier_name
     
@@ -512,12 +558,19 @@ async def update_purchase_order(
         for price_info in update_data.item_prices:
             item_name = price_info.get("name")
             unit_price = price_info.get("unit_price", 0)
-            
+            if unit_price is None or unit_price < 0:
+                raise HTTPException(status_code=400, detail="سعر الوحدة يجب أن يكون رقمًا موجبًا")
+
+            matched = False
             for item in items:
                 if item.name == item_name:
                     item.unit_price = unit_price
                     item.total_price = unit_price * item.quantity
+                    matched = True
                     break
+
+            if not matched:
+                raise HTTPException(status_code=400, detail=f"الصنف '{item_name}' غير موجود في أمر الشراء")
             
         # Recalculate total
         for item in items:
@@ -532,6 +585,10 @@ async def update_purchase_order(
             order.needs_gm_approval = True
             order.status = "pending_gm_approval"
             changes["needs_gm_approval"] = {"old": False, "new": True, "reason": f"المبلغ {total_amount} أكبر من حد الموافقة {approval_limit}"}
+        if total_amount <= approval_limit and order.needs_gm_approval and order.status == "pending_gm_approval":
+            order.needs_gm_approval = False
+            order.status = "pending_approval"
+            changes["needs_gm_approval"] = {"old": True, "new": False, "reason": f"المبلغ {total_amount} أقل من حد الموافقة {approval_limit}"}
     
     order.updated_at = datetime.utcnow()
     

@@ -216,13 +216,22 @@ async def confirm_receipt(
     for delivery_item in receipt_data.items:
         item_id = delivery_item.get("item_id")
         quantity_delivered = delivery_item.get("quantity_delivered", 0)
+
+        if not item_id:
+            raise HTTPException(status_code=400, detail="معرف الصنف مطلوب")
+        if quantity_delivered <= 0:
+            raise HTTPException(status_code=400, detail="الكمية المسلمة يجب أن تكون أكبر من صفر")
         
         if item_id in items_map:
             item = items_map[item_id]
+            if item.delivered_quantity + quantity_delivered > item.quantity:
+                raise HTTPException(status_code=400, detail="الكمية المسلمة تتجاوز الكمية المطلوبة")
             item.delivered_quantity += quantity_delivered
             
             if item.delivered_quantity < item.quantity:
                 all_fully_delivered = False
+        else:
+            raise HTTPException(status_code=404, detail="الصنف غير موجود في أمر الشراء")
     
     # Update order status
     if all_fully_delivered:
