@@ -43,10 +43,12 @@ export default function SystemAdminDashboard() {
     report_footer: "", pdf_primary_color: "#1e40af", pdf_show_logo: true
   });
   const [logoPreview, setLogoPreview] = useState(null);
+  const [approvalLimit, setApprovalLimit] = useState("");
   
   // Loading states
   const [loading, setLoading] = useState(true);
   const [savingSettings, setSavingSettings] = useState(false);
+  const [savingApprovalLimit, setSavingApprovalLimit] = useState(false);
   
   // Cleanup dialog
   const [showCleanupDialog, setShowCleanupDialog] = useState(false);
@@ -106,6 +108,7 @@ export default function SystemAdminDashboard() {
     project: "مشروع",
     request: "طلب مواد",
     purchase_order: "أمر شراء",
+    quotation: "مقارنة عروض",
     supplier: "مورد",
     category: "تصنيف ميزانية",
     default_category: "تصنيف افتراضي",
@@ -117,6 +120,7 @@ export default function SystemAdminDashboard() {
     create: "إنشاء",
     update: "تحديث",
     delete: "حذف",
+    select: "اختيار",
     approve: "اعتماد",
     reject: "رفض",
     create_user: "إنشاء مستخدم",
@@ -135,10 +139,11 @@ export default function SystemAdminDashboard() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [statsRes, usersRes, settingsRes] = await Promise.all([
+      const [statsRes, usersRes, settingsRes, approvalRes] = await Promise.all([
         axios.get(`${API_URL}/sysadmin/stats`, getAuthHeaders()),
         axios.get(`${API_URL}/admin/users`, getAuthHeaders()),
-        axios.get(`${API_URL}/sysadmin/company-settings`, getAuthHeaders())
+        axios.get(`${API_URL}/sysadmin/company-settings`, getAuthHeaders()),
+        axios.get(`${API_URL}/settings`, getAuthHeaders()).catch(() => ({ data: [] }))
       ]);
       
       setStats(statsRes.data);
@@ -146,6 +151,10 @@ export default function SystemAdminDashboard() {
       setCompanySettings(prev => ({ ...prev, ...settingsRes.data }));
       if (settingsRes.data.company_logo) {
         setLogoPreview(settingsRes.data.company_logo);
+      }
+      const approvalSetting = (approvalRes.data || []).find(s => s.key === "approval_limit");
+      if (approvalSetting) {
+        setApprovalLimit(approvalSetting.value);
       }
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -549,6 +558,28 @@ export default function SystemAdminDashboard() {
     }
   };
 
+  const handleSaveApprovalLimit = async () => {
+    const normalized = parseFloat(approvalLimit);
+    if (Number.isNaN(normalized) || normalized <= 0) {
+      toast.error("الرجاء إدخال حد موافقة صالح");
+      return;
+    }
+
+    setSavingApprovalLimit(true);
+    try {
+      await axios.put(
+        `${API_URL}/settings/approval_limit`,
+        { value: normalized.toString() },
+        getAuthHeaders()
+      );
+      toast.success("تم تحديث حد الموافقة بنجاح");
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "فشل في تحديث حد الموافقة");
+    } finally {
+      setSavingApprovalLimit(false);
+    }
+  };
+
   const handleLogoUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -826,6 +857,28 @@ export default function SystemAdminDashboard() {
                 <CardDescription>تخصيص معلومات الشركة وتنسيق التقارير</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
+                <div className="border rounded-lg p-4 bg-slate-50 space-y-3">
+                  <div>
+                    <Label>حد الموافقة لأوامر الشراء</Label>
+                    <p className="text-xs text-slate-500 mt-1">
+                      الأوامر التي تتجاوز هذا الحد تحتاج موافقة المدير العام.
+                    </p>
+                  </div>
+                  <div className="flex flex-col md:flex-row gap-2 items-start md:items-center">
+                    <Input
+                      type="number"
+                      value={approvalLimit}
+                      onChange={(e) => setApprovalLimit(e.target.value)}
+                      placeholder="20000"
+                      className="md:max-w-xs"
+                    />
+                    <Button onClick={handleSaveApprovalLimit} disabled={savingApprovalLimit}>
+                      {savingApprovalLimit ? <RefreshCw className="ml-2 h-4 w-4 animate-spin" /> : null}
+                      حفظ حد الموافقة
+                    </Button>
+                  </div>
+                </div>
+
                 {/* Logo Upload */}
                 <div className="space-y-2">
                   <Label>شعار الشركة</Label>
