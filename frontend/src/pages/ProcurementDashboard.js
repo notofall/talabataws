@@ -87,6 +87,7 @@ const ProcurementDashboard = () => {
   const [newCategory, setNewCategory] = useState({ name: "", project_id: "", estimated_budget: "" });
   const [editingCategory, setEditingCategory] = useState(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState("");  // For PO creation
+  const [quoteIdForOrder, setQuoteIdForOrder] = useState(null);
   const [projects, setProjects] = useState([]);
   const [projectReportDialogOpen, setProjectReportDialogOpen] = useState(false);
   const [selectedProjectReport, setSelectedProjectReport] = useState(null);
@@ -173,6 +174,16 @@ const ProcurementDashboard = () => {
   const [bestPriceAlerts, setBestPriceAlerts] = useState({});  // {itemIndex: {has_better_price, better_options}}
   const [quickAddItem, setQuickAddItem] = useState(null);  // For quick adding item to catalog
   const [showQuickAddDialog, setShowQuickAddDialog] = useState(false);
+
+  // Quote Comparison - مقارنة عروض الأسعار
+  const [quoteDialogOpen, setQuoteDialogOpen] = useState(false);
+  const [quoteRequest, setQuoteRequest] = useState(null);
+  const [quoteOffers, setQuoteOffers] = useState([]);
+  const [quoteComparisonId, setQuoteComparisonId] = useState(null);
+  const [quoteSelectedIndex, setQuoteSelectedIndex] = useState(null);
+  const [quoteNotes, setQuoteNotes] = useState("");
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [quoteSubmitting, setQuoteSubmitting] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -875,16 +886,17 @@ const ProcurementDashboard = () => {
   const [remainingItems, setRemainingItems] = useState([]);
   const [loadingItems, setLoadingItems] = useState(false);
 
-  const openOrderDialog = async (request) => {
+  const openOrderDialog = async (request, prefill = null) => {
     setSelectedRequest(request);
-    setSelectedSupplierId("");
-    setSupplierName("");
-    setOrderNotes("");
-    setTermsConditions("");
-    setExpectedDeliveryDate("");
+    setSelectedSupplierId(prefill?.supplier_id || "");
+    setSupplierName(prefill?.supplier_name || "");
+    setOrderNotes(prefill?.notes || "");
+    setTermsConditions(prefill?.terms_conditions || "");
+    setExpectedDeliveryDate(prefill?.expected_delivery_date || "");
     setSelectedItemIndices([]);
     setCatalogPrices({});  // Reset catalog prices
-    setSelectedCategoryId("");  // Reset category selection
+    setSelectedCategoryId(prefill?.category_id || "");  // Reset category selection
+    setQuoteIdForOrder(prefill?.quote_id || null);
     setLoadingItems(true);
     setOrderDialogOpen(true);
     
@@ -923,6 +935,216 @@ const ProcurementDashboard = () => {
     } finally {
       setLoadingItems(false);
     }
+
+    if (prefill?.selected_item_indices?.length) {
+      setSelectedItemIndices(prefill.selected_item_indices);
+    }
+    if (prefill?.item_prices) {
+      setItemPrices(prefill.item_prices);
+    }
+  };
+
+  const createBlankQuoteOffer = (request) => ({
+    supplier_id: "",
+    supplier_name: "",
+    notes: "",
+    items: (request?.items || []).map((item, idx) => ({
+      item_index: idx,
+      name: item.name,
+      quantity: item.quantity,
+      unit: item.unit,
+      unit_price: item.estimated_price ? item.estimated_price.toString() : ""
+    }))
+  });
+
+  const normalizeQuoteOffers = (offers = []) => (
+    offers.map(offer => ({
+      supplier_id: offer.supplier_id || "",
+      supplier_name: offer.supplier_name || "",
+      notes: offer.notes || "",
+      items: (offer.items || []).map(item => ({
+        item_index: item.item_index,
+        name: item.name,
+        quantity: item.quantity,
+        unit: item.unit,
+        unit_price: item.unit_price !== undefined && item.unit_price !== null ? item.unit_price.toString() : ""
+      }))
+    }))
+  );
+
+  const calculateQuoteTotal = (offer) => (
+    offer.items.reduce((sum, item) => {
+      const unitPrice = parseFloat(item.unit_price) || 0;
+      const quantity = parseFloat(item.quantity) || 0;
+      return sum + unitPrice * quantity;
+    }, 0)
+  );
+
+  const openQuoteDialog = async (request) => {
+    setQuoteRequest(request);
+    setQuoteDialogOpen(true);
+    setQuoteLoading(true);
+    setQuoteOffers([]);
+    setQuoteComparisonId(null);
+    setQuoteSelectedIndex(null);
+    setQuoteNotes("");
+
+    try {
+      const res = await axios.get(`${API_URL}/quotes`, {
+        ...getAuthHeaders(),
+        params: { request_id: request.id }
+      });
+      const existing = Array.isArray(res.data) && res.data.length > 0 ? res.data[0] : null;
+      if (existing) {
+        setQuoteComparisonId(existing.id);
+        setQuoteSelectedIndex(existing.selected_offer_index);
+        setQuoteNotes(existing.notes || "");
+        setQuoteOffers(normalizeQuoteOffers(existing.offers || []));
+      } else {
+        setQuoteOffers([createBlankQuoteOffer(request)]);
+      }
+    } catch (error) {
+      toast.error("فشل في تحميل عروض الأسعار");
+      setQuoteOffers([createBlankQuoteOffer(request)]);
+    } finally {
+      setQuoteLoading(false);
+    }
+  };
+
+  const handleAddQuoteOffer = () => {
+    if (!quoteRequest) return;
+    setQuoteOffers(prev => [...prev, createBlankQuoteOffer(quoteRequest)]);
+  };
+
+  const handleRemoveQuoteOffer = (offerIndex) => {
+    setQuoteOffers(prev => {
+      if (prev.length <= 1) return prev;
+      return prev.filter((_, idx) => idx !== offerIndex);
+    });
+  };
+
+  const updateQuoteOffer = (offerIndex, updates) => {
+    setQuoteOffers(prev => prev.map((offer, idx) => (
+      idx === offerIndex ? { ...offer, ...updates } : offer
+    )));
+  };
+
+  const updateQuoteOfferItemPrice = (offerIndex, itemIndex, value) => {
+    setQuoteOffers(prev => prev.map((offer, idx) => {
+      if (idx !== offerIndex) return offer;
+      return {
+        ...offer,
+        items: offer.items.map(item => (
+          item.item_index === itemIndex ? { ...item, unit_price: value } : item
+        ))
+      };
+    }));
+  };
+
+  const handleQuoteSupplierSelect = (offerIndex, supplierId) => {
+    const supplier = suppliers.find(s => s.id === supplierId);
+    updateQuoteOffer(offerIndex, {
+      supplier_id: supplierId,
+      supplier_name: supplier ? supplier.name : ""
+    });
+  };
+
+  const handleSaveQuoteComparison = async () => {
+    if (!quoteRequest) return null;
+
+    const offersPayload = quoteOffers.map(offer => ({
+      supplier_id: offer.supplier_id || null,
+      supplier_name: offer.supplier_name || "",
+      notes: offer.notes || null,
+      items: offer.items.map(item => ({
+        item_index: item.item_index,
+        unit_price: parseFloat(item.unit_price) || 0
+      }))
+    }));
+
+    setQuoteSubmitting(true);
+    try {
+      const res = quoteComparisonId
+        ? await axios.put(`${API_URL}/quotes/${quoteComparisonId}`, {
+            offers: offersPayload,
+            notes: quoteNotes || null
+          }, getAuthHeaders())
+        : await axios.post(`${API_URL}/quotes`, {
+            request_id: quoteRequest.id,
+            offers: offersPayload,
+            notes: quoteNotes || null
+          }, getAuthHeaders());
+
+      const saved = res.data;
+      setQuoteComparisonId(saved.id);
+      setQuoteSelectedIndex(saved.selected_offer_index);
+      setQuoteNotes(saved.notes || "");
+      setQuoteOffers(normalizeQuoteOffers(saved.offers || []));
+      toast.success(quoteComparisonId ? "تم تحديث مقارنة العروض" : "تم حفظ مقارنة العروض");
+      return saved;
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "فشل في حفظ مقارنة العروض");
+      return null;
+    } finally {
+      setQuoteSubmitting(false);
+    }
+  };
+
+  const handleSelectQuoteOffer = async (offerIndex) => {
+    let comparisonId = quoteComparisonId;
+    if (!comparisonId) {
+      const saved = await handleSaveQuoteComparison();
+      comparisonId = saved?.id;
+    }
+    if (!comparisonId) return;
+
+    setQuoteSubmitting(true);
+    try {
+      const res = await axios.post(
+        `${API_URL}/quotes/${comparisonId}/select`,
+        { offer_index: offerIndex },
+        getAuthHeaders()
+      );
+      const updated = res.data;
+      setQuoteComparisonId(updated.id);
+      setQuoteSelectedIndex(updated.selected_offer_index);
+      setQuoteNotes(updated.notes || "");
+      setQuoteOffers(normalizeQuoteOffers(updated.offers || []));
+      toast.success("تم اختيار العرض الفائز");
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "فشل في اختيار العرض");
+    } finally {
+      setQuoteSubmitting(false);
+    }
+  };
+
+  const handleConvertQuoteToOrder = async () => {
+    if (!quoteRequest || quoteSelectedIndex === null) {
+      toast.error("الرجاء اختيار العرض الفائز أولاً");
+      return;
+    }
+
+    const selectedOffer = quoteOffers[quoteSelectedIndex];
+    if (!selectedOffer) {
+      toast.error("العرض المحدد غير موجود");
+      return;
+    }
+
+    const selectedIndices = selectedOffer.items.map(item => item.item_index);
+    const pricesMap = {};
+    selectedOffer.items.forEach(item => {
+      pricesMap[item.item_index] = item.unit_price?.toString() || "";
+    });
+
+    await openOrderDialog(quoteRequest, {
+      supplier_id: selectedOffer.supplier_id || "",
+      supplier_name: selectedOffer.supplier_name || "",
+      selected_item_indices: selectedIndices,
+      item_prices: pricesMap,
+      notes: quoteNotes ? `عرض أسعار: ${quoteNotes}` : "عرض أسعار",
+      quote_id: quoteComparisonId
+    });
+    setQuoteDialogOpen(false);
   };
 
   const toggleItemSelection = (idx) => {
@@ -1009,7 +1231,8 @@ const ProcurementDashboard = () => {
         category_id: selectedCategoryId || null,  // Budget category
         notes: orderNotes,
         terms_conditions: termsConditions,
-        expected_delivery_date: expectedDeliveryDate || null
+        expected_delivery_date: expectedDeliveryDate || null,
+        quote_id: quoteIdForOrder || null
       }, getAuthHeaders());
       toast.success("تم إصدار أمر الشراء بنجاح");
       setOrderDialogOpen(false);
@@ -1022,6 +1245,7 @@ const ProcurementDashboard = () => {
       setItemPrices({});
       setSelectedCategoryId("");
       setSelectedRequest(null);
+      setQuoteIdForOrder(null);
       fetchData();
     } catch (error) {
       toast.error(error.response?.data?.detail || "فشل في إصدار أمر الشراء");
@@ -1758,6 +1982,11 @@ const ProcurementDashboard = () => {
                               {["approved_by_engineer", "partially_ordered"].includes(req.status) && (
                                 <>
                                   <Button size="sm" variant="ghost" onClick={() => openRejectDialog(req)} className="h-7 w-7 p-0" title="رفض الطلب"><X className="w-3 h-3 text-red-600" /></Button>
+                                  {req.status === "approved_by_engineer" && (
+                                    <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => openQuoteDialog(req)}>
+                                      <FileText className="w-3 h-3 ml-1" />عروض
+                                    </Button>
+                                  )}
                                   <Button size="sm" className="bg-orange-600 h-7 text-xs px-2" onClick={() => openOrderDialog(req)}>
                                     <ShoppingCart className="w-3 h-3 ml-1" />إصدار
                                   </Button>
@@ -1798,6 +2027,11 @@ const ProcurementDashboard = () => {
                                   {["approved_by_engineer", "partially_ordered"].includes(req.status) && (
                                     <>
                                       <Button size="sm" variant="ghost" onClick={() => openRejectDialog(req)} className="h-8 w-8 p-0" title="رفض الطلب"><X className="w-4 h-4 text-red-600" /></Button>
+                                      {req.status === "approved_by_engineer" && (
+                                        <Button size="sm" variant="outline" onClick={() => openQuoteDialog(req)}>
+                                          <FileText className="w-4 h-4 ml-1" />عروض الأسعار
+                                        </Button>
+                                      )}
                                       <Button size="sm" className="bg-orange-600 hover:bg-orange-700" onClick={() => openOrderDialog(req)}>
                                         <ShoppingCart className="w-4 h-4 ml-1" />إصدار
                                       </Button>
@@ -2587,6 +2821,169 @@ const ProcurementDashboard = () => {
               )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Quote Comparison Dialog */}
+      <Dialog open={quoteDialogOpen} onOpenChange={setQuoteDialogOpen}>
+        <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto p-0" dir="rtl">
+          <div className="sticky top-0 z-10 bg-gradient-to-l from-slate-700 to-slate-600 text-white p-4 rounded-t-lg">
+            <DialogTitle className="text-center text-lg font-bold">مقارنة عروض الأسعار</DialogTitle>
+            {quoteRequest && (
+              <p className="text-center text-slate-200 text-sm mt-1">{quoteRequest.project_name}</p>
+            )}
+          </div>
+
+          <div className="p-4 space-y-4">
+            {quoteLoading ? (
+              <div className="text-center py-8">
+                <Loader2 className="w-8 h-8 animate-spin mx-auto text-slate-400" />
+                <p className="text-slate-500 text-sm mt-2">جاري تحميل العروض...</p>
+              </div>
+            ) : (
+              <>
+                {quoteRequest && (
+                  <div className="bg-slate-50 border rounded-lg p-3 text-sm">
+                    <div className="flex flex-wrap gap-4">
+                      <div>
+                        <span className="text-slate-500">رقم الطلب:</span>{" "}
+                        <span className="font-semibold text-orange-600">
+                          {quoteRequest.request_number || quoteRequest.id?.slice(0, 8).toUpperCase()}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500">عدد الأصناف:</span>{" "}
+                        <span className="font-semibold">{quoteRequest.items?.length || 0}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
+                  <p className="text-sm text-slate-600">أضف عروض الموردين وقارن الأسعار قبل إصدار أمر الشراء.</p>
+                  <Button size="sm" variant="outline" onClick={handleAddQuoteOffer}>
+                    <Plus className="w-4 h-4 ml-1" />إضافة عرض
+                  </Button>
+                </div>
+
+                <div className="space-y-4">
+                  {quoteOffers.map((offer, offerIndex) => (
+                    <div key={offerIndex} className={`border rounded-lg ${quoteSelectedIndex === offerIndex ? "border-green-500 bg-green-50" : "bg-white"}`}>
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-3 border-b bg-slate-50">
+                        <div className="flex-1 space-y-2">
+                          <Label className="text-xs">المورد</Label>
+                          <div className="flex flex-col md:flex-row gap-2">
+                            <select
+                              value={offer.supplier_id}
+                              onChange={(e) => handleQuoteSupplierSelect(offerIndex, e.target.value)}
+                              className="h-10 border rounded-md px-2 text-sm bg-white"
+                            >
+                              <option value="">اختر من الموردين</option>
+                              {suppliers.map(s => (
+                                <option key={s.id} value={s.id}>{s.name}</option>
+                              ))}
+                            </select>
+                            <Input
+                              placeholder="أو أدخل اسم المورد"
+                              value={offer.supplier_name}
+                              onChange={(e) => updateQuoteOffer(offerIndex, { supplier_name: e.target.value, supplier_id: "" })}
+                              className="h-10 bg-white"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {quoteSelectedIndex === offerIndex ? (
+                            <Badge className="bg-green-600 text-white">العرض الفائز</Badge>
+                          ) : (
+                            <Button
+                              size="sm"
+                              onClick={() => handleSelectQuoteOffer(offerIndex)}
+                              disabled={quoteSubmitting}
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              <Check className="w-4 h-4 ml-1" />اختيار الفائز
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-red-600"
+                            onClick={() => handleRemoveQuoteOffer(offerIndex)}
+                            disabled={quoteOffers.length <= 1}
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="p-3 space-y-3">
+                        <div className="space-y-2">
+                          {offer.items.map(item => (
+                            <div key={item.item_index} className="grid grid-cols-1 md:grid-cols-5 gap-2 items-center text-sm">
+                              <div className="md:col-span-2 font-medium">{item.name}</div>
+                              <div className="text-slate-500">{item.quantity} {item.unit}</div>
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={item.unit_price}
+                                  onChange={(e) => updateQuoteOfferItemPrice(offerIndex, item.item_index, e.target.value)}
+                                  className="h-9 w-28 bg-white"
+                                />
+                                <span className="text-xs text-slate-500">ر.س</span>
+                              </div>
+                              <div className="text-right font-semibold text-emerald-700">
+                                {formatCurrency((parseFloat(item.unit_price) || 0) * (item.quantity || 0))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="flex justify-between items-center border-t pt-2">
+                          <span className="text-sm font-semibold text-slate-700">إجمالي العرض</span>
+                          <span className="text-sm font-bold text-orange-600">{formatCurrency(calculateQuoteTotal(offer))}</span>
+                        </div>
+
+                        <div>
+                          <Label className="text-xs">ملاحظات العرض (اختياري)</Label>
+                          <Textarea
+                            value={offer.notes || ""}
+                            onChange={(e) => updateQuoteOffer(offerIndex, { notes: e.target.value })}
+                            rows={2}
+                            className="mt-1 bg-white"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="bg-slate-50 border rounded-lg p-3">
+                  <Label className="text-sm">ملاحظات المقارنة (اختياري)</Label>
+                  <Textarea
+                    value={quoteNotes}
+                    onChange={(e) => setQuoteNotes(e.target.value)}
+                    rows={2}
+                    className="mt-2 bg-white"
+                  />
+                </div>
+
+                <div className="flex flex-col md:flex-row gap-2 justify-end">
+                  <Button variant="outline" onClick={() => setQuoteDialogOpen(false)}>إغلاق</Button>
+                  <Button onClick={handleSaveQuoteComparison} disabled={quoteSubmitting}>
+                    {quoteSubmitting ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <FileText className="w-4 h-4 ml-2" />}
+                    حفظ المقارنة
+                  </Button>
+                  {quoteSelectedIndex !== null && (
+                    <Button onClick={handleConvertQuoteToOrder} className="bg-orange-600 hover:bg-orange-700">
+                      <ShoppingCart className="w-4 h-4 ml-1" />تحويل لأمر شراء
+                    </Button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 

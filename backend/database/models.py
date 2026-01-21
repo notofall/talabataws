@@ -269,6 +269,39 @@ class PurchaseOrderItem(Base):
     item_code: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
 
+# ==================== QUOTATION COMPARISON MODEL ====================
+
+class QuotationComparison(Base):
+    """Quotation comparison - stores supplier offers per request"""
+    __tablename__ = "quotation_comparisons"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid_lib.uuid4()))
+    request_id: Mapped[str] = mapped_column(String(36), ForeignKey("material_requests.id"), nullable=False, index=True)
+    request_number: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, index=True)
+    project_id: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("projects.id"), nullable=True, index=True)
+    project_name: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    status: Mapped[str] = mapped_column(String(50), default="draft", index=True)
+    offers: Mapped[str] = mapped_column(Text, nullable=False)  # JSON array
+
+    selected_offer_index: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    selected_supplier_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    selected_supplier_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    selected_total_amount: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    converted_order_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_by: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False)
+    created_by_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        Index('idx_quotes_status_created_at', 'status', 'created_at'),
+        Index('idx_quotes_request_project', 'request_id', 'project_id'),
+    )
+
+
 # ==================== DELIVERY RECORD MODEL ====================
 
 class DeliveryRecord(Base):

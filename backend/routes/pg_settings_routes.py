@@ -39,8 +39,8 @@ async def get_system_settings(
     current_user: User = Depends(get_current_user_pg),
     session: AsyncSession = Depends(get_postgres_session)
 ):
-    """Get all system settings - procurement manager and general manager"""
-    if current_user.role not in [UserRole.PROCUREMENT_MANAGER, UserRole.GENERAL_MANAGER]:
+    """Get all system settings - procurement manager, general manager, system admin"""
+    if current_user.role not in [UserRole.PROCUREMENT_MANAGER, UserRole.GENERAL_MANAGER, UserRole.SYSTEM_ADMIN]:
         raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
     
     result = await session.execute(select(SystemSetting))
@@ -88,8 +88,8 @@ async def update_system_setting(
     current_user: User = Depends(get_current_user_pg),
     session: AsyncSession = Depends(get_postgres_session)
 ):
-    """Update a system setting - procurement manager and general manager"""
-    if current_user.role not in [UserRole.PROCUREMENT_MANAGER, UserRole.GENERAL_MANAGER]:
+    """Update a system setting - procurement manager, general manager, system admin"""
+    if current_user.role not in [UserRole.PROCUREMENT_MANAGER, UserRole.GENERAL_MANAGER, UserRole.SYSTEM_ADMIN]:
         raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
     
     result = await session.execute(

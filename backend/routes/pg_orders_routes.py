@@ -15,7 +15,8 @@ import json
 from database import (
     get_postgres_session, PurchaseOrder, PurchaseOrderItem,
     MaterialRequest, MaterialRequestItem, User, Project, 
-    Supplier, BudgetCategory, SystemSetting, AuditLog, PriceCatalogItem
+    Supplier, BudgetCategory, SystemSetting, AuditLog, PriceCatalogItem,
+    QuotationComparison
 )
 
 # Create router
@@ -42,6 +43,7 @@ class PurchaseOrderCreate(BaseModel):
     notes: Optional[str] = None
     terms_conditions: Optional[str] = None
     expected_delivery_date: Optional[str] = None
+    quote_id: Optional[str] = None
 
 
 class PurchaseOrderUpdate(BaseModel):
@@ -259,6 +261,24 @@ async def create_purchase_order(
     else:
         request.status = "partially_ordered"
     request.updated_at = now
+
+    if order_data.quote_id:
+        quote_result = await session.execute(
+            select(QuotationComparison).where(QuotationComparison.id == order_data.quote_id)
+        )
+        quote = quote_result.scalar_one_or_none()
+        if not quote:
+            raise HTTPException(status_code=404, detail="مقارنة العروض غير موجودة")
+        if quote.request_id != request.id:
+            raise HTTPException(status_code=400, detail="مقارنة العروض لا تتبع هذا الطلب")
+        if quote.selected_offer_index is None:
+            raise HTTPException(status_code=400, detail="يجب اختيار العرض الفائز قبل إصدار أمر الشراء")
+        if quote.status == "converted":
+            raise HTTPException(status_code=400, detail="تم تحويل مقارنة العروض مسبقاً")
+
+        quote.converted_order_id = order_id
+        quote.status = "converted"
+        quote.updated_at = now
     
     await log_audit_pg(
         session, "order", order_id, "create", current_user,

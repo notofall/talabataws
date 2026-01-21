@@ -14,7 +14,7 @@ import axios from "axios";
 const API_URL = `${process.env.REACT_APP_BACKEND_URL}/api/pg`;
 
 const LoginPage = () => {
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [forgotDialogOpen, setForgotDialogOpen] = useState(false);
@@ -24,14 +24,14 @@ const LoginPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email || !password) {
-      toast.error("الرجاء إدخال البريد الإلكتروني وكلمة المرور");
+    if (!identifier || !password) {
+      toast.error("الرجاء إدخال اسم المستخدم أو البريد الإلكتروني وكلمة المرور");
       return;
     }
 
     setLoading(true);
     try {
-      await login(email, password);
+      await login(identifier, password);
       toast.success("تم تسجيل الدخول بنجاح");
     } catch (error) {
       toast.error(error.response?.data?.detail || "فشل تسجيل الدخول");
@@ -87,16 +87,16 @@ const LoginPage = () => {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="email" className="text-slate-700 font-medium">
-                    البريد الإلكتروني
+                    اسم المستخدم أو البريد الإلكتروني
                   </Label>
                   <div className="relative">
                     <Mail className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                     <Input
                       id="email"
-                      type="email"
-                      placeholder="example@company.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      type="text"
+                      placeholder="username أو example@company.com"
+                      value={identifier}
+                      onChange={(e) => setIdentifier(e.target.value)}
                       className="pr-10 h-12 text-right"
                       data-testid="login-email-input"
                       dir="ltr"

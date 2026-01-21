@@ -11,7 +11,7 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import func
+from sqlalchemy import func, or_
 import uuid
 import os
 import json
@@ -53,7 +53,9 @@ class UserCreate(BaseModel):
 
 
 class UserLogin(BaseModel):
-    email: EmailStr
+    identifier: Optional[str] = None
+    email: Optional[str] = None
+    username: Optional[str] = None
     password: str
 
 
@@ -234,11 +236,31 @@ async def login(
     session: AsyncSession = Depends(get_postgres_session)
 ):
     """Login user"""
-    result = await session.execute(select(User).where(User.email == credentials.email))
-    user = result.scalar_one_or_none()
-    
-    if not user or not verify_password(credentials.password, user.password):
-        raise HTTPException(status_code=401, detail="البريد الإلكتروني أو كلمة المرور غير صحيحة")
+    login_identifier = (credentials.identifier or credentials.email or credentials.username or "").strip()
+    if not login_identifier:
+        raise HTTPException(status_code=400, detail="الرجاء إدخال اسم المستخدم أو البريد الإلكتروني")
+
+    result = await session.execute(
+        select(User).where(
+            or_(User.email == login_identifier, User.name == login_identifier)
+        )
+    )
+    users = result.scalars().all()
+
+    if not users:
+        raise HTTPException(status_code=401, detail="اسم المستخدم أو البريد الإلكتروني أو كلمة المرور غير صحيحة")
+
+    if len(users) > 1:
+        email_match = next((u for u in users if u.email == login_identifier), None)
+        if email_match:
+            user = email_match
+        else:
+            raise HTTPException(status_code=400, detail="اسم المستخدم غير فريد، يرجى استخدام البريد الإلكتروني")
+    else:
+        user = users[0]
+
+    if not verify_password(credentials.password, user.password):
+        raise HTTPException(status_code=401, detail="اسم المستخدم أو البريد الإلكتروني أو كلمة المرور غير صحيحة")
     
     if not user.is_active:
         raise HTTPException(status_code=403, detail="تم تعطيل حسابك. تواصل مع مدير النظام")

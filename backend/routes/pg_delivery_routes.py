@@ -14,7 +14,7 @@ import json
 
 from database import (
     get_postgres_session, PurchaseOrder, PurchaseOrderItem,
-    User, DeliveryRecord, AuditLog
+    User, DeliveryRecord, AuditLog, PlannedQuantity
 )
 
 # Create router
@@ -39,6 +39,57 @@ async def log_audit_pg(session, entity_type, entity_id, action, user, descriptio
         description=description
     )
     session.add(audit_log)
+
+
+async def deduct_planned_quantity(
+    session: AsyncSession,
+    project_id: Optional[str],
+    catalog_item_id: Optional[str],
+    quantity_to_deduct: float
+):
+    """Deduct planned quantity after receipt confirmation."""
+    if not project_id or not catalog_item_id or quantity_to_deduct <= 0:
+        return {"deducted": 0, "remaining_to_deduct": quantity_to_deduct}
+
+    result = await session.execute(
+        select(PlannedQuantity).where(
+            and_(
+                PlannedQuantity.catalog_item_id == catalog_item_id,
+                PlannedQuantity.project_id == project_id,
+                PlannedQuantity.remaining_quantity > 0
+            )
+        ).order_by(PlannedQuantity.expected_order_date.asc().nullslast())
+    )
+    planned_items = result.scalars().all()
+
+    if not planned_items:
+        return {"deducted": 0, "remaining_to_deduct": quantity_to_deduct}
+
+    remaining_to_deduct = quantity_to_deduct
+    total_deducted = 0
+
+    for planned_item in planned_items:
+        if remaining_to_deduct <= 0:
+            break
+
+        available = planned_item.remaining_quantity
+        if available <= 0:
+            continue
+
+        deduct_amount = min(available, remaining_to_deduct)
+        planned_item.ordered_quantity += deduct_amount
+        planned_item.remaining_quantity -= deduct_amount
+        remaining_to_deduct -= deduct_amount
+        total_deducted += deduct_amount
+
+        if planned_item.remaining_quantity == 0:
+            planned_item.status = "fully_ordered"
+        else:
+            planned_item.status = "partially_ordered"
+
+        planned_item.updated_at = datetime.utcnow()
+
+    return {"deducted": total_deducted, "remaining_to_deduct": remaining_to_deduct}
 
 
 # ==================== DELIVERY TRACKER ROUTES ====================
@@ -213,6 +264,7 @@ async def confirm_receipt(
     
     # Update delivered quantities
     all_fully_delivered = True
+    deductions = []
     for delivery_item in receipt_data.items:
         item_id = delivery_item.get("item_id")
         quantity_delivered = delivery_item.get("quantity_delivered", 0)
@@ -223,6 +275,21 @@ async def confirm_receipt(
             
             if item.delivered_quantity < item.quantity:
                 all_fully_delivered = False
+
+            # Deduct planned quantities after receipt
+            if quantity_delivered > 0:
+                deduction = await deduct_planned_quantity(
+                    session,
+                    order.project_id,
+                    item.catalog_item_id,
+                    quantity_delivered
+                )
+                deductions.append({
+                    "item_id": item_id,
+                    "item_name": item.name,
+                    "deducted": deduction["deducted"],
+                    "remaining_to_deduct": deduction["remaining_to_deduct"]
+                })
     
     # Update order status
     if all_fully_delivered:
@@ -255,5 +322,6 @@ async def confirm_receipt(
     return {
         "message": "تم تأكيد الاستلام بنجاح",
         "status": order.status,
-        "fully_delivered": all_fully_delivered
+        "fully_delivered": all_fully_delivered,
+        "quantity_deductions": deductions
     }
